@@ -51,6 +51,7 @@ always @(*) begin
         `ALU_SLTU:  reg_wdata_o = (op1 < op2) ? 32'b1 : 32'b0;
         `ALU_LUI:   reg_wdata_o = imm_i;
         `ALU_AUIPC: reg_wdata_o = imm_i; // id阶段已经把 PC 加到立即数上了
+        `ifdef USE_ZB_EXTENSION
         `ALU_BITMANIP: begin
             // TODO: fill in at competition
             //   Zba: sh1add/sh2add/sh3add/add.uw/slli.uw
@@ -61,6 +62,7 @@ always @(*) begin
             //   Zbkx: xperm.n/xperm.b
             reg_wdata_o = 32'b0;
         end
+        `endif
         default:    reg_wdata_o = 32'b0;
     endcase
 end

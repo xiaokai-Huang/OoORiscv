@@ -5,6 +5,7 @@
 
 // `define DEBUG
 `define use_m_extension
+// `define USE_ZB_EXTENSION   // 取消注释以启用 Zb* 位操作扩展
 
 `define INST_LUI      7'b0110111     // 加载立即数到高位
 `define INST_AUIPC    7'b0010111     // 向PC高位加上立即数
@@ -243,9 +244,11 @@
 //      Zbkb: 0000100(R)
 //      Zbkx: 0010100(R)
 //
+`ifdef USE_ZB_EXTENSION
 `define FUNCT7_ZB_R  7'b0000000  // R-type funct7: configure at competition
 `define FUNCT7_ZB_I  7'b0000000  // I-type funct7: configure at competition
 `define INST_ZB_F3   3'b000      // funct3 placeholder: configure at competition
+`endif
 
 
 

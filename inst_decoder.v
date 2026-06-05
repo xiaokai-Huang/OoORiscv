@@ -64,13 +64,16 @@ always@(*) begin
             reg_wflag_o = 1'b1;
 
             // Zb* I-type: 同时检查funct7+funct3防止误匹配普通I型立即数
+            `ifdef USE_ZB_EXTENSION
             if ((funct7 == `FUNCT7_ZB_I) && (funct3 == `INST_ZB_F3)) begin
                 // TODO: fill in at competition
                 //   e.g. rori(f7=0110000,f3=101), bseti/bclri/binvi/bexti(f7=0010100/0100100,f3=001/101),
                 //        clz/ctz/cpop(f7=0110000,f3=001), slli.uw(f7=0000100,f3=001)
                 inst_subtype_o = `ALU_BITMANIP;
             end
-            else begin    // 普通I型指令
+            else
+            `endif
+            begin    // 普通I型指令
                 case (funct3)
                     `INST_ADDI:begin
                         inst_subtype_o = `ALU_ADD;
@@ -147,6 +150,7 @@ always@(*) begin
                     end
                 endcase
             end
+            `ifdef USE_ZB_EXTENSION
             // Zb* R-type: 同时检查funct7+funct3防止误匹配SUB/SRA(同为f7=0100000)
             else if ((funct7 == `FUNCT7_ZB_R) && (funct3 == `INST_ZB_F3)) begin
                 inst_type_o = `TYPE_ALU;
@@ -161,6 +165,7 @@ always@(*) begin
                 //   Zbkx: xperm.n(f7=0010100,f3=010), xperm.b(f3=100)
                 inst_subtype_o = `ALU_BITMANIP;
             end
+            `endif
             else begin    // 普通R型指令
                 inst_type_o = `TYPE_ALU;
                 case (funct3)
