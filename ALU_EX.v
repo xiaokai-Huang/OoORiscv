@@ -51,6 +51,16 @@ always @(*) begin
         `ALU_SLTU:  reg_wdata_o = (op1 < op2) ? 32'b1 : 32'b0;
         `ALU_LUI:   reg_wdata_o = imm_i;
         `ALU_AUIPC: reg_wdata_o = imm_i; // id阶段已经把 PC 加到立即数上了
+        `ALU_BITMANIP: begin
+            // TODO: fill in at competition
+            //   Zba: sh1add/sh2add/sh3add/add.uw/slli.uw
+            //   Zbb: andn/orn/xnor/rol/ror/rori/max/min/maxu/minu/sext.b/sext.h/zext.h/orc.b/rev8/clz/ctz/cpop
+            //   Zbc: clmul/clmulh
+            //   Zbs: bset/bclr/binv/bext (and their immediate variants)
+            //   Zbkb: pack/packh/brev8/zip/unzip
+            //   Zbkx: xperm.n/xperm.b
+            reg_wdata_o = 32'b0;
+        end
         default:    reg_wdata_o = 32'b0;
     endcase
 end

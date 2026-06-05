@@ -172,6 +172,7 @@
 `define ALU_SLTU    4'd9
 `define ALU_LUI     4'd10
 `define ALU_AUIPC   4'd11
+`define ALU_BITMANIP 4'd12  // Zb* Bit-Manipulation (to be filled at competition)
 
 // --- TYPE_MEM (LSU) 子码 ---
 // Bit 3: Store/Load (1=Store)
@@ -229,7 +230,22 @@
 `define OP2_IMM     2'd1  // 用于 I-Type, S-Type (Immediate)
 `define OP2_4       2'd2  // 用于 JAL/JALR 保存 PC + 4 到 rd
 
-
+// 4. Zb* Bit-Manipulation Extension (to be configured at competition)
+//    所有Zb*指令复用OP(0110011)和OP-IMM(0010011)，通过funct7区分
+//
+//    Zbb有两个funct7因为它指令多，需要两组编码空间:
+//      funct7=0100000: andn(f3=111), orn(f3=110), xnor(f3=100)
+//      funct7=0110000: rol(f3=001), ror(f3=101), rori(f3=101), clz/ctz/cpop(f3=001), sext.b/h(f3=001)
+//    其他扩展的funct7:
+//      Zba: 0010000(R), 0000100(R/I)
+//      Zbc: 0000101(R)
+//      Zbs: 0010100(R), 0100100(R/I)
+//      Zbkb: 0000100(R)
+//      Zbkx: 0010100(R)
+//
+`define FUNCT7_ZB_R  7'b0000000  // R-type funct7: configure at competition
+`define FUNCT7_ZB_I  7'b0000000  // I-type funct7: configure at competition
+`define INST_ZB_F3   3'b000      // funct3 placeholder: configure at competition
 
 
 

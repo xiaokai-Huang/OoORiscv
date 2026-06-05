@@ -63,40 +63,49 @@ always@(*) begin
             reg_waddr_o = rd;
             reg_wflag_o = 1'b1;
 
-            case (funct3)
-                `INST_ADDI:begin
-                    inst_subtype_o = `ALU_ADD;
-                end
-                `INST_SLTI:begin
-                    inst_subtype_o = `ALU_SLT;
-                end
-                `INST_SLTIU:begin
-                    inst_subtype_o = `ALU_SLTU;
-                end
-                `INST_XORI:begin
-                    inst_subtype_o = `ALU_XOR;
-                end
-                `INST_ORI:begin
-                    inst_subtype_o = `ALU_OR;
-                end
-                `INST_ANDI:begin
-                    inst_subtype_o = `ALU_AND;
-                end
-                `INST_SLLI:begin
-                    inst_subtype_o = `ALU_SLL;
-                end
-                `INST_SRI:begin
-                    if(inst_i[30]) begin
-                        inst_subtype_o = `ALU_SRA;
+            // Zb* I-type: 同时检查funct7+funct3防止误匹配普通I型立即数
+            if ((funct7 == `FUNCT7_ZB_I) && (funct3 == `INST_ZB_F3)) begin
+                // TODO: fill in at competition
+                //   e.g. rori(f7=0110000,f3=101), bseti/bclri/binvi/bexti(f7=0010100/0100100,f3=001/101),
+                //        clz/ctz/cpop(f7=0110000,f3=001), slli.uw(f7=0000100,f3=001)
+                inst_subtype_o = `ALU_BITMANIP;
+            end
+            else begin    // 普通I型指令
+                case (funct3)
+                    `INST_ADDI:begin
+                        inst_subtype_o = `ALU_ADD;
                     end
-                    else begin
-                        inst_subtype_o = `ALU_SRL;
+                    `INST_SLTI:begin
+                        inst_subtype_o = `ALU_SLT;
                     end
-                end
-                default:begin
-                    inst_subtype_o = 4'b0;
-                end
-            endcase
+                    `INST_SLTIU:begin
+                        inst_subtype_o = `ALU_SLTU;
+                    end
+                    `INST_XORI:begin
+                        inst_subtype_o = `ALU_XOR;
+                    end
+                    `INST_ORI:begin
+                        inst_subtype_o = `ALU_OR;
+                    end
+                    `INST_ANDI:begin
+                        inst_subtype_o = `ALU_AND;
+                    end
+                    `INST_SLLI:begin
+                        inst_subtype_o = `ALU_SLL;
+                    end
+                    `INST_SRI:begin
+                        if(inst_i[30]) begin
+                            inst_subtype_o = `ALU_SRA;
+                        end
+                        else begin
+                            inst_subtype_o = `ALU_SRL;
+                        end
+                    end
+                    default:begin
+                        inst_subtype_o = 4'b0;
+                    end
+                endcase
+            end
         end
         `INST_TYPE_R:begin
             op1_src_o = `OP1_REG;
@@ -106,7 +115,6 @@ always@(*) begin
             reg_waddr_o = rd;
             reg_wflag_o = 1'b1;
 
-            `ifdef use_m_extension
             if (funct7 == 7'b0000001) begin    // M extension
                 inst_type_o = `TYPE_M_EXT;
                 case (funct3)
@@ -139,8 +147,21 @@ always@(*) begin
                     end
                 endcase
             end
+            // Zb* R-type: 同时检查funct7+funct3防止误匹配SUB/SRA(同为f7=0100000)
+            else if ((funct7 == `FUNCT7_ZB_R) && (funct3 == `INST_ZB_F3)) begin
+                inst_type_o = `TYPE_ALU;
+                // TODO: fill in at competition
+                //   Zba: sh1add(f7=0010000,f3=010), sh2add(f3=100), sh3add(f3=110), add.uw(f7=0000100,f3=000)
+                //   Zbb: andn(f7=0100000,f3=111), orn(f3=110), xnor(f3=100),
+                //        rol(f7=0110000,f3=001), ror(f3=101), zext.h(f7=0000100,f3=100),
+                //        max/min/maxu/minu(f7=0000101,f3=110/100/111/101)
+                //   Zbc: clmul(f7=0000101,f3=001), clmulh(f3=011), clmulr(f3=010)
+                //   Zbs: bset/bclr/binv/bext(f7=0010100/0100100,f3=001/101)
+                //   Zbkb: pack(f7=0000100,f3=100), packh(f3=111)
+                //   Zbkx: xperm.n(f7=0010100,f3=010), xperm.b(f3=100)
+                inst_subtype_o = `ALU_BITMANIP;
+            end
             else begin    // 普通R型指令
-            `endif
                 inst_type_o = `TYPE_ALU;
                 case (funct3)
                     `INST_ADD_SUB:begin
@@ -181,9 +202,7 @@ always@(*) begin
                         inst_subtype_o = 4'b0;
                     end
                 endcase
-            `ifdef use_m_extension
             end
-            `endif
         end
         `INST_TYPE_L:begin
             inst_type_o = `TYPE_MEM;
