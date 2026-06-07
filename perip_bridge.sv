@@ -57,6 +57,7 @@ module perip_bridge(
     localparam KEY_ADDR    = 32'h8020_0010;  // key[7:0]
     localparam SEG_ADDR    = 32'h8020_0020;  // seg
     localparam LED_ADDR    = 32'h8020_0040;  // led[31:0]
+    localparam CNT_ADDR    = 32'h8020_0050;  // counter
     localparam TIMER_ADDR_START  = 32'h8020_0050;  // timer
     localparam TIMER_ADDR_END    = 32'h8020_005F;  // timer
     localparam UART_RX_ADDR      = 32'h8020_0060;  // rx_data
@@ -66,7 +67,7 @@ module perip_bridge(
     localparam BRANCH_HIT_ADDR   = 32'h8020_0070;
     localparam BRANCH_MISS_ADDR  = 32'h8020_0074;
     `endif
-    // localparam TICK_CNT_ADDR     = 32'h8020_0070;  // tick_count
+    localparam TICK_CNT_ADDR     = 32'h8020_0050;  // tick_count
     
 
     logic [31:0] LED;
@@ -136,60 +137,48 @@ module perip_bridge(
     );
 
     // counter rw
-    // counter counter_inst (
-    //     .clk				(cnt_clk),
-    //     .rst                (rst),
-    //     .perip_wdata		(perip_wdata),
-    //     .cnt_wen 			(perip_wen & (perip_addr == CNT_ADDR)),
-    //     .perip_rdata		(cnt_rdata)
+    counter counter_inst (
+        .clk				(cnt_clk),
+        .rst                (rst),
+        .perip_wdata		(32'h8000_0000),
+        .cnt_wen 			(1'b1), 
+        .perip_rdata		(cnt_rdata)
+    );
+
+    // timer u_timer(
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .waddr(perip_waddr[3:2]),
+    //     .addr(perip_addr[3:2]),      
+    //     .we(perip_wen & (perip_waddr >= TIMER_ADDR_START && perip_waddr <= TIMER_ADDR_END)),
+    //     .data_in(perip_wdata),
+    //     .data_out(timer_rdata),
+    //     .int_flag_o(timer_int_flag)
     // );
 
-    timer u_timer(
-        .clk(clk),
-        .rst(rst),
-        .waddr(perip_waddr[3:2]),
-        .addr(perip_addr[3:2]),      
-        .we(perip_wen & (perip_waddr >= TIMER_ADDR_START && perip_waddr <= TIMER_ADDR_END)),
-        .data_in(perip_wdata),
-        .data_out(timer_rdata),
-        .int_flag_o(timer_int_flag)
-    );
+    // uart u_uart(
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .rx(rx),
+    //     .rdata(uart_rdata),
+    //     .tx(tx),
+    //     .tx_data(perip_wdata[7:0]),
+    //     .tx_start(perip_wen & (perip_waddr == UART_TX_ADDR)),
+    //     .we(perip_wen & (perip_waddr == UART_STATUS_ADDR)),
+    //     .tx_ie(perip_wdata[1]),
+    //     .addr(perip_addr),
+    //     .int_flag_o(uart_int_flag)
+    // );
 
-    uart u_uart(
-        .clk(clk),
-        .rst(rst),
-        .rx(rx),
-        .rdata(uart_rdata),
-        .tx(tx),
-        .tx_data(perip_wdata[7:0]),
-        .tx_start(perip_wen & (perip_waddr == UART_TX_ADDR)),
-        .we(perip_wen & (perip_waddr == UART_STATUS_ADDR)),
-        .tx_ie(perip_wdata[1]),
-        .addr(perip_addr),
-        .int_flag_o(uart_int_flag)
-    );
-
-    `ifdef DEBUG
     assign perip_rdata = {32{perip_addr == SW0_ADDR}} & mmio_rdata |
                         {32{perip_addr == SW1_ADDR}} & mmio_rdata |
                         {32{perip_addr == KEY_ADDR}} & mmio_rdata |
                         {32{perip_addr == SEG_ADDR}} & mmio_rdata |
                         {32{perip_addr >= DRAM_ADDR_START && perip_addr <= DRAM_ADDR_END}} & dram_rdata |
-                        {32{perip_addr >= TIMER_ADDR_START && perip_addr <= TIMER_ADDR_END}} & timer_rdata |
-                        {32{perip_addr == UART_RX_ADDR || perip_addr == UART_STATUS_ADDR}} & uart_rdata |
-                        {32{perip_addr == BRANCH_HIT_ADDR}} & branch_hit_cnt |
-                        {32{perip_addr == BRANCH_MISS_ADDR}} & branch_miss_cnt;
-                        // | {32{perip_addr == TICK_CNT_ADDR}} & 32'd200_000;
-    `else 
-    assign perip_rdata = {32{perip_addr == SW0_ADDR}} & mmio_rdata |
-                        {32{perip_addr == SW1_ADDR}} & mmio_rdata |
-                        {32{perip_addr == KEY_ADDR}} & mmio_rdata |
-                        {32{perip_addr == SEG_ADDR}} & mmio_rdata |
-                        {32{perip_addr >= DRAM_ADDR_START && perip_addr <= DRAM_ADDR_END}} & dram_rdata |
-                        {32{perip_addr >= TIMER_ADDR_START && perip_addr <= TIMER_ADDR_END}} & timer_rdata |
-                        {32{perip_addr == UART_RX_ADDR || perip_addr == UART_STATUS_ADDR}} & uart_rdata;
-                        // | {32{perip_addr == TICK_CNT_ADDR}} & 32'd200_000;
-    `endif
+                        // {32{perip_addr >= TIMER_ADDR_START && perip_addr <= TIMER_ADDR_END}} & timer_rdata |
+                        // {32{perip_addr == UART_RX_ADDR || perip_addr == UART_STATUS_ADDR}} & uart_rdata;
+                        // {32{perip_addr == TICK_CNT_ADDR}} & 32'd200_000;
+                        {32{perip_addr == CNT_ADDR}} & cnt_rdata;
     
     assign virtual_led_output = LED;
     assign virtual_seg_output = seg_output;
