@@ -85,16 +85,16 @@ module perip_bridge(
         end
     end
 
-    // read process: in one cycle
-    always_comb begin
-        case (perip_addr)
-            SW0_ADDR:  mmio_rdata = virtual_sw_input[31:0];
-            SW1_ADDR:  mmio_rdata = virtual_sw_input[63:32];
-            KEY_ADDR:  mmio_rdata = {24'd0, virtual_key_input};
-            SEG_ADDR:  mmio_rdata = seg_wdata;
-            default:   mmio_rdata = 32'hDEAD_BEEF;
-        endcase
-    end
+    // // read process: in one cycle
+    // always_comb begin
+    //     case (perip_addr)
+    //         SW0_ADDR:  mmio_rdata = virtual_sw_input[31:0];
+    //         SW1_ADDR:  mmio_rdata = virtual_sw_input[63:32];
+    //         KEY_ADDR:  mmio_rdata = {24'd0, virtual_key_input};
+    //         SEG_ADDR:  mmio_rdata = seg_wdata;
+    //         default:   mmio_rdata = 32'hDEAD_BEEF;
+    //     endcase
+    // end
 
     // seg driver
     display_seg seg_driver (
@@ -170,10 +170,10 @@ module perip_bridge(
     //     .int_flag_o(uart_int_flag)
     // );
 
-    assign perip_rdata = {32{perip_addr == SW0_ADDR}} & mmio_rdata |
-                        {32{perip_addr == SW1_ADDR}} & mmio_rdata |
-                        {32{perip_addr == KEY_ADDR}} & mmio_rdata |
-                        {32{perip_addr == SEG_ADDR}} & mmio_rdata |
+    assign perip_rdata = {32{perip_addr == SW0_ADDR}} & virtual_sw_input[31:0] |
+                        {32{perip_addr == SW1_ADDR}} & virtual_sw_input[63:32] |
+                        {32{perip_addr == KEY_ADDR}} & {24'd0, virtual_key_input} |
+                        {32{perip_addr == SEG_ADDR}} & seg_wdata |
                         {32{perip_addr >= DRAM_ADDR_START && perip_addr <= DRAM_ADDR_END}} & dram_rdata |
                         // {32{perip_addr >= TIMER_ADDR_START && perip_addr <= TIMER_ADDR_END}} & timer_rdata |
                         // {32{perip_addr == UART_RX_ADDR || perip_addr == UART_STATUS_ADDR}} & uart_rdata;
