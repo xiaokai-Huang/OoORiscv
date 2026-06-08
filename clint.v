@@ -68,10 +68,10 @@ localparam S_CSR_IDLE            = 3'b001;    // 空闲
 localparam S_CSR_INT_W           = 3'b010;    // 中断时写mepc、mstatus、mcause
 localparam S_CSR_MSTATUS_MRET    = 3'b100;    // 中断返回时写mstatus
 
-reg[4:0] int_state;
-reg[2:0] csr_state;
-reg[31:0] inst_addr;
-reg[31:0] cause;
+reg [4:0] int_state;
+reg [2:0] csr_state;
+reg [31:0] inst_addr;
+reg [31:0] cause;
 
 assign int_flag_o = (int_state != S_INT_IDLE) | (csr_state != S_CSR_IDLE);
 assign int_w_disable_o = global_int_en_i && ((mie_MEIE && mip_MEIP) || (mie_MTIE && mip_MTIP));
@@ -87,22 +87,7 @@ end
 assign uart_int_clear = ~uart_int_i & uart_int_i_d1;  // 下降沿检测（中断清除）
 assign timer_int_clear = ~timer_int_i & timer_int_i_d1;
 
-// 中断检测并置位MIP
-always @(*) begin
-    mip_we_o = 1'b0;
-    mip_wdata_o = 32'b0;
-    if(uart_int_i) begin
-        mip_we_o = 1'b1;
-        mip_wdata_o[11] = 1'b1;
-    end
-    if(timer_int_i) begin
-        mip_we_o = 1'b1;
-        mip_wdata_o[7] = 1'b1;
-    end
-end
 
-// reg [2:0] mret_cnt;
-// reg mret_start;
 // 中断仲裁逻辑
 wire external_int_assert = inst_ready_flag_i && mie_MEIE && mip_MEIP && global_int_en_i;
 wire timer_int_assert = inst_ready_flag_i && mie_MTIE && mip_MTIP && global_int_en_i;
@@ -111,14 +96,6 @@ always @(*) begin
     // 发生异常
     if(exception_flag_i) begin
         int_state = S_INT_SYNC_ASSERT;
-    end
-    // 外部中断
-    else if(external_int_assert) begin
-        int_state = S_INT_EXTERN_ASSERT;
-    end
-    // 定时器中断
-    else if(timer_int_assert) begin
-        int_state = S_INT_TIMER_ASSERT;
     end
     // 中断返回
     else if(mret_flag_i) begin
@@ -141,19 +118,6 @@ always @ (posedge clk) begin
                     cause <= exception_cause_i;
                     csr_state <= S_CSR_INT_W;
                     // 在ecall/ebreak中断处理函数里会将中断返回地址加4
-                    inst_addr <= rob_inst_addr_i;
-                end
-                // 异步中断 
-                // 串口中断
-                else if(int_state == S_INT_EXTERN_ASSERT) begin
-                    cause <= 32'h8000000b;
-                    csr_state <= S_CSR_INT_W;
-                    inst_addr <= rob_inst_addr_i;
-                end
-                // 定时器中断
-                else if(int_state == S_INT_TIMER_ASSERT) begin
-                    cause <= 32'h80000007;
-                    csr_state <= S_CSR_INT_W;
                     inst_addr <= rob_inst_addr_i;
                 end
                 // 中断返回
@@ -234,25 +198,7 @@ always @ (*) begin
 end
 
 
-// always @(posedge clk or negedge rst) begin
-//     if(!rst) begin
-//         mret_cnt <= 3'd7;
-//         mret_start <= 1'b0;
-//     end
-//     else if(csr_state == S_CSR_MSTATUS_MRET) begin
-//         mret_cnt <= 3'd1;
-//         mret_start <= 1'b1;
-//     end
-//     else if(mret_start) begin
-//         if(mret_cnt == 6) begin
-//             mret_cnt <= 3'd7;
-//             mret_start <= 1'b0;
-//         end
-//         else begin
-//             mret_cnt <= mret_cnt + 1;
-//         end
-//     end
-// end
+
 
 
 

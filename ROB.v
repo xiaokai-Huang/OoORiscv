@@ -216,8 +216,8 @@ always @(posedge clk or negedge rst) begin
 end
 reg csr_cnt;
 reg w_csr_reg;
-assign csr_reg_wflag_o = !int_w_disable_i && (csr_cnt == 1'b1) && rob_valid[rob_rd_ptr];
-assign reg_wflag_o = !int_w_disable_i && (csr_cnt == 1'b1) && rob_valid[rob_rd_ptr];
+assign csr_reg_wflag_o = (csr_cnt == 1'b1) && rob_valid[rob_rd_ptr];
+assign reg_wflag_o = (csr_cnt == 1'b1) && rob_valid[rob_rd_ptr];
 assign csr_reg_wdata_o = csr_reg_wdata_d1;
 assign reg_wdata_o = reg_wdata_d1;
 always @(posedge clk or negedge rst) begin
@@ -261,8 +261,8 @@ always @(*) begin
                 commit_inst0_o = !stall_store;
                 sq_commit_cnt_o = stall_store ? 2'b0 : 2'b1;
                 commit_store_flag_o = !stall_store;
-                perip_wen = !stall_store && !int_w_disable_i;
-                dcache_wen = !int_w_disable_i;
+                perip_wen = !stall_store;
+                dcache_wen = 1'b1;
             end
             TYPE_BRANCH: begin
                 commit_inst0_o = 1'b1;
@@ -341,8 +341,8 @@ always @(*) begin
                     commit_inst1_o = !stall_store;
                     sq_commit_cnt_o = stall_store ? 2'b0 : 2'b1;
                     commit_store_flag_o = !stall_store;
-                    perip_wen = !stall_store && !int_w_disable_i;
-                    dcache_wen = !int_w_disable_i;
+                    perip_wen = !stall_store;
+                    dcache_wen = 1'b1;
                 end
                 TYPE_BRANCH: begin
                     commit_inst1_o = (rob_inst0_type == TYPE_STORE) ? !stall_store : 1'b1; // 如果inst0是store指令，则inst1提交还受store暂停的影响
