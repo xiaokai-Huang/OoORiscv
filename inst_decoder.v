@@ -8,6 +8,14 @@ module inst_decoder (
     input [31:0] imm_i,
     input [31:0] pre_addr_i,
 
+    `ifdef use_f_extension
+        output reg [4:0] inst_f_subtype_o,
+        output reg rd_is_float_o,
+        output reg rs1_is_float_o,
+        output reg rs2_is_float_o,
+        output reg [4:0] rs3_raddr_o,
+    `endif
+
     output reg [2:0] inst_type_o,
     output reg [3:0] inst_subtype_o,
     output reg [1:0] op1_src_o,
@@ -35,6 +43,10 @@ wire [4:0] rd = inst_i[11:7];
 wire [4:0] rs1 = inst_i[19:15];
 // rs2
 wire [4:0] rs2 = inst_i[24:20];
+`ifdef use_f_extension
+// rs3
+wire [4:0] rs3 = inst_i[31:27];
+`endif
 
 // decode
 always@(*) begin
@@ -52,6 +64,13 @@ always@(*) begin
     jal_flush_o = 1'b0;
     jal_addr_o = 32'b0;
     aux_addr_o = 32'b0;
+    `ifdef use_f_extension
+    inst_f_subtype_o = 5'b0;
+    rd_is_float_o = 1'b0;
+    rs1_is_float_o = 1'b0;
+    rs2_is_float_o = 1'b0;
+    rs3_raddr_o = 5'b0;
+    `endif
 
     case (opcode)
         `INST_TYPE_I:begin
@@ -239,6 +258,174 @@ always@(*) begin
                 end
             endcase
         end
+        `ifdef use_f_extension
+        `INST_TYPE_FL: begin
+            inst_type_o = `TYPE_MEM;
+            inst_subtype_o = `MEM_FLW;
+            op1_src_o = `OP1_REG;
+            op2_src_o = `OP2_IMM;
+            reg1_raddr_o = rs1;
+            reg2_raddr_o = 5'b0;
+            reg_waddr_o = rd;
+            reg_wflag_o = 1'b1;
+            rd_is_float_o = 1'b1;
+        end
+        `INST_TYPE_FS: begin
+            inst_type_o = `TYPE_MEM;
+            inst_subtype_o = `MEM_FSW;
+            op1_src_o = `OP1_REG;
+            op2_src_o = `OP2_REG;
+            reg1_raddr_o = rs1;
+            reg2_raddr_o = rs2;
+            reg_waddr_o = 5'b0;
+            reg_wflag_o = 1'b0;
+            rs2_is_float_o = 1'b1;
+        end
+        `INST_FMADD, `INST_FMSUB, `INST_FNMSUB, `INST_FNMADD: begin
+            inst_type_o = `TYPE_F_EXT;
+            op1_src_o = `OP1_REG;
+            op2_src_o = `OP2_REG;
+            reg1_raddr_o = rs1;
+            reg2_raddr_o = rs2;
+            reg_waddr_o = rd;
+            reg_wflag_o = 1'b1;
+            rd_is_float_o = 1'b1;
+            rs1_is_float_o = 1'b1;
+            rs2_is_float_o = 1'b1;
+            rs3_raddr_o = rs3;
+            case (opcode)
+                `INST_FMADD:  inst_f_subtype_o = `F_FMADD_S;
+                `INST_FMSUB:  inst_f_subtype_o = `F_FMSUB_S;
+                `INST_FNMSUB: inst_f_subtype_o = `F_FNMSUB_S;
+                `INST_FNMADD: inst_f_subtype_o = `F_FNMADD_S;
+                default:      inst_f_subtype_o = 5'b0;
+            endcase
+        end
+        `INST_TYPE_F: begin
+            inst_type_o = `TYPE_F_EXT;
+            op1_src_o = `OP1_REG;
+            op2_src_o = `OP2_IMM;
+            reg1_raddr_o = rs1;
+            reg2_raddr_o = 5'b0;
+            reg_waddr_o = rd;
+            reg_wflag_o = 1'b1;
+
+            case (funct7)
+                `INST_FADD_S: begin
+                    inst_f_subtype_o = `F_FADD_S;
+                    rd_is_float_o = 1'b1;
+                    rs1_is_float_o = 1'b1;
+                    rs2_is_float_o = 1'b1;
+                    op2_src_o = `OP2_REG;
+                    reg2_raddr_o = rs2;
+                end
+                `INST_FSUB_S: begin
+                    inst_f_subtype_o = `F_FSUB_S;
+                    rd_is_float_o = 1'b1;
+                    rs1_is_float_o = 1'b1;
+                    rs2_is_float_o = 1'b1;
+                    op2_src_o = `OP2_REG;
+                    reg2_raddr_o = rs2;
+                end
+                `INST_FMUL_S: begin
+                    inst_f_subtype_o = `F_FMUL_S;
+                    rd_is_float_o = 1'b1;
+                    rs1_is_float_o = 1'b1;
+                    rs2_is_float_o = 1'b1;
+                    op2_src_o = `OP2_REG;
+                    reg2_raddr_o = rs2;
+                end
+                `INST_FDIV_S: begin
+                    inst_f_subtype_o = `F_FDIV_S;
+                    rd_is_float_o = 1'b1;
+                    rs1_is_float_o = 1'b1;
+                    rs2_is_float_o = 1'b1;
+                    op2_src_o = `OP2_REG;
+                    reg2_raddr_o = rs2;
+                end
+                `INST_FSQRT_S: begin
+                    inst_f_subtype_o = `F_FSQRT_S;
+                    rd_is_float_o = 1'b1;
+                    rs1_is_float_o = 1'b1;
+                end
+                `INST_FSGNJ_S: begin
+                    rd_is_float_o = 1'b1;
+                    rs1_is_float_o = 1'b1;
+                    rs2_is_float_o = 1'b1;
+                    op2_src_o = `OP2_REG;
+                    reg2_raddr_o = rs2;
+                    case (funct3)
+                        `INST_FSGNJ:  inst_f_subtype_o = `F_FSGNJ_S;
+                        `INST_FSGNJN: inst_f_subtype_o = `F_FSGNJN_S;
+                        `INST_FSGNJX: inst_f_subtype_o = `F_FSGNJX_S;
+                        default:      inst_f_subtype_o = 5'b0;
+                    endcase
+                end
+                `INST_FMIN_MAX_S: begin
+                    rd_is_float_o = 1'b1;
+                    rs1_is_float_o = 1'b1;
+                    rs2_is_float_o = 1'b1;
+                    op2_src_o = `OP2_REG;
+                    reg2_raddr_o = rs2;
+                    case (funct3)
+                        `INST_FMIN: inst_f_subtype_o = `F_FMIN_S;
+                        `INST_FMAX: inst_f_subtype_o = `F_FMAX_S;
+                        default:    inst_f_subtype_o = 5'b0;
+                    endcase
+                end
+                `INST_FCMP_S: begin
+                    rs1_is_float_o = 1'b1;
+                    rs2_is_float_o = 1'b1;
+                    op2_src_o = `OP2_REG;
+                    reg2_raddr_o = rs2;
+                    case (funct3)
+                        `INST_FEQ: inst_f_subtype_o = `F_FEQ_S;
+                        `INST_FLT: inst_f_subtype_o = `F_FLT_S;
+                        `INST_FLE: inst_f_subtype_o = `F_FLE_S;
+                        default:   inst_f_subtype_o = 5'b0;
+                    endcase
+                end
+                `INST_FCVT_W_S: begin
+                    rs1_is_float_o = 1'b1;
+                    case (rs2)
+                        `INST_F_RS2_W:  inst_f_subtype_o = `F_FCVT_W_S;
+                        `INST_F_RS2_WU: inst_f_subtype_o = `F_FCVT_WU_S;
+                        default:        inst_f_subtype_o = 5'b0;
+                    endcase
+                end
+                `INST_FCVT_S_W: begin
+                    rd_is_float_o = 1'b1;
+                    case (rs2)
+                        `INST_F_RS2_W:  inst_f_subtype_o = `F_FCVT_S_W;
+                        `INST_F_RS2_WU: inst_f_subtype_o = `F_FCVT_S_WU;
+                        default:        inst_f_subtype_o = 5'b0;
+                    endcase
+                end
+                `INST_FMV_X_W_CLASS: begin
+                    rs1_is_float_o = 1'b1;
+                    case (funct3)
+                        `INST_FMV_X_W: inst_f_subtype_o = `F_FMV_X_W;
+                        `INST_FCLASS:  inst_f_subtype_o = `F_FCLASS_S;
+                        default:       inst_f_subtype_o = 5'b0;
+                    endcase
+                end
+                `INST_FMV_W_X_F7: begin
+                    inst_f_subtype_o = `F_FMV_W_X;
+                    rd_is_float_o = 1'b1;
+                end
+                default: begin
+                    inst_type_o = 3'b0;
+                    inst_f_subtype_o = 5'b0;
+                    op1_src_o = 2'b0;
+                    op2_src_o = 2'b0;
+                    reg1_raddr_o = 5'b0;
+                    reg2_raddr_o = 5'b0;
+                    reg_waddr_o = 5'b0;
+                    reg_wflag_o = 1'b0;
+                end
+            endcase
+        end
+        `endif
         `INST_TYPE_B:begin
             inst_type_o = `TYPE_BR;
             op1_src_o = `OP1_REG;

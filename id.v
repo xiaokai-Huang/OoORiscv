@@ -92,8 +92,8 @@ assign bpu_pre_flag_port1_o = bpu_pre_flag_port1_i;
 assign bpu_pre_addr_port0_o = bpu_pre_addr_port0_i;
 assign bpu_pre_addr_port1_o = bpu_pre_addr_port1_i;
 // 立即数传递
-assign imm_port0_o = (inst_port0_i[6:0] == `INST_AUIPC) ? ({inst_addr_i[31:3],3'b000} + imm_port0_i) : imm_port0_i;
-assign imm_port1_o = (inst_port1_i[6:0] == `INST_AUIPC) ? ({inst_addr_i[31:3],3'b100} + imm_port1_i) : imm_port1_i;
+assign imm_port0_o = (inst_port0_i[6:0] == `INST_AUIPC) ? ({inst_addr_i[31:3], 3'b000} + imm_port0_i) : imm_port0_i;
+assign imm_port1_o = (inst_port1_i[6:0] == `INST_AUIPC) ? ({inst_addr_i[31:3], 3'b100} + imm_port1_i) : imm_port1_i;
 
 // 译码
 // inst0

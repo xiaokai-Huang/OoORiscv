@@ -95,8 +95,16 @@ always @(*) begin
             imm_port0_o = {{20{inst_port0_o[31]}}, inst_port0_o[31:20]};
         end
         `INST_TYPE_S: begin
-            imm_port0_o = {{20{inst_port0_o[31]}},inst_port0_o[31:25],inst_port0_o[11:7]};
+            imm_port0_o = {{20{inst_port0_o[31]}}, inst_port0_o[31:25], inst_port0_o[11:7]};
         end
+        `ifdef use_f_extension
+        `INST_TYPE_FL: begin
+            imm_port0_o = {{20{inst_port0_o[31]}}, inst_port0_o[31:20]};
+        end
+        `INST_TYPE_FS: begin
+            imm_port0_o = {{20{inst_port0_o[31]}}, inst_port0_o[31:25], inst_port0_o[11:7]};
+        end
+        `endif
         `INST_TYPE_B: begin
             imm_port0_o = {{20{inst_port0_o[31]}}, inst_port0_o[7], inst_port0_o[30:25], inst_port0_o[11:8], 1'b0};
             bpu_pre_flag_port0_o = inst_valid_port0_o && bpu_pre_flag_i && ~bpu_jump_odd_i;
@@ -147,8 +155,16 @@ always @(*) begin
             imm_port1_o = {{20{inst_port1_o[31]}}, inst_port1_o[31:20]};
         end
         `INST_TYPE_S: begin
-            imm_port1_o = {{20{inst_port1_o[31]}},inst_port1_o[31:25],inst_port1_o[11:7]};
+            imm_port1_o = {{20{inst_port1_o[31]}}, inst_port1_o[31:25], inst_port1_o[11:7]};
         end
+        `ifdef use_f_extension
+        `INST_TYPE_FL: begin
+            imm_port1_o = {{20{inst_port1_o[31]}}, inst_port1_o[31:20]};
+        end
+        `INST_TYPE_FS: begin
+            imm_port1_o = {{20{inst_port1_o[31]}}, inst_port1_o[31:25], inst_port1_o[11:7]};
+        end
+        `endif
         `INST_TYPE_B: begin
             imm_port1_o = {{20{inst_port1_o[31]}}, inst_port1_o[7], inst_port1_o[30:25], inst_port1_o[11:8], 1'b0};
             bpu_pre_flag_port1_o = inst_valid_port1_o && bpu_pre_flag_i;
