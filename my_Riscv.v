@@ -119,7 +119,6 @@ wire [1:0] rn_dp_snap_id_inst1_o;           // 指令1快照id
 
 // regs模块输出信号
 wire [31:0] regs_csr_rdata_o;           // CSR指令读RS1数据
-wire [63:0] regs_ready_flag_o;          // 寄存器就绪标志，位0-63分别对应物理寄存器0-63
 wire [31:0] regs_alu_inst0_rdata1_o;    // 读寄存器1数据
 wire [31:0] regs_alu_inst0_rdata2_o;    // 读寄存器2数据
 wire [31:0] regs_alu_inst1_rdata1_o;    // 读寄存器1数据
@@ -592,6 +591,13 @@ Issue u_Issue(
     .free_id_inst0_i(rob_free_snap_id_inst0_o),               // 指令0释放id
     .free_mask_inst1_i(rob_free_snap_flag_inst1_o),                   // 指令1释放掩码标志
     .free_id_inst1_i(rob_free_snap_id_inst1_o),               // 指令1释放id
+    .csr_wflag_i(rob_reg_wflag_o),                   // CSR指令写回阶段写寄存器标志
+    .csr_waddr_i(rob_reg_waddr_o),             // CSR指令写回阶段写寄存器地址
+    // from rename
+    .alloc_flag_inst0_i(rn_alloc_flag_inst0_o),             // Inst0是否分配物理寄存器
+    .alloc_paddr_inst0_i(rn_pwaddr_inst0_o),      // Inst0分配的物理寄存器地址
+    .alloc_flag_inst1_i(rn_alloc_flag_inst1_o),             // Inst1是否分配物理寄存器
+    .alloc_paddr_inst1_i(rn_pwaddr_inst1_o),      // Inst1分配的物理寄存器地址
     // from clint
     .int_flag_i(clint_int_flag_o),                       // 中断标志
     // from ex
@@ -600,22 +606,33 @@ Issue u_Issue(
     .restore_mem_wr_ptr_i(br_mem_wr_ptr_o),       // 恢复mem队列写指针
     .restore_sq_ptr_i(br_sq_ptr_o),           // 恢复store queue指针
     // from ALU0
+    .alu0_exe_wflag_i(alu0_rf_wflag_o),         // 执行阶段写寄存器标志
+    .alu0_exe_waddr_i(alu0_rf_waddr_o),   // 执行阶段写寄存器地址
     .alu0_rf_pwaddr_i(alu0_rf_waddr_o),           // ALU0读寄存器文件阶段物理寄存器地址
     // from ALU1
+    .alu1_exe_wflag_i(alu1_rf_wflag_o),         // 执行阶段写寄存器标志
+    .alu1_exe_waddr_i(alu1_rf_waddr_o),   // 执行阶段写寄存器地址
     .alu1_rf_pwaddr_i(alu1_rf_waddr_o),           // ALU1读寄存器文件阶段物理寄存器地址
     // from branch
+    .branch_rf_wflag_i(br_rf_wflag_o),            // 读寄存器文件阶段写寄存器标志
+    .branch_rf_waddr_i(br_rf_waddr_o),      // 读寄存器文件阶段写寄存器地址
     .branch_rf_pwaddr_i(br_rf_waddr_o),         // branch读寄存器文件阶段物理寄存器地址
     // from mem
+    .mem_exe_wflag_i(lsu_mem_reg_wflag_o),           // 执行阶段写寄存器标志
+    .mem_exe_waddr_i(lsu_mem_reg_waddr_o),     // 执行阶段写寄存器地址
     .mem_flush_i(lsu_flush_o),                      // mem冲刷标志
     .mem_stall_i(lsu_stall_o),                      // mem暂停标志
     .mem_pwaddr_i(lsu_mem_reg_waddr_o),
 `ifdef use_m_extension
+    // from mul
+    .mul_exe_wflag_i(mul_ex_wflag_o),           // 执行阶段写寄存器标志
+    .mul_exe_waddr_i(mul_ex_waddr_o),     // 执行阶段写寄存器地址
     // from div
+    .div_exe_wflag_i(div_ex_wflag_o),           // 执行阶段写寄存器标志
+    .div_exe_waddr_i(div_ex_waddr_o),     // 执行阶段写寄存器地址
     .div_flush_i(div_flush_o),                      // div冲刷标志
     .div_stall_i(div_stall_o),                      // div暂停标志
 `endif
-    // from regs
-    .ready_flag_i(regs_ready_flag_o),          // 寄存器就绪标志，位0-63分别对应物理寄存器0-63
     // to ALU0
     .alu_inst_valid_inst0_o(iss_alu_inst_valid_inst0_o),       // ALU0指令有效标志
     .alu_rob_id_inst0_o(iss_alu_rob_id_inst0_o),               // ALU0 ROB id
@@ -1107,39 +1124,27 @@ regs u_regs(
     .clk(clk),
     .rst(rst),
     // from ALU0
-    .alu0_exe_wflag_i(alu0_rf_wflag_o),         // 执行阶段写寄存器标志
-    .alu0_exe_waddr_i(alu0_rf_waddr_o),   // 执行阶段写寄存器地址
     .alu0_wflag_i(alu0_reg_wflag_o),             // 写回阶段写寄存器标志
     .alu0_waddr_i(alu0_reg_waddr_o),       // 写回阶段写寄存器地址
     .alu0_wdata_i(alu0_reg_wdata_o),      // 写回阶段写寄存器数据
     // from ALU1
-    .alu1_exe_wflag_i(alu1_rf_wflag_o),         // 执行阶段写寄存器标志
-    .alu1_exe_waddr_i(alu1_rf_waddr_o),   // 执行阶段写寄存器地址
     .alu1_wflag_i(alu1_reg_wflag_o),             // 写回阶段写寄存器标志
     .alu1_waddr_i(alu1_reg_waddr_o),       // 写回阶段写寄存器地址
     .alu1_wdata_i(alu1_reg_wdata_o),      // 写回阶段写寄存器数据
     // from branch
-    .branch_rf_wflag_i(br_rf_wflag_o),            // 读寄存器文件阶段写寄存器标志
-    .branch_rf_waddr_i(br_rf_waddr_o),      // 读寄存器文件阶段写寄存器地址
     .branch_wflag_i(br_reg_wflag_o),               // 写回阶段写寄存器标志
     .branch_waddr_i(br_reg_waddr_o),         // 写回阶段写寄存器地址
     .branch_wdata_i(br_reg_wdata_o),        // 写回阶段写寄存器数据
     // from mem
-    .mem_exe_wflag_i(lsu_mem_reg_wflag_o),           // 执行阶段写寄存器标志
-    .mem_exe_waddr_i(lsu_mem_reg_waddr_o),     // 执行阶段写寄存器地址
     .mem_wflag_i(lsu_reg_wflag_o),               // 写回阶段写寄存器标志
     .mem_waddr_i(lsu_reg_waddr_o),         // 写回阶段写寄存器地址
     .mem_wdata_i(lsu_reg_wdata_o),        // 写回阶段写寄存器数据
 `ifdef use_m_extension
     // from mul
-    .mul_exe_wflag_i(mul_ex_wflag_o),           // 执行阶段写寄存器标志
-    .mul_exe_waddr_i(mul_ex_waddr_o),     // 执行阶段写寄存器地址
     .mul_wflag_i(mul_reg_wflag_o),               // 写回阶段写寄存器标志
     .mul_waddr_i(mul_reg_waddr_o),         // 写回阶段写寄存器地址
     .mul_wdata_i(mul_reg_wdata_o),        // 写回阶段写寄存器数据
     // from div
-    .div_exe_wflag_i(div_ex_wflag_o),           // 执行阶段写寄存器标志
-    .div_exe_waddr_i(div_ex_waddr_o),     // 执行阶段写寄存器地址
     .div_wflag_i(div_reg_wflag_o),               // 写回阶段写寄存器标志
     .div_waddr_i(div_reg_waddr_o),         // 写回阶段写寄存器地址
     .div_wdata_i(div_reg_wdata_o),        // 写回阶段写寄存器数据
@@ -1169,15 +1174,9 @@ regs u_regs(
     .csr_wflag_i(rob_reg_wflag_o),                   // CSR指令写回阶段写寄存器标志
     .csr_waddr_i(rob_reg_waddr_o),             // CSR指令写回阶段写寄存器地址
     .csr_wdata_i(rob_reg_wdata_o),            // CSR指令写回阶段写寄存器数据
-    // from rename
-    .alloc_flag_inst0_i(rn_alloc_flag_inst0_o),             // Inst0是否分配物理寄存器
-    .alloc_paddr_inst0_i(rn_pwaddr_inst0_o),      // Inst0分配的物理寄存器地址
-    .alloc_flag_inst1_i(rn_alloc_flag_inst1_o),             // Inst1是否分配物理寄存器
-    .alloc_paddr_inst1_i(rn_pwaddr_inst1_o),      // Inst1分配的物理寄存器地址
     // to commit
     .csr_rdata_o(regs_csr_rdata_o),       // CSR指令读RS1数据
     // to RF
-    .ready_flag_o(regs_ready_flag_o),              // 寄存器就绪标志，位0-63分别对应物理寄存器0-63
     .alu_inst0_rdata1_o(regs_alu_inst0_rdata1_o),    // 读寄存器1数据
     .alu_inst0_rdata2_o(regs_alu_inst0_rdata2_o),    // 读寄存器2数据
     .alu_inst1_rdata1_o(regs_alu_inst1_rdata1_o),    // 读寄存器1数据

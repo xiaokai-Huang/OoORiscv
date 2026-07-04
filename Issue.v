@@ -50,6 +50,14 @@ module Issue (
     input [1:0] free_id_inst0_i,               // 指令0释放id
     input free_mask_inst1_i,                   // 指令1释放掩码标志
     input [1:0] free_id_inst1_i,               // 指令1释放id
+    input csr_wflag_i,                   // CSR指令写回阶段写寄存器标志
+    input [5:0] csr_waddr_i,             // CSR指令写回阶段写寄存器地址
+
+    // from rename
+    input alloc_flag_inst0_i,             // Inst0是否分配物理寄存器
+    input [5:0] alloc_paddr_inst0_i,      // Inst0分配的物理寄存器地址
+    input alloc_flag_inst1_i,             // Inst1是否分配物理寄存器
+    input [5:0] alloc_paddr_inst1_i,      // Inst1分配的物理寄存器地址
 
     // from clint
     input int_flag_i,                       // 中断标志
@@ -60,23 +68,34 @@ module Issue (
     input [2:0] restore_mem_wr_ptr_i,       // 恢复mem队列写指针
     input [2:0] restore_sq_ptr_i,           // 恢复store queue指针
     // from ALU0
+    input alu0_exe_wflag_i,         // 执行阶段写寄存器标志
+    input [5:0] alu0_exe_waddr_i,   // 执行阶段写寄存器地址
     input [5:0] alu0_rf_pwaddr_i,           // ALU0读寄存器文件阶段物理寄存器地址
     // from ALU1
+    input alu1_exe_wflag_i,         // 执行阶段写寄存器标志
+    input [5:0] alu1_exe_waddr_i,   // 执行阶段写寄存器地址
     input [5:0] alu1_rf_pwaddr_i,           // ALU1读寄存器文件阶段物理寄存器地址
     // from branch
+    input branch_rf_wflag_i,            // 读寄存器文件阶段写寄存器标志
+    input [5:0] branch_rf_waddr_i,      // 读寄存器文件阶段写寄存器地址
     input [5:0] branch_rf_pwaddr_i,         // branch读寄存器文件阶段物理寄存器地址
     // from mem
+    input mem_exe_wflag_i,           // 执行阶段写寄存器标志
+    input [5:0] mem_exe_waddr_i,     // 执行阶段写寄存器地址
     input mem_flush_i,                      // mem冲刷标志
     input mem_stall_i,                      // mem暂停标志
     input [5:0] mem_pwaddr_i,
     `ifdef use_m_extension
+    // from mul
+    input mul_exe_wflag_i,           // 执行阶段写寄存器标志
+    input [5:0] mul_exe_waddr_i,     // 执行阶段写寄存器地址
+
     // from div
+    input div_exe_wflag_i,           // 执行阶段写寄存器标志
+    input [5:0] div_exe_waddr_i,     // 执行阶段写寄存器地址
     input div_flush_i,                      // div冲刷标志
     input div_stall_i,                      // div暂停标志
     `endif
-
-    // from regs
-    input [63:0] ready_flag_i,          // 寄存器就绪标志，位0-63分别对应物理寄存器0-63
 
     // to ALU0
     output alu_inst_valid_inst0_o,       // ALU0指令有效标志
@@ -164,6 +183,32 @@ module Issue (
 // 冲刷逻辑
 wire [3:0] kill_mask = jump_flag_i ? (4'b0001 << kill_mask_id_i) : 4'b0000;
 
+// ready就绪信号
+reg [63:0] ready;         // 寄存器就绪标志，位0-63分别对应物理寄存器0-63
+
+always @(posedge clk) begin
+    if(!rst) begin
+        ready <= {32'b0, 32'hFFFF_FFFF};
+    end
+    else begin
+        // 写寄存器，将ready置位
+        if (alu0_exe_wflag_i && alu0_exe_waddr_i != 0)     ready[alu0_exe_waddr_i]  <= 1'b1;
+        if (alu1_exe_wflag_i && alu1_exe_waddr_i != 0)     ready[alu1_exe_waddr_i]  <= 1'b1;
+        if (branch_rf_wflag_i && branch_rf_waddr_i != 0)   ready[branch_rf_waddr_i] <= 1'b1;
+        if (mem_exe_wflag_i && mem_exe_waddr_i != 0)       ready[mem_exe_waddr_i]   <= 1'b1;
+        if (csr_wflag_i && csr_waddr_i != 0)               ready[csr_waddr_i]       <= 1'b1;
+        `ifdef use_m_extension
+        if (mul_exe_wflag_i && mul_exe_waddr_i != 0)       ready[mul_exe_waddr_i]   <= 1'b1;
+        if (div_exe_wflag_i && div_exe_waddr_i != 0)       ready[div_exe_waddr_i]   <= 1'b1;
+        `endif
+        // 分配物理寄存器，将ready清零
+        if (alloc_flag_inst0_i && alloc_paddr_inst0_i != 0)
+            ready[alloc_paddr_inst0_i] <= 1'b0;
+        if (alloc_flag_inst1_i && alloc_paddr_inst1_i != 0)
+            ready[alloc_paddr_inst1_i] <= 1'b0;
+    end
+end
+
 // ALU发射队列
 reg alu_inst_valid[0:7];       // 指令有效标志
 reg [5:0] alu_rob_id[0:7];     // ROB id
@@ -195,10 +240,10 @@ reg alu_op2_ready[0:7];
 reg alu_dep_mem[0:7];
 always @(*) begin
     for (i = 0; i < 8; i = i + 1) begin
-        alu_op1_ready[i] = (alu_op1_src[i] != `OP1_REG) || ready_flag_i[alu_praddr1[i]] || 
+        alu_op1_ready[i] = (alu_op1_src[i] != `OP1_REG) || ready[alu_praddr1[i]] ||
                        (alu_praddr1[i] == alu0_rf_pwaddr_i) || (alu_praddr1[i] == alu1_rf_pwaddr_i) ||
                        (alu_praddr1[i] == mem_pwaddr_i);
-        alu_op2_ready[i] = (alu_op2_src[i] != `OP2_REG) || ready_flag_i[alu_praddr2[i]] || 
+        alu_op2_ready[i] = (alu_op2_src[i] != `OP2_REG) || ready[alu_praddr2[i]] ||
                        (alu_praddr2[i] == alu0_rf_pwaddr_i) || (alu_praddr2[i] == alu1_rf_pwaddr_i) ||
                        (alu_praddr2[i] == mem_pwaddr_i);
 
@@ -497,10 +542,10 @@ reg br_op2_ready[0:3];
 reg br_dep_mem[0:3];
 always @(*) begin
     for (i = 0; i < 4; i = i + 1) begin
-        br_op1_ready[i] = (branch_op1_src[i] != `OP1_REG) || ready_flag_i[branch_praddr1[i]] || 
+        br_op1_ready[i] = (branch_op1_src[i] != `OP1_REG) || ready[branch_praddr1[i]] ||
                        (branch_praddr1[i] == alu0_rf_pwaddr_i) || (branch_praddr1[i] == alu1_rf_pwaddr_i) ||
                        (branch_praddr1[i] == mem_pwaddr_i);
-        br_op2_ready[i] = (branch_op2_src[i] != `OP2_REG) || ready_flag_i[branch_praddr2[i]] || 
+        br_op2_ready[i] = (branch_op2_src[i] != `OP2_REG) || ready[branch_praddr2[i]] ||
                        (branch_praddr2[i] == alu0_rf_pwaddr_i) || (branch_praddr2[i] == alu1_rf_pwaddr_i) ||
                        (branch_praddr2[i] == mem_pwaddr_i);
 
@@ -799,10 +844,10 @@ wire [1:0] mem_req = mem_need_slot0 + mem_need_slot1;
 wire mem_stall = (mem_req + mem_count > 4'd8) || (sq_count + store_req > 3'd4);
 // 发射逻辑
 reg mem_issue_flag;
-wire mem_op1_ready = (mem_op1_src[mem_rd_ptr] != `OP1_REG) || ready_flag_i[mem_praddr1[mem_rd_ptr]] || 
+wire mem_op1_ready = (mem_op1_src[mem_rd_ptr] != `OP1_REG) || ready[mem_praddr1[mem_rd_ptr]] ||
                      (mem_praddr1[mem_rd_ptr] == alu0_rf_pwaddr_i) || (mem_praddr1[mem_rd_ptr] == alu1_rf_pwaddr_i) ||
                      (mem_praddr1[mem_rd_ptr] == mem_pwaddr_i);
-wire mem_op2_ready = (mem_op2_src[mem_rd_ptr] != `OP2_REG) || ready_flag_i[mem_praddr2[mem_rd_ptr]] || 
+wire mem_op2_ready = (mem_op2_src[mem_rd_ptr] != `OP2_REG) || ready[mem_praddr2[mem_rd_ptr]] ||
                      (mem_praddr2[mem_rd_ptr] == alu0_rf_pwaddr_i) || (mem_praddr2[mem_rd_ptr] == alu1_rf_pwaddr_i) ||
                      (mem_praddr2[mem_rd_ptr] == mem_pwaddr_i);
 always @(*) begin
@@ -1077,9 +1122,9 @@ reg mul_dep_mem[0:3];
 always @(*) begin
     for (i = 0; i < 4; i = i + 1) begin
         // 乘除法只需要寄存器
-        mul_op1_ready[i] = ready_flag_i[mul_praddr1[i]] || (mul_praddr1[i] == alu0_rf_pwaddr_i) ||
+        mul_op1_ready[i] = ready[mul_praddr1[i]] || (mul_praddr1[i] == alu0_rf_pwaddr_i) ||
                         (mul_praddr1[i] == alu1_rf_pwaddr_i) || (mul_praddr1[i] == mem_pwaddr_i);
-        mul_op2_ready[i] = ready_flag_i[mul_praddr2[i]] || (mul_praddr2[i] == alu0_rf_pwaddr_i) ||
+        mul_op2_ready[i] = ready[mul_praddr2[i]] || (mul_praddr2[i] == alu0_rf_pwaddr_i) ||
                        (mul_praddr2[i] == alu1_rf_pwaddr_i) || (mul_praddr2[i] == mem_pwaddr_i);
 
         mul_dep_mem[i] = ((mul_praddr1[i] == mem_pwaddr_i) || (mul_praddr2[i] == mem_pwaddr_i)) 
@@ -1301,9 +1346,9 @@ reg div_dep_mem[0:3];
 always @(*) begin
     for (i = 0; i < 4; i = i + 1) begin
         // 乘除法只需要寄存器
-        div_op1_ready[i] = ready_flag_i[div_praddr1[i]] || (div_praddr1[i] == alu0_rf_pwaddr_i) ||
+        div_op1_ready[i] = ready[div_praddr1[i]] || (div_praddr1[i] == alu0_rf_pwaddr_i) ||
                        (div_praddr1[i] == alu1_rf_pwaddr_i) || (div_praddr1[i] == mem_pwaddr_i);
-        div_op2_ready[i] = ready_flag_i[div_praddr2[i]] || (div_praddr2[i] == alu0_rf_pwaddr_i) ||
+        div_op2_ready[i] = ready[div_praddr2[i]] || (div_praddr2[i] == alu0_rf_pwaddr_i) ||
                        (div_praddr2[i] == alu1_rf_pwaddr_i) || (div_praddr2[i] == mem_pwaddr_i);
 
         div_dep_mem[i] = ((div_praddr1[i] == mem_pwaddr_i) || (div_praddr2[i] == mem_pwaddr_i)) 
