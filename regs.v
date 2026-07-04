@@ -8,32 +8,44 @@ module regs(
     input rst,
 
     // from ALU0
+    input alu0_exe_wflag_i,         // 执行阶段写寄存器标志
+    input [5:0] alu0_exe_waddr_i,   // 执行阶段写寄存器地址
     input alu0_wflag_i,             // 写回阶段写寄存器标志
     input [5:0] alu0_waddr_i,       // 写回阶段写寄存器地址
     input [31:0] alu0_wdata_i,      // 写回阶段写寄存器数据
 
     // from ALU1
+    input alu1_exe_wflag_i,         // 执行阶段写寄存器标志
+    input [5:0] alu1_exe_waddr_i,   // 执行阶段写寄存器地址
     input alu1_wflag_i,             // 写回阶段写寄存器标志
     input [5:0] alu1_waddr_i,       // 写回阶段写寄存器地址
     input [31:0] alu1_wdata_i,      // 写回阶段写寄存器数据
 
     // from branch
+    input branch_rf_wflag_i,            // 读寄存器文件阶段写寄存器标志
+    input [5:0] branch_rf_waddr_i,      // 读寄存器文件阶段写寄存器地址
     input branch_wflag_i,               // 写回阶段写寄存器标志
     input [5:0] branch_waddr_i,         // 写回阶段写寄存器地址
     input [31:0] branch_wdata_i,        // 写回阶段写寄存器数据
 
     // from mem
+    input mem_exe_wflag_i,           // 执行阶段写寄存器标志
+    input [5:0] mem_exe_waddr_i,     // 执行阶段写寄存器地址
     input mem_wflag_i,               // 写回阶段写寄存器标志
     input [5:0] mem_waddr_i,         // 写回阶段写寄存器地址
     input [31:0] mem_wdata_i,        // 写回阶段写寄存器数据
 
     `ifdef use_m_extension
     // from mul
+    input mul_exe_wflag_i,           // 执行阶段写寄存器标志
+    input [5:0] mul_exe_waddr_i,     // 执行阶段写寄存器地址
     input mul_wflag_i,               // 写回阶段写寄存器标志
     input [5:0] mul_waddr_i,         // 写回阶段写寄存器地址
     input [31:0] mul_wdata_i,        // 写回阶段写寄存器数据
 
     // from div
+    input div_exe_wflag_i,           // 执行阶段写寄存器标志
+    input [5:0] div_exe_waddr_i,     // 执行阶段写寄存器地址
     input div_wflag_i,               // 写回阶段写寄存器标志
     input [5:0] div_waddr_i,         // 写回阶段写寄存器地址
     input [31:0] div_wdata_i,        // 写回阶段写寄存器数据
@@ -70,10 +82,17 @@ module regs(
     input [5:0] csr_waddr_i,             // CSR指令写回阶段写寄存器地址
     input [31:0] csr_wdata_i,            // CSR指令写回阶段写寄存器数据
 
+    // from rename
+    input alloc_flag_inst0_i,             // Inst0是否分配物理寄存器
+    input [5:0] alloc_paddr_inst0_i,      // Inst0分配的物理寄存器地址
+    input alloc_flag_inst1_i,             // Inst1是否分配物理寄存器
+    input [5:0] alloc_paddr_inst1_i,      // Inst1分配的物理寄存器地址
+
     // to commit
     output reg [31:0] csr_rdata_o,       // CSR指令读RS1数据
 
     // to RF
+    output [63:0] ready_flag_o,              // 寄存器就绪标志，位0-63分别对应物理寄存器0-63
     output reg [31:0] alu_inst0_rdata1_o,    // 读寄存器1数据
     output reg [31:0] alu_inst0_rdata2_o,    // 读寄存器2数据
     output reg [31:0] alu_inst1_rdata1_o,    // 读寄存器1数据
@@ -92,16 +111,42 @@ module regs(
 );
 
 reg [31:0] regs[0:63];    // 物理寄存器
+reg [63:0] ready;         // 寄存器就绪标志，位0-63分别对应物理寄存器0-63
 integer i;
+assign ready_flag_o = ready;
+// always @(*) begin
+//     ready_flag_o[0] = ready[0];  // x0寄存器始终就绪
+//     for (i = 1; i < 64; i = i + 1) begin
+//         // 已写回或者正在写入可以旁路
+//         ready_flag_o[i] = ready[i] || (branch_wflag_i && (branch_waddr_i == i[5:0]));
+//     end
+// end
 
 // 写
 always @(posedge clk or negedge rst) begin
     if(!rst) begin
+        ready <= {32'b0, 32'hFFFF_FFFF};
         for (i = 0; i < 64; i = i + 1) begin     // 用for循环初始化
             regs[i] <= 32'b0;
         end
     end
     else begin       // 无法对x0寄存器写入
+        // 写寄存器，将ready置1
+        if (alu0_exe_wflag_i && alu0_exe_waddr_i != 0)     ready[alu0_exe_waddr_i]  <= 1'b1;
+        if (alu1_exe_wflag_i && alu1_exe_waddr_i != 0)     ready[alu1_exe_waddr_i]  <= 1'b1;
+        if (branch_rf_wflag_i && branch_rf_waddr_i != 0)   ready[branch_rf_waddr_i] <= 1'b1;
+        if (mem_exe_wflag_i && mem_exe_waddr_i != 0)       ready[mem_exe_waddr_i]   <= 1'b1;
+        if (csr_wflag_i && csr_waddr_i != 0)               ready[csr_waddr_i]       <= 1'b1;
+        `ifdef use_m_extension
+        if (mul_exe_wflag_i && mul_exe_waddr_i != 0)       ready[mul_exe_waddr_i]   <= 1'b1;
+        if (div_exe_wflag_i && div_exe_waddr_i != 0)       ready[div_exe_waddr_i]   <= 1'b1;
+        `endif
+        // 分配物理寄存器，将ready清零
+        if (alloc_flag_inst0_i && alloc_paddr_inst0_i != 0)
+            ready[alloc_paddr_inst0_i] <= 1'b0;
+        if (alloc_flag_inst1_i && alloc_paddr_inst1_i != 0)
+            ready[alloc_paddr_inst1_i] <= 1'b0;
+
         // 使用 i 从 1 开始，天然保护了 x0，x0 自动被综合为常数 0
         for(i = 1; i < 64; i = i + 1) begin
             if (alu0_wflag_i && (alu0_waddr_i == i[5:0])) // ALU0
