@@ -28,8 +28,8 @@ module SRT_div (
 
     // 37位宽：防止溢出
     // bit[36:34] : 符号与溢出保护 (3位)
-    // bit[33:1]  : 32位整数数据
-    // bit[0]     : 定点小数位 (Scale=2, 恒为0)
+    // bit[33:2]  : 32位整数数据
+    // bit[1:0]   : 定点小数位 (Scale=4, 恒为0)
     reg signed [36:0] rem;
     reg [31:0]  q_pos, q_neg;   // 正商与负商
 
@@ -41,48 +41,73 @@ module SRT_div (
     wire        r_final_sign = dvd_sign;
     wire        div_zero     = (divisor == 32'd0);
 
-    // --- 定点化扩展 (Scale = 2) ---
-    // dvs_ext = 2 * D
+    // --- 定点化扩展 (Scale = 4) ---
+    // dvs_ext = 4 * D
+    // wire signed [36:0] dvs_ext = {3'b0, dvs_reg, 2'b0}; 
     reg signed [36:0] dvs_ext;
+    
+    // 阈值：
+    // wire signed [36:0] dvs_0_5 = {4'b0, dvs_reg, 1'b0};     // 2 * D
+    // wire signed [36:0] dvs_1_5 = dvs_ext + dvs_0_5;         // 6 * D
+    reg signed [36:0] dvs_0_5, dvs_1_5;
 
     reg signed [36:0] rem_sh, rem_step;
-    reg               q_pos_sel;          // 1: 减除数, 0: 加除数
+    reg signed [2:0]  q;
     reg [31:0] q_pos_next, q_neg_next;
     reg [31:0] dvd_next; 
 
     always @(*) begin
         // 默认值
+        q = 0; 
         rem_step = rem;
         q_pos_next = q_pos; 
         q_neg_next = q_neg;
-        dvd_next = dvd_reg << 1;
+        dvd_next = dvd_reg << 2;
 
-        // 移入被除数的高1位。
-        // 35'b0 + 1位数据 + 1'b0 = 37位
-        rem_sh = (rem <<< 1) | {35'b0, dvd_reg[31], 1'b0};
+        // 移入被除数的高2位。
+        // Scale=4，rem 的 bit[1:0] 始终为 0
+        // 33'b0 + 2位数据 + 2'b0 = 37位
+        rem_sh = (rem <<< 2) | {33'b0, dvd_reg[31:30], 2'b0};
 
-        // 不恢复余数法：符号位决定加减
-        q_pos_sel = ~rem_sh[36];
+        // 选商 (比较阈值)
+        if      (rem_sh >= dvs_1_5)  q = 3'sd2;
+        else if (rem_sh >= dvs_0_5)  q = 3'sd1;
+        else if (rem_sh >= -dvs_0_5) q = 3'sd0;
+        else if (rem_sh >= -dvs_1_5) q = -3'sd1;
+        else                         q = -3'sd2;
 
         // 更新余数
-        rem_step = q_pos_sel ? (rem_sh - dvs_ext) : (rem_sh + dvs_ext);
+        case (q)
+            3'sd2:    rem_step = rem_sh - (dvs_ext <<< 1); // -2 * (4D)
+            3'sd1:    rem_step = rem_sh - dvs_ext;         // -1 * (4D)
+            3'sd0:    rem_step = rem_sh;
+            -3'sd1:   rem_step = rem_sh + dvs_ext;
+            -3'sd2:   rem_step = rem_sh + (dvs_ext <<< 1);
+            default:  rem_step = rem_sh;
+        endcase
 
-        // 更新商（每周期移入1位）
-        q_pos_next = {q_pos[30:0], 1'b0};
-        q_neg_next = {q_neg[30:0], 1'b0};
+        // =========================================================
+        // 更新商
+        // =========================================================
+        q_pos_next = {q_pos[29:0], 2'b0};
+        q_neg_next = {q_neg[29:0], 2'b0};
 
-        q_pos_next[0] =  q_pos_sel;
-        q_neg_next[0] = ~q_pos_sel;
+        if (q > 0)      q_pos_next[1:0] = q[1:0]; 
+        else if (q < 0) q_neg_next[1:0] = -q[1:0]; 
 
     end
 
+    // =========================================================
     // 时序逻辑
+    // =========================================================
     always @(posedge clk) begin
         if (!rst_n) begin
             state   <= IDLE;
             dvd_reg <= 0; 
             dvs_reg <= 0;
             dvs_ext <= 0;
+            dvs_0_5 <= 0;
+            dvs_1_5 <= 0;
             // sgn_reg <= 0;
             rem     <= 0; 
             q_pos   <= 0; 
@@ -96,7 +121,9 @@ module SRT_div (
                     if (start) begin
                         dvd_reg <= dvd_abs;
                         dvs_reg <= dvs_abs;
-                        dvs_ext <= {3'b0, dvs_abs, 1'b0};      // 2 * D
+                        dvs_ext <= {3'b0, dvs_abs, 2'b0};
+                        dvs_0_5 <= {4'b0, dvs_abs, 1'b0};
+                        dvs_1_5 <= {3'b0, dvs_abs, 2'b0} + {4'b0, dvs_abs, 1'b0};
                         // sgn_reg <= signed_div;
                         rem     <= 0;
                         q_pos   <= 0; 
@@ -122,23 +149,25 @@ module SRT_div (
             IDLE: if (start) state_n = RUN;
             RUN: begin
                 if (~start) state_n = IDLE;
-                else if (cnt == 5'd31) state_n = FIX;
+                else if (cnt == 5'd15) state_n = FIX;
             end
             FIX:  state_n = IDLE;
             default: state_n = IDLE;
         endcase
     end
 
-    assign ready_for_wakeup = (state == RUN) && (cnt == 5'd31);
+    assign ready_for_wakeup = (state == RUN) && (cnt == 5'd15);
 
+    // =========================================================
     // 输出逻辑
+    // =========================================================
     reg [31:0] q_raw, r_raw;
     always @(*) begin
         q_raw = q_pos - q_neg;
         
-        // 还原余数：Scale=2，所以舍弃低1位
-        // rem[33:1] 对应 32位整数
-        r_raw = rem[33:1]; 
+        // 还原余数：Scale=4，所以舍弃低2位
+        // rem[33:2] 对应 32位整数
+        r_raw = rem[33:2]; 
 
         // 修正逻辑：如果余数是负数，加回除数
         if (rem[36] == 1'b1) begin
@@ -147,7 +176,7 @@ module SRT_div (
         end
     end
 
-    assign quotient  = div_zero ? 32'hFFFF_FFFF : (q_final_sign ? (~q_raw + 1'b1) : q_raw);
+    assign quotient  = div_zero ? 32'hFFFFFFFF : (q_final_sign ? (~q_raw + 1'b1) : q_raw);
     assign remainder = div_zero ? dividend     : (r_final_sign ? (~r_raw + 1'b1) : r_raw);
     assign done      = (state == FIX);
     // assign busy      = (state != IDLE);
