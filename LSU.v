@@ -28,6 +28,11 @@ module LSU (
     input [31:0] reg_rdata1_i,          // 寄存器1读数据
     input [31:0] reg_rdata2_i,          // 寄存器2读数据
 
+    `ifdef use_f_extension
+    // from f_regs
+    input [31:0] float_rs2_rdata_i,     // 浮点寄存器2读数据
+    `endif
+
     // from clint
     input int_flag_i,                   // 中断标志
 
@@ -70,6 +75,11 @@ module LSU (
     output reg_wflag_o,                 // 写回阶段写寄存器标志
     output [5:0] reg_waddr_o,           // 写回阶段写寄存器地址
     output [31:0] reg_wdata_o,          // 写回阶段写寄存器数据
+
+    `ifdef use_f_extension
+    output float_reg_wflag_o,           // 写回阶段写浮点寄存器标志
+    `endif
+    
     output mem_reg_wflag_o,             // Mem阶段写寄存器标志
 
     // to issue
@@ -95,6 +105,9 @@ wire [1:0] rf_sq_id_o;              // SQ id
 wire [3:0] rf_subtype_o;            // 指令子类型
 wire [31:0] rf_rs1_data_o;          // rs1数据
 wire [31:0] rf_rs2_data_o;          // rs2数据
+`ifdef use_f_extension
+wire [31:0] rf_float_rs2_data_o;    // 浮点rs2数据
+`endif
 wire [5:0] rf_pwaddr_o;             // 物理寄存器写地址
 wire [31:0] rf_imm_o;               // 立即数
 
@@ -117,6 +130,10 @@ LSU_RF u_LSU_RF(
     // from regs
     .reg_rdata1_i(reg_rdata1_i),          // 寄存器1读数据
     .reg_rdata2_i(reg_rdata2_i),          // 寄存器2读数据
+    `ifdef use_f_extension
+    // from f_regs
+    .float_rs2_rdata_i(float_rs2_rdata_i),
+    `endif
     // from branch
     .jump_flag_i(jump_flag_i),                 // 跳转标志
     .kill_mask_id_i(kill_mask_id_i),        // 分支掩码id
@@ -136,6 +153,9 @@ LSU_RF u_LSU_RF(
     .subtype_o(rf_subtype_o),            // 指令子类型
     .rs1_data_o(rf_rs1_data_o),          // rs1数据
     .rs2_data_o(rf_rs2_data_o),          // rs2数据
+    `ifdef use_f_extension
+    .float_rs2_data_o(rf_float_rs2_data_o),
+    `endif
     .pwaddr_o(rf_pwaddr_o),             // 物理寄存器写地址
     .imm_o(rf_imm_o)                    // 立即数
 );
@@ -148,6 +168,9 @@ wire [1:0] rf_ex_sq_id_o;              // SQ id
 wire [3:0] rf_ex_subtype_o;            // 指令子类型
 wire [31:0] rf_ex_rs1_data_o;          // rs1数据
 wire [31:0] rf_ex_rs2_data_o;          // rs2数据
+`ifdef use_f_extension
+wire [31:0] rf_ex_float_rs2_data_o;    // 浮点rs2数据
+`endif
 wire [5:0] rf_ex_pwaddr_o;             // 物理寄存器写地址
 wire [31:0] rf_ex_imm_o;               // 立即数
 
@@ -162,6 +185,9 @@ lsu_rf_ex u_lsu_rf_ex(
     .subtype_i(rf_subtype_o),            // 指令子类型
     .rs1_data_i(rf_rs1_data_o),          // rs1数据
     .rs2_data_i(rf_rs2_data_o),          // rs2数据
+    `ifdef use_f_extension
+    .float_rs2_data_i(rf_float_rs2_data_o),
+    `endif
     .pwaddr_i(rf_pwaddr_o),             // 物理寄存器写地址
     .imm_i(rf_imm_o),                   // 立即数
     // from clint
@@ -185,6 +211,9 @@ lsu_rf_ex u_lsu_rf_ex(
     .subtype_o(rf_ex_subtype_o),            // 指令子类型
     .rs1_data_o(rf_ex_rs1_data_o),          // rs1数据
     .rs2_data_o(rf_ex_rs2_data_o),          // rs2数据
+    `ifdef use_f_extension
+    .float_rs2_data_o(rf_ex_float_rs2_data_o),
+    `endif
     .pwaddr_o(rf_ex_pwaddr_o),             // 物理寄存器写地址
     .imm_o(rf_ex_imm_o)                    // 立即数
 );
@@ -196,6 +225,9 @@ wire [3:0] ex_mask_o;               // 分支掩码
 wire [1:0] ex_sq_id_o;              // SQ id
 wire [3:0] ex_subtype_o;            // 指令子类型
 wire [31:0] ex_rs2_data_o;          // rs2数据
+`ifdef use_f_extension
+wire [31:0] ex_float_rs2_data_o;    // 浮点rs2数据
+`endif
 wire [5:0] ex_pwaddr_o;             // 物理寄存器写地址
 wire [31:0] ex_mem_addr_o;          // 访存地址
 
@@ -208,6 +240,9 @@ LSU_EX u_LSU_EX(
     .subtype_i(rf_ex_subtype_o),            // 指令子类型
     .rs1_data_i(rf_ex_rs1_data_o),          // rs1数据
     .rs2_data_i(rf_ex_rs2_data_o),          // rs2数据
+    `ifdef use_f_extension
+    .float_rs2_data_i(rf_ex_float_rs2_data_o),
+    `endif
     .pwaddr_i(rf_ex_pwaddr_o),             // 物理寄存器写地址
     .imm_i(rf_ex_imm_o),                   // 立即数
     // from branch
@@ -225,6 +260,9 @@ LSU_EX u_LSU_EX(
     .sq_id_o(ex_sq_id_o),              // SQ id
     .subtype_o(ex_subtype_o),            // 指令子类型
     .rs2_data_o(ex_rs2_data_o),          // rs2数据
+    `ifdef use_f_extension
+    .float_rs2_data_o(ex_float_rs2_data_o),
+    `endif
     .pwaddr_o(ex_pwaddr_o),             // 物理寄存器写地址
     .mem_addr_o(ex_mem_addr_o)           // 访存地址
 );
@@ -236,6 +274,9 @@ wire [3:0] ex_mem_mask_o;               // 分支掩码
 wire [1:0] ex_mem_sq_id_o;              // SQ id
 wire [3:0] ex_mem_subtype_o;            // 指令子类型
 wire [31:0] ex_mem_rs2_data_o;          // rs2数据
+`ifdef use_f_extension
+wire [31:0] ex_mem_float_rs2_data_o;    // 浮点rs2数据
+`endif
 wire [5:0] ex_mem_pwaddr_o;             // 物理寄存器写地址
 wire [31:0] ex_mem_mem_addr_o;          // 访存地址
 
@@ -249,6 +290,9 @@ lsu_ex_mem u_lsu_ex_mem(
     .sq_id_i(ex_sq_id_o),              // SQ id
     .subtype_i(ex_subtype_o),            // 指令子类型
     .rs2_data_i(ex_rs2_data_o),          // rs2数据
+    `ifdef use_f_extension
+    .float_rs2_data_i(ex_float_rs2_data_o),
+    `endif
     .pwaddr_i(ex_pwaddr_o),             // 物理寄存器写地址
     .mem_addr_i(ex_mem_addr_o),          // 访存地址
     // from clint
@@ -268,6 +312,9 @@ lsu_ex_mem u_lsu_ex_mem(
     .sq_id_o(ex_mem_sq_id_o),              // SQ id
     .subtype_o(ex_mem_subtype_o),            // 指令子类型
     .rs2_data_o(ex_mem_rs2_data_o),          // rs2数据
+    `ifdef use_f_extension
+    .float_rs2_data_o(ex_mem_float_rs2_data_o),
+    `endif
     .pwaddr_o(ex_mem_pwaddr_o),             // 物理寄存器写地址
     .mem_addr_o(ex_mem_mem_addr_o)           // 访存地址
 );
@@ -277,6 +324,9 @@ wire mem_inst_valid_o;
 wire [3:0] mem_subtype_o;
 wire mem_dcache_ren;
 wire mem_stall_o;
+`ifdef use_f_extension
+wire mem_rd_is_float;
+`endif
 
 LSU_Mem u_LSU_Mem(
     .clk(clk),
@@ -288,6 +338,9 @@ LSU_Mem u_LSU_Mem(
     .sq_id_i(ex_mem_sq_id_o),              // SQ id
     .subtype_i(ex_mem_subtype_o),            // 指令子类型
     .rs2_data_i(ex_mem_rs2_data_o),          // rs2数据
+    `ifdef use_f_extension
+    .float_rs2_data_i(ex_mem_float_rs2_data_o),
+    `endif
     .pwaddr_i(ex_mem_pwaddr_o),             // 物理寄存器写地址
     .mem_addr_i(ex_mem_mem_addr_o),          // 访存地址
     // from clint
@@ -325,6 +378,9 @@ LSU_Mem u_LSU_Mem(
     // to wb
     .inst_valid_o(mem_inst_valid_o),                 // 指令有效标志
     .subtype_o(mem_subtype_o),              // 指令子类型
+    `ifdef use_f_extension
+    .rd_is_float_o(mem_rd_is_float),
+    `endif
     // to ROB
     .store_complete_flag_o(store_complete_flag_o),            // store指令完成标志
     .store_commit_rob_id_o(store_commit_rob_id_o)       // store提交ROB id
@@ -365,6 +421,9 @@ wire [3:0] mem_wb_subtype_o;              // 指令子类型
 wire [5:0] mem_wb_rob_id_o;               // ROB id
 wire [5:0] mem_wb_pwaddr_o;               // 物理寄存器写地址
 wire [31:0] mem_wb_reg_wdata_o;           // 写寄存器数据
+`ifdef use_f_extension
+wire mem_wb_rd_is_float;                  // 写回寄存器是否为浮点寄存器
+`endif
 
 lsu_mem_wb u_lsu_mem_wb(
     .clk(clk),
@@ -375,15 +434,22 @@ lsu_mem_wb u_lsu_mem_wb(
     .rob_id_i(store_commit_rob_id_o),               // ROB id
     .pwaddr_i(mem_reg_waddr_o),               // 物理寄存器写地址
     .reg_wdata_i(mem_reg_wdata_o),           // 写寄存器数据
+    `ifdef use_f_extension
+    .rd_is_float_i(mem_rd_is_float),
+    `endif
     .stall_i(stall_o),
     // from clint
     .int_flag_i(int_flag_i),                   // 中断标志
     // to wb
     .inst_valid_o(mem_wb_inst_valid_o),                 // 指令有效标志
     .subtype_o(mem_wb_subtype_o),              // 指令子类型
-    .rob_id_o(mem_wb_rob_id_o),               // ROB id
-    .pwaddr_o(mem_wb_pwaddr_o),               // 物理寄存器写地址
+    .rob_id_o(mem_wb_rob_id_o),                // ROB id
+    .pwaddr_o(mem_wb_pwaddr_o),                // 物理寄存器写地址
     .reg_wdata_o(mem_wb_reg_wdata_o)           // 写寄存器数据
+    `ifdef use_f_extension
+    ,
+    .rd_is_float_o(mem_wb_rd_is_float)
+    `endif
 );
 
 // wb
@@ -394,10 +460,16 @@ LSU_WB u_LSU_WB(
     .rob_id_i(mem_wb_rob_id_o),               // ROB id
     .pwaddr_i(mem_wb_pwaddr_o),               // 物理寄存器写地址
     .reg_wdata_i(mem_wb_reg_wdata_o),           // 写寄存器数据
+    `ifdef use_f_extension
+    .rd_is_float_i(mem_wb_rd_is_float),
+    `endif
     // to regs
     .reg_wflag_o(reg_wflag_o),                 // 写回阶段写寄存器标志
     .reg_waddr_o(reg_waddr_o),           // 写回阶段写寄存器地址
     .reg_wdata_o(reg_wdata_o),          // 写回阶段写寄存器数据
+    `ifdef use_f_extension
+    .float_reg_wflag_o(float_reg_wflag_o),           // 写回阶段写浮点寄存器标志
+    `endif
     // to ROB
     .load_complete_flag_o(load_complete_flag_o),              // load指令完成标志
     .load_commit_rob_id_o(load_commit_rob_id_o)         // load提交ROB id

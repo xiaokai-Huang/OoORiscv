@@ -33,6 +33,19 @@ module ROB (
     input [5:0] old_paddr_inst0_i,      // 指令0旧的物理寄存器映射
     input [5:0] old_paddr_inst1_i,      // 指令1旧的物理寄存器映射
 
+    `ifdef use_f_extension
+    input [4:0] inst_f_subtype_port0_i,  // F扩展指令子类型
+    input [4:0] inst_f_subtype_port1_i,
+    input rd_is_float_port0_i,           // 目的寄存器是否为浮点
+    input rd_is_float_port1_i,
+    input rs1_is_float_port0_i,          // 源寄存器1是否为浮点
+    input rs1_is_float_port1_i,
+    input rs2_is_float_port0_i,          // 源寄存器2是否为浮点
+    input rs2_is_float_port1_i,
+    input [4:0] rs3_raddr_port0_i,       // 源寄存器3地址
+    input [4:0] rs3_raddr_port1_i,
+    `endif
+
     // from clint
     input int_flag_i,                   // 中断标志
     input int_w_disable_i,              // 中断发生时禁止写内存和CSR寄存器
@@ -81,6 +94,10 @@ module ROB (
     // to pipeline
     output stall_o,
 
+    `ifdef use_f_extension
+    output float_stall_o,        // 浮点冲突暂停（已有浮点未提交+新浮点到来）
+    `endif
+
     // to issue
     output reg [1:0] sq_commit_cnt_o,             // store queue提交数量
     output reg [5:0] rob_id_inst0_o,              // 指令0 ROB id
@@ -126,11 +143,45 @@ localparam TYPE_STORE = 2'b00,
            TYPE_BRANCH = 2'b01,
            TYPE_CSR = 2'b10;
 
+`ifdef use_f_extension
+wire is_float_port0 = inst_valid_port0_i && ((inst_type_port0_i == `TYPE_F_EXT) || ((inst_type_port0_i == `TYPE_MEM) && inst_subtype_port0_i[2] && inst_subtype_port0_i[1]));
+wire is_float_port1 = inst_valid_port1_i && ((inst_type_port1_i == `TYPE_F_EXT) || ((inst_type_port1_i == `TYPE_MEM) && inst_subtype_port1_i[2] && inst_subtype_port1_i[1]));
+wire dual_float = is_float_port0 && is_float_port1;
+
+reg dual_float_latch;  // 1=inst0已在上一拍写入，本拍挡inst0收inst1
+wire inst0_valid = inst_valid_port0_i && !dual_float_latch;  // latch期间mask inst0（已入队）
+wire inst1_valid = inst_valid_port1_i && !(dual_float && !dual_float_latch);  // 仅在首拍mask inst1
+wire new_float_coming = (is_float_port0 && inst0_valid) || (is_float_port1 && inst1_valid);
+assign float_stall_o = float_cnt && new_float_coming;
+`else
+wire inst0_valid = inst_valid_port0_i;
+wire inst1_valid = inst_valid_port1_i;
+`endif
+
+`ifdef use_f_extension
+// dual_float_latch: 首拍收inst0置1，浮点提交后收inst1清0
+// 状态机：0→(dual_float && ~stall)→1→(~stall)→0，stall=1时保持
+always @(posedge clk or negedge rst) begin
+    if (!rst)
+        dual_float_latch <= 1'b0;
+    else if (int_flag_i || jump_flag_i)
+        dual_float_latch <= 1'b0;
+    else if (!dual_float_latch && dual_float && ~stall)
+        dual_float_latch <= 1'b1;  // 首拍：收inst0
+    else if (dual_float_latch && ~stall)
+        dual_float_latch <= 1'b0;  // 次拍：收inst1（等提交后stall解除）
+end
+`endif
+
 // ROB
 reg rob_valid[0:31];
 reg rob_complete[0:31];
 reg [1:0] rob_snap_id[0:31];
 reg [3:0] rob_br_mask[0:31];
+`ifdef use_f_extension
+reg rob_is_float[0:31];
+reg float_cnt;  // 0=无浮点, 1=有1条浮点在ROB中
+`endif
 
 wire [63:0] rob_static_data_port0, rob_static_data_port1;
 reg inst0_idx, inst1_idx;
@@ -396,7 +447,7 @@ always @(*) begin
     rob_port0_wdata = 64'b0;
     rob_port1_wdata = 64'b0;
 
-    if (inst_valid_port0_i && inst_valid_port1_i) begin
+    if (inst0_valid && inst1_valid) begin
         rob_port0_we = 1'b1;
         rob_port1_we = 1'b1;
         if (rob_wr_ptr[0] == 1'b0) begin // inst0写bank0, inst1写bank1
@@ -412,7 +463,7 @@ always @(*) begin
             rob_port1_wdata = rob_inst0_wdata;
         end
     end
-    else if (inst_valid_port0_i) begin
+    else if (inst0_valid) begin
         if (rob_wr_ptr[0] == 1'b0) begin
             rob_port0_we = 1'b1;
             rob_id_port0 = rob_wr_ptr;
@@ -424,7 +475,7 @@ always @(*) begin
             rob_port1_wdata = rob_inst0_wdata;
         end
     end
-    else if (inst_valid_port1_i) begin
+    else if (inst1_valid) begin
         if (rob_wr_ptr[0] == 1'b0) begin
             rob_port0_we = 1'b1;
             rob_id_port0 = rob_wr_ptr;
@@ -442,15 +493,19 @@ always @(*) begin
     rob_id_inst0_o = {1'b0, rob_wr_ptr};
     rob_id_inst1_o = {1'b0, rob_wr_ptr + 5'd1}; // 5位自动回绕
 
-    if (!inst_valid_port0_i && inst_valid_port1_i) begin
+    if (!inst0_valid && inst1_valid) begin
         rob_id_inst1_o = {1'b0, rob_wr_ptr};
     end
 end
 // 暂停逻辑
 reg [5:0] rob_free_cnt; // ROB空闲计数
-wire [1:0] rob_req = inst_valid_port0_i + inst_valid_port1_i;
+wire [1:0] rob_req = inst0_valid + inst1_valid;
 assign stall_o = (rob_free_cnt < rob_req);
-wire stall = stall_i || stall_o;
+wire stall = stall_i || (rob_free_cnt < rob_req)
+            `ifdef use_f_extension
+             || float_stall_o
+            `endif
+            ;  // 内部写门控保留float_stall_o，阻止ROB分配
 // 冲刷逻辑
 wire [3:0] kill_mask = jump_flag_i ? (4'b0001 << kill_mask_id_i) : 4'b0000;
 reg prev_flush_flag;
@@ -477,22 +532,34 @@ end
 wire [1:0] inst_commit_cnt = commit_inst0_o + commit_inst1_o;
 // ROB动态信息更新
 integer i;
+`ifdef use_f_extension
+integer f_idx;
+`endif
 always @(posedge clk or negedge rst) begin
     if (!rst) begin
         rob_rd_ptr <= 5'b0;
         rob_wr_ptr <= 5'b0;
         rob_free_cnt <= 6'd32;
+        `ifdef use_f_extension
+        float_cnt <= 1'b0;
+        `endif
         for (i = 0; i < 32; i = i + 1) begin
             rob_valid[i] <= 1'b0;
             rob_complete[i] <= 1'b0;
             rob_snap_id[i] <= 2'b0;
             rob_br_mask[i] <= 4'b0;
+            `ifdef use_f_extension
+            rob_is_float[i] <= 1'b0;
+            `endif
         end
     end
     else if (int_flag_i) begin
         rob_rd_ptr <= 5'b0;
         rob_wr_ptr <= 5'b0;
         rob_free_cnt <= 6'd32;
+        `ifdef use_f_extension
+        float_cnt <= 1'b0;
+        `endif
         for (i = 0; i < 32; i = i + 1) begin
             rob_valid[i] <= 1'b0; // 中断发生，清空ROB
         end
@@ -540,6 +607,13 @@ always @(posedge clk or negedge rst) begin
     else if (prev_flush_flag) begin
         rob_wr_ptr <= restore_wr_ptr;
         rob_free_cnt <= restore_free_cnt + inst_commit_cnt;
+        `ifdef use_f_extension
+        // 重新扫描：浮点是否被冲刷
+        float_cnt <= 1'b0;
+        for (f_idx = 0; f_idx < 32; f_idx = f_idx + 1) begin
+            if (rob_valid[f_idx] && rob_is_float[f_idx]) float_cnt <= 1'b1;
+        end
+        `endif
         // 指令完成更新
         if (alu0_complete_flag_i)  rob_complete[alu0_commit_rob_id_i[4:0]]  <= 1'b1;
         if (alu1_complete_flag_i)  rob_complete[alu1_commit_rob_id_i[4:0]]  <= 1'b1;
@@ -564,6 +638,11 @@ always @(posedge clk or negedge rst) begin
                 rob_rd_ptr <= rob_rd_ptr + 5'd1;
             end
         end
+        `ifdef use_f_extension
+        // float_cnt：提交浮点则清零（必须在扫描之后，覆盖扫描结果）
+        if ((commit_inst0_o && rob_is_float[rob_rd_ptr]) || (commit_inst1_o && rob_is_float[(rob_rd_ptr + 5'd1) & 5'b11111]))
+            float_cnt <= 1'b0;
+        `endif
         // 提交释放掩码
         if (free_snap_flag_inst0_o) begin
             for (i = 0; i < 32; i = i + 1) begin
@@ -589,17 +668,23 @@ always @(posedge clk or negedge rst) begin
         `endif
         // 分配ROB条目
         if (~stall) begin
-            if (inst_valid_port0_i) begin
+            if (inst0_valid) begin
                 rob_valid[rob_id_inst0_o[4:0]] <= 1'b1;
                 rob_complete[rob_id_inst0_o[4:0]] <= 1'b0;
                 rob_snap_id[rob_id_inst0_o[4:0]] <= snap_id_inst0_i;
                 rob_br_mask[rob_id_inst0_o[4:0]] <= branch_mask_inst0_i;
+                `ifdef use_f_extension
+                rob_is_float[rob_id_inst0_o[4:0]] <= is_float_port0;
+                `endif
             end
-            if (inst_valid_port1_i) begin
+            if (inst1_valid) begin
                 rob_valid[rob_id_inst1_o[4:0]] <= 1'b1;
                 rob_complete[rob_id_inst1_o[4:0]] <= 1'b0;
                 rob_snap_id[rob_id_inst1_o[4:0]] <= snap_id_inst1_i;
                 rob_br_mask[rob_id_inst1_o[4:0]] <= branch_mask_inst1_i;
+                `ifdef use_f_extension
+                rob_is_float[rob_id_inst1_o[4:0]] <= is_float_port1;
+                `endif
             end
             rob_wr_ptr <= rob_wr_ptr + rob_req;
         end
@@ -618,6 +703,13 @@ always @(posedge clk or negedge rst) begin
             end
         end
         rob_free_cnt <= rob_free_cnt + inst_commit_cnt - ((~stall) ? rob_req : 0);
+        `ifdef use_f_extension
+        // float_cnt: 0或1, 新浮点置1, 提交浮点清0
+        if ((commit_inst0_o && rob_is_float[rob_rd_ptr]) || (commit_inst1_o && rob_is_float[(rob_rd_ptr + 5'd1) & 5'b11111]))
+            float_cnt <= 1'b0;
+        else if (~stall && ((inst0_valid && is_float_port0) || (inst1_valid && is_float_port1)))
+            float_cnt <= 1'b1;
+        `endif
         // 提交释放掩码
         if (free_snap_flag_inst0_o) begin
             for (i = 0; i < 32; i = i + 1) begin

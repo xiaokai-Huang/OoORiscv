@@ -13,6 +13,11 @@ module LSU_Mem (
     input [1:0] sq_id_i,              // SQ id
     input [3:0] subtype_i,            // 指令子类型
     input [31:0] rs2_data_i,          // rs2数据
+
+    `ifdef use_f_extension
+    input [31:0] float_rs2_data_i,     // 浮点rs2数据
+    `endif
+
     input [5:0] pwaddr_i,             // 物理寄存器写地址
     input [31:0] mem_addr_i,          // 访存地址
 
@@ -61,7 +66,10 @@ module LSU_Mem (
 
     // to wb
     output inst_valid_o,
-    output [3:0] subtype_o,              // 指令子类型
+    `ifdef use_f_extension
+    output reg rd_is_float_o,                // 写回寄存器是否为浮点寄存器
+    `endif
+    output [3:0] subtype_o,                  // 指令子类型
 
     // to ROB
     output store_complete_flag_o,            // store指令完成标志
@@ -80,16 +88,6 @@ wire [3:0] kill_mask = jump_flag_i ? (4'b0001 << kill_mask_id_i) : 4'b0000;
 assign inst_valid_o = inst_valid_i && ((mask_i & kill_mask) == 0); // 如果指令的掩码位被kill_mask覆盖，则无效
 assign subtype_o = subtype_i;
 assign flush_o = inst_valid_i && ((mask_i & kill_mask) != 0); // 当前指令被冲刷
-// reg [3:0] mask_o;
-// always @(*) begin
-//     mask_o = mask_i;
-//     if (free_mask_inst0_i) begin
-//         mask_o[free_id_inst0_i] = 1'b0;
-//     end
-//     if (free_mask_inst1_i) begin
-//         mask_o[free_id_inst1_i] = 1'b0;
-//     end
-// end
 // Store Queue
 reg sq_valid[0:3];              // SQ有效位
 reg [3:0] sq_br_mask[0:3];      // SQ分支掩码
@@ -105,7 +103,7 @@ reg [3:0] sq_br_mask_wdata;     // SQ写分支掩码
 reg [3:0] sq_byte_mask_wdata;   // SQ写字节掩码
 reg [1:0] sq_mem_mask_wdata;    // SQ写存储掩码
 // Store指令提交读取SQ
-reg [1:0] sq_rd_ptr;           // SQ读指针
+reg [1:0] sq_rd_ptr;            // SQ读指针
 assign sq_mask_o = sq_mem_mask[sq_rd_ptr];
 assign sq_addr_o = sq_mem_addr[sq_rd_ptr];
 assign sq_data_o = sq_mem_data[sq_rd_ptr];
@@ -174,7 +172,7 @@ integer k;
 assign dcache_ren = inst_valid_i && access_dram && (subtype_i[3] == 1'b0) && !sq_multi_match;
 assign stall_o = inst_valid_i && (subtype_i[3] == 1'b0) && sq_multi_match; // 如果Load指令存在多于1个的SQ匹配，Stall等待
 assign mem_reg_waddr_o = pwaddr_i;
-assign mem_reg_wflag_o = inst_valid_i && (subtype_i[3] == 1'b0) && !sq_multi_match;
+assign mem_reg_wflag_o = inst_valid_i && (subtype_i[3] == 1'b0) && !(subtype_i[2] && subtype_i[1]) && !sq_multi_match;
 // 匹配逻辑
 always @(*) begin
     // Load Mask 生成
@@ -182,6 +180,9 @@ always @(*) begin
         `MEM_LB, `MEM_LBU: load_byte_mask = 4'b0001 << mem_addr_i[1:0];
         `MEM_LH, `MEM_LHU: load_byte_mask = (mem_addr_i[1] == 0) ? 4'b0011 : 4'b1100;
         `MEM_LW:           load_byte_mask = 4'b1111;
+        `ifdef use_f_extension
+        `MEM_FLW:          load_byte_mask = 4'b1111;
+        `endif
         default:           load_byte_mask = 4'b0000;
     endcase
 
@@ -267,6 +268,9 @@ always @(*) begin
     // L type
     dcache_wdata = 32'b0;
     perip_wdata = 32'b0;
+    `ifdef use_f_extension
+    rd_is_float_o = 1'b0;
+    `endif
     // S type
     sq_we = 1'b0;
     sq_w_data = 32'b0;
@@ -317,6 +321,14 @@ always @(*) begin
             sq_byte_mask_wdata = 4'b1111;
             sq_w_data = rs2_data_i;
         end
+        `ifdef use_f_extension
+        `MEM_FSW: begin
+            sq_we = inst_valid_o;
+            sq_mem_mask_wdata = 2'b10;
+            sq_byte_mask_wdata = 4'b1111;
+            sq_w_data = float_rs2_data_i;
+        end
+        `endif
         `MEM_LB: begin
             case (mem_addr_i[1:0])
                 2'b00: begin
@@ -353,6 +365,13 @@ always @(*) begin
             dcache_wdata = dcache_rdata;
             perip_wdata = perip_rdata;
         end
+        `ifdef use_f_extension
+        `MEM_FLW: begin
+            dcache_wdata = dcache_rdata;
+            perip_wdata = perip_rdata;
+            rd_is_float_o = 1'b1;
+        end
+        `endif
         `MEM_LBU: begin
             case (mem_addr_i[1:0])
                 2'b00: begin

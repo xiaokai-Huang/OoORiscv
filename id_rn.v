@@ -40,6 +40,19 @@ module id_rn(
     input [31:0] bpu_pre_addr_port0_i,        // 预测地址
     input [31:0] bpu_pre_addr_port1_i,        // 预测地址
 
+    `ifdef use_f_extension
+    input [4:0] inst_f_subtype_port0_i,         // F扩展指令子类型
+    input [4:0] inst_f_subtype_port1_i,
+    input rd_is_float_port0_i,                  // 目的寄存器是否为浮点
+    input rd_is_float_port1_i,
+    input rs1_is_float_port0_i,                 // 源寄存器1是否为浮点
+    input rs1_is_float_port1_i,
+    input rs2_is_float_port0_i,                 // 源寄存器2是否为浮点
+    input rs2_is_float_port1_i,
+    input [4:0] rs3_raddr_port0_i,              // 源寄存器3地址
+    input [4:0] rs3_raddr_port1_i,
+    `endif
+
     // from ctrl
     input int_flag_i,                          // 中断标志
     input jump_flag_i,                         // 执行确认阶段跳转标志
@@ -79,6 +92,20 @@ module id_rn(
     output reg bpu_pre_flag_port1_o,                 // 预测标志
     output reg [31:0] bpu_pre_addr_port0_o,          // 预测地址
     output reg [31:0] bpu_pre_addr_port1_o           // 预测地址
+
+    `ifdef use_f_extension
+    ,
+    output reg [4:0] inst_f_subtype_port0_o,        // F扩展指令子类型
+    output reg [4:0] inst_f_subtype_port1_o,
+    output reg rd_is_float_port0_o,                  // 目的寄存器是否为浮点
+    output reg rd_is_float_port1_o,
+    output reg rs1_is_float_port0_o,                 // 源寄存器1是否为浮点
+    output reg rs1_is_float_port1_o,
+    output reg rs2_is_float_port0_o,                 // 源寄存器2是否为浮点
+    output reg rs2_is_float_port1_o,
+    output reg [4:0] rs3_raddr_port0_o,              // 源寄存器3地址
+    output reg [4:0] rs3_raddr_port1_o
+    `endif
 );
 
 always @(posedge clk) begin
@@ -131,7 +158,19 @@ always @(posedge clk) begin
         bpu_pre_flag_port0_o <= bpu_pre_flag_port0_i;
         bpu_pre_flag_port1_o <= bpu_pre_flag_port1_i;
         bpu_pre_addr_port0_o <= bpu_pre_addr_port0_i;
-        bpu_pre_addr_port1_o <= bpu_pre_addr_port1_i;        
+        bpu_pre_addr_port1_o <= bpu_pre_addr_port1_i;
+        `ifdef use_f_extension
+        inst_f_subtype_port0_o <= inst_f_subtype_port0_i;
+        inst_f_subtype_port1_o <= inst_f_subtype_port1_i;
+        rd_is_float_port0_o <= rd_is_float_port0_i;
+        rd_is_float_port1_o <= rd_is_float_port1_i;
+        rs1_is_float_port0_o <= rs1_is_float_port0_i;
+        rs1_is_float_port1_o <= rs1_is_float_port1_i;
+        rs2_is_float_port0_o <= rs2_is_float_port0_i;
+        rs2_is_float_port1_o <= rs2_is_float_port1_i;
+        rs3_raddr_port0_o <= rs3_raddr_port0_i;
+        rs3_raddr_port1_o <= rs3_raddr_port1_i;
+        `endif
     end
 end
 

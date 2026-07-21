@@ -63,6 +63,23 @@ module id(
     output [4:0] reg_waddr_port0_o,              // 写通用寄存器地址
     output [4:0] reg_waddr_port1_o,              // 写通用寄存器地址
 
+    `ifdef use_f_extension
+    output [4:0] inst_f_subtype_port0_o,         // F扩展指令子类型
+    output [4:0] inst_f_subtype_port1_o,
+
+    output rd_is_float_port0_o,                  // 目的寄存器是否为浮点
+    output rd_is_float_port1_o,
+
+    output rs1_is_float_port0_o,                 // 源寄存器1是否为浮点
+    output rs1_is_float_port1_o,
+
+    output rs2_is_float_port0_o,                 // 源寄存器2是否为浮点
+    output rs2_is_float_port1_o,
+
+    output [4:0] rs3_raddr_port0_o,              // 源寄存器3地址
+    output [4:0] rs3_raddr_port1_o,
+    `endif
+
     output inst_valid_port0_o,                 // 指令有效标志
     output inst_valid_port1_o,                 // 指令有效标志
 
@@ -104,6 +121,13 @@ inst_decoder inst_decoder_port0(
     .inst_addr_i({inst_addr_i[31:3],3'b000}),
     .imm_i(imm_port0_i),
     .pre_addr_i(bpu_pre_addr_port0_i),
+    `ifdef use_f_extension
+    .inst_f_subtype_o(inst_f_subtype_port0_o),
+    .rd_is_float_o(rd_is_float_port0_o),
+    .rs1_is_float_o(rs1_is_float_port0_o),
+    .rs2_is_float_o(rs2_is_float_port0_o),
+    .rs3_raddr_o(rs3_raddr_port0_o),
+    `endif
     .inst_type_o(inst_type_port0_o),
     .inst_subtype_o(inst_subtype_port0_o),
     .op1_src_o(op1_src_port0_o),
@@ -127,6 +151,13 @@ inst_decoder inst_decoder_port1(
     .inst_addr_i({inst_addr_i[31:3],3'b100}),
     .imm_i(imm_port1_i),
     .pre_addr_i(bpu_pre_addr_port1_i),
+    `ifdef use_f_extension
+    .inst_f_subtype_o(inst_f_subtype_port1_o),
+    .rd_is_float_o(rd_is_float_port1_o),
+    .rs1_is_float_o(rs1_is_float_port1_o),
+    .rs2_is_float_o(rs2_is_float_port1_o),
+    .rs3_raddr_o(rs3_raddr_port1_o),
+    `endif
     .inst_type_o(inst_type_port1_o),
     .inst_subtype_o(inst_subtype_port1_o),
     .op1_src_o(op1_src_port1_o),

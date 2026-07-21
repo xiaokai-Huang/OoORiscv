@@ -117,6 +117,19 @@ wire [5:0] rn_dp_old_paddr_inst1_o;         // 指令1旧物理寄存器地址
 wire [1:0] rn_dp_snap_id_inst0_o;           // 指令0快照id
 wire [1:0] rn_dp_snap_id_inst1_o;           // 指令1快照id
 
+`ifdef use_f_extension
+wire [4:0] rn_dp_inst_f_subtype_port0_o;    // F扩展指令子类型
+wire [4:0] rn_dp_inst_f_subtype_port1_o;
+wire rn_dp_rd_is_float_port0_o;             // 目的寄存器是否为浮点
+wire rn_dp_rd_is_float_port1_o;
+wire rn_dp_rs1_is_float_port0_o;            // 源寄存器1是否为浮点
+wire rn_dp_rs1_is_float_port1_o;
+wire rn_dp_rs2_is_float_port0_o;            // 源寄存器2是否为浮点
+wire rn_dp_rs2_is_float_port1_o;
+wire [4:0] rn_dp_rs3_raddr_port0_o;         // 源寄存器3地址
+wire [4:0] rn_dp_rs3_raddr_port1_o;
+`endif
+
 // regs模块输出信号
 wire [31:0] regs_csr_rdata_o;           // CSR指令读RS1数据
 wire [63:0] regs_ready_flag_o;          // 寄存器就绪标志，位0-63分别对应物理寄存器0-63
@@ -133,6 +146,14 @@ wire [31:0] regs_mul_rdata1_o;          // 读寄存器1数据
 wire [31:0] regs_mul_rdata2_o;          // 读寄存器2数据
 wire [31:0] regs_div_rdata1_o;          // 读寄存器1数据
 wire [31:0] regs_div_rdata2_o;          // 读寄存器2数据
+`endif
+
+`ifdef use_f_extension
+// f_regs模块输出信号
+wire [31:0] fregs_rs1_rdata_o;           // 浮点读寄存器1数据
+wire [31:0] fregs_rs2_rdata_o;           // 浮点读寄存器2数据
+wire [31:0] fregs_rs3_rdata_o;           // 浮点读寄存器3数据
+wire [31:0] fregs_store_rs2_rdata_o;     // 浮点store rs2数据
 `endif
 
 // Issue模块输出信号
@@ -269,6 +290,9 @@ wire [5:0] lsu_rf_raddr2_o;           // RF 阶段读寄存器2地址（同时�
 wire lsu_reg_wflag_o;                 // 写回阶段写寄存器标志
 wire [5:0] lsu_reg_waddr_o;           // 写回阶段写寄存器地址
 wire [31:0] lsu_reg_wdata_o;          // 写回阶段写寄存器数据
+`ifdef use_f_extension
+wire lsu_float_reg_wflag_o;           // 写回阶段写浮点寄存器标志
+`endif
 wire lsu_mem_reg_wflag_o;             // Mem阶段写寄存器标志
 wire lsu_flush_o;                     // 冲刷标志
 wire lsu_stall_o;                     // stall标志
@@ -311,6 +335,9 @@ wire rob_exception_flag_o;               // 异常发生标志
 wire [31:0] rob_exception_cause_o;       // 异常编号
 wire rob_mret_flag_o;                    // 中断返回标志
 wire rob_stall_o;
+`ifdef use_f_extension
+wire rob_float_stall_o;
+`endif
 wire [1:0] rob_sq_commit_cnt_o;             // store queue提交数量
 wire [5:0] rob_id_inst0_o;              // 指令0 ROB id
 wire [5:0] rob_id_inst1_o;              // 指令1 ROB id
@@ -545,6 +572,19 @@ IDU u_IDU(
     .rn_dp_old_paddr_inst1_o(rn_dp_old_paddr_inst1_o),         // 指令1旧物理寄存器地址
     .rn_dp_snap_id_inst0_o(rn_dp_snap_id_inst0_o),           // 指令0快照id
     .rn_dp_snap_id_inst1_o(rn_dp_snap_id_inst1_o)            // 指令1快照id
+    `ifdef use_f_extension
+    ,
+    .rn_dp_inst_f_subtype_port0_o(rn_dp_inst_f_subtype_port0_o),
+    .rn_dp_inst_f_subtype_port1_o(rn_dp_inst_f_subtype_port1_o),
+    .rn_dp_rd_is_float_port0_o(rn_dp_rd_is_float_port0_o),
+    .rn_dp_rd_is_float_port1_o(rn_dp_rd_is_float_port1_o),
+    .rn_dp_rs1_is_float_port0_o(rn_dp_rs1_is_float_port0_o),
+    .rn_dp_rs1_is_float_port1_o(rn_dp_rs1_is_float_port1_o),
+    .rn_dp_rs2_is_float_port0_o(rn_dp_rs2_is_float_port0_o),
+    .rn_dp_rs2_is_float_port1_o(rn_dp_rs2_is_float_port1_o),
+    .rn_dp_rs3_raddr_port0_o(rn_dp_rs3_raddr_port0_o),
+    .rn_dp_rs3_raddr_port1_o(rn_dp_rs3_raddr_port1_o)
+    `endif
 );
 
 // Issue模块
@@ -582,8 +622,21 @@ Issue u_Issue(
     .branch_mask_inst1_i(rn_dp_branch_mask_inst1_o),     // 指令1分支掩码
     .snap_id_inst0_i(rn_dp_snap_id_inst0_o),         // 指令0快照id
     .snap_id_inst1_i(rn_dp_snap_id_inst1_o),         // 指令1快照id
+    `ifdef use_f_extension
+    .inst_f_subtype_port0_i(rn_dp_inst_f_subtype_port0_o),
+    .inst_f_subtype_port1_i(rn_dp_inst_f_subtype_port1_o),
+    .rs1_is_float_port0_i(rn_dp_rs1_is_float_port0_o),
+    .rs1_is_float_port1_i(rn_dp_rs1_is_float_port1_o),
+    .rs2_is_float_port0_i(rn_dp_rs2_is_float_port0_o),
+    .rs2_is_float_port1_i(rn_dp_rs2_is_float_port1_o),
+    .rs3_raddr_port0_i(rn_dp_rs3_raddr_port0_o),
+    .rs3_raddr_port1_i(rn_dp_rs3_raddr_port1_o),
+    `endif
     // from ROB
     .rob_stall_i(rob_stall_o),                       // ROB满暂停标志
+    `ifdef use_f_extension
+    .float_stall_i(rob_float_stall_o),               // 浮点冲突暂停
+    `endif
     .rob_id_inst0_i(rob_id_inst0_o),              // 指令0 ROB id
     .rob_id_inst1_i(rob_id_inst1_o),              // 指令1 ROB id
     // from commit
@@ -616,6 +669,7 @@ Issue u_Issue(
 `endif
     // from regs
     .ready_flag_i(regs_ready_flag_o),          // 寄存器就绪标志，位0-63分别对应物理寄存器0-63
+    .ready_flag_d0_i(ready_d0),
     // to ALU0
     .alu_inst_valid_inst0_o(iss_alu_inst_valid_inst0_o),       // ALU0指令有效标志
     .alu_rob_id_inst0_o(iss_alu_rob_id_inst0_o),               // ALU0 ROB id
@@ -896,6 +950,10 @@ LSU u_LSU(
     // from regs
     .reg_rdata1_i(regs_mem_rdata1_o),          // 寄存器1读数据
     .reg_rdata2_i(regs_mem_rdata2_o),          // 寄存器2读数据
+    `ifdef use_f_extension
+    // from f_regs
+    .float_rs2_rdata_i(fregs_store_rs2_rdata_o),
+    `endif
     // from clint
     .int_flag_i(clint_int_flag_o),                   // 中断标志
     // from branch
@@ -929,6 +987,9 @@ LSU u_LSU(
     .reg_wflag_o(lsu_reg_wflag_o),                 // 写回阶段写寄存器标志
     .reg_waddr_o(lsu_reg_waddr_o),           // 写回阶段写寄存器地址
     .reg_wdata_o(lsu_reg_wdata_o),          // 写回阶段写寄存器数据
+    `ifdef use_f_extension
+    .float_reg_wflag_o(lsu_float_reg_wflag_o),           // 写回阶段写浮点寄存器标志
+    `endif
     .mem_reg_wflag_o(lsu_mem_reg_wflag_o),             // Mem阶段写寄存器标志
     // to issue
     .flush_o(lsu_flush_o),                     // 冲刷标志
@@ -1103,6 +1164,10 @@ Forwarding_Unit u_Forwarding_Unit(
 );
 
 // 物理寄存器文件
+reg [63:0] ready_d0;
+always @(posedge clk) begin
+    ready_d0 <= regs_ready_flag_o;
+end
 regs u_regs(
     .clk(clk),
     .rst(rst),
@@ -1224,6 +1289,18 @@ ROB u_ROB(
     .snap_id_inst1_i(rn_dp_snap_id_inst1_o),        // 指令1快照id
     .old_paddr_inst0_i(rn_dp_old_paddr_inst0_o),      // 指令0旧的物理寄存器映射
     .old_paddr_inst1_i(rn_dp_old_paddr_inst1_o),      // 指令1旧的物理寄存器映射
+    `ifdef use_f_extension
+    .inst_f_subtype_port0_i(rn_dp_inst_f_subtype_port0_o),
+    .inst_f_subtype_port1_i(rn_dp_inst_f_subtype_port1_o),
+    .rd_is_float_port0_i(rn_dp_rd_is_float_port0_o),
+    .rd_is_float_port1_i(rn_dp_rd_is_float_port1_o),
+    .rs1_is_float_port0_i(rn_dp_rs1_is_float_port0_o),
+    .rs1_is_float_port1_i(rn_dp_rs1_is_float_port1_o),
+    .rs2_is_float_port0_i(rn_dp_rs2_is_float_port0_o),
+    .rs2_is_float_port1_i(rn_dp_rs2_is_float_port1_o),
+    .rs3_raddr_port0_i(rn_dp_rs3_raddr_port0_o),
+    .rs3_raddr_port1_i(rn_dp_rs3_raddr_port1_o),
+    `endif
     // from clint
     .int_flag_i(clint_int_flag_o),                   // 中断标志
     .int_w_disable_i(clint_int_w_disable_o),              // 中断发生时禁止写内存和CSR寄存器
@@ -1263,6 +1340,9 @@ ROB u_ROB(
     .mret_flag_o(rob_mret_flag_o),                    // 中断返回标志
     // to pipeline
     .stall_o(rob_stall_o),
+    `ifdef use_f_extension
+    .float_stall_o(rob_float_stall_o),
+    `endif
     // to issue
     .sq_commit_cnt_o(rob_sq_commit_cnt_o),             // store queue提交数量
     .rob_id_inst0_o(rob_id_inst0_o),              // 指令0 ROB id
@@ -1375,6 +1455,34 @@ clint u_clint(
 );
 
 
+`ifdef use_f_extension
+// 浮点寄存器文件
+f_regs u_f_regs(
+    .clk(clk),
+    .rst(rst),
+    // from RF
+    .rs1_raddr_i(),
+    .rs2_raddr_i(),
+    .rs3_raddr_i(),
+    // from lsu
+    .store_rs2_raddr_i(lsu_rf_raddr2_o[4:0]),
+    .load_we_i(lsu_float_reg_wflag_o),
+    .load_rd_waddr_i(lsu_reg_waddr_o[4:0]),
+    .load_rd_wdata_i(lsu_reg_wdata_o),
+    // from wb
+    .rd_we_i(),
+    .rd_waddr_i(),
+    .rd_wdata_i(),
+    // from commit
+    .commit_rd_we_i(),
+    // to lsu
+    .store_rs2_rdata_o(fregs_store_rs2_rdata_o),
+    // to RF
+    .rs1_rdata_o(fregs_rs1_rdata_o),
+    .rs2_rdata_o(fregs_rs2_rdata_o),
+    .rs3_rdata_o(fregs_rs3_rdata_o)
+);
+`endif
 
 
 endmodule

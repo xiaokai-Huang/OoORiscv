@@ -24,6 +24,11 @@ module LSU_RF (
     input [31:0] reg_rdata1_i,          // 寄存器1读数据
     input [31:0] reg_rdata2_i,          // 寄存器2读数据
 
+    `ifdef use_f_extension
+    // from f_regs
+    input [31:0] float_rs2_rdata_i,     // 浮点寄存器2读数据
+    `endif
+
     // from branch
     input jump_flag_i,                 // 跳转标志
     input [1:0] kill_mask_id_i,        // 分支掩码id
@@ -46,6 +51,9 @@ module LSU_RF (
     output [3:0] subtype_o,            // 指令子类型
     output [31:0] rs1_data_o,          // rs1数据
     output [31:0] rs2_data_o,          // rs2数据
+    `ifdef use_f_extension
+    output [31:0] float_rs2_data_o,    // 浮点rs2数据
+    `endif
     output [5:0] pwaddr_o,             // 物理寄存器写地址
     output [31:0] imm_o                // 立即数
 );
@@ -59,6 +67,9 @@ assign sq_id_o = sq_id_i;
 assign subtype_o = subtype_i;
 assign rs1_data_o = rs1_forward_flag_i ? rs1_forward_data_i : reg_rdata1_i;
 assign rs2_data_o = rs2_forward_flag_i ? rs2_forward_data_i : reg_rdata2_i;
+`ifdef use_f_extension
+assign float_rs2_data_o = float_rs2_rdata_i;
+`endif
 assign pwaddr_o = pwaddr_i;
 assign imm_o = imm_i;
 

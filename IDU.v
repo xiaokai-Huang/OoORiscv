@@ -83,6 +83,20 @@ module IDU(
     output rn_dp_bpu_pre_flag_port1_o,            // 预测标志
     output [31:0] rn_dp_bpu_pre_addr_port0_o,     // 预测地址
     output [31:0] rn_dp_bpu_pre_addr_port1_o,     // 预测地址
+
+    `ifdef use_f_extension
+    output [4:0] rn_dp_inst_f_subtype_port0_o,    // F扩展指令子类型
+    output [4:0] rn_dp_inst_f_subtype_port1_o,
+    output rn_dp_rd_is_float_port0_o,             // 目的寄存器是否为浮点
+    output rn_dp_rd_is_float_port1_o,
+    output rn_dp_rs1_is_float_port0_o,            // 源寄存器1是否为浮点
+    output rn_dp_rs1_is_float_port1_o,
+    output rn_dp_rs2_is_float_port0_o,            // 源寄存器2是否为浮点
+    output rn_dp_rs2_is_float_port1_o,
+    output [4:0] rn_dp_rs3_raddr_port0_o,         // 源寄存器3地址
+    output [4:0] rn_dp_rs3_raddr_port1_o,
+    `endif
+
     output [5:0] rn_dp_praddr1_inst0_o,           // 指令0物理寄存器1读地址
     output [5:0] rn_dp_praddr2_inst0_o,           // 指令0物理寄存器2读地址
     output [5:0] rn_dp_praddr1_inst1_o,           // 指令1物理寄存器1读地址
@@ -131,6 +145,19 @@ wire id_bpu_pre_flag_port1_o;           // 预测标志
 wire [31:0] id_bpu_pre_addr_port0_o;    // 预测地址
 wire [31:0] id_bpu_pre_addr_port1_o;    // 预测地址
 
+`ifdef use_f_extension
+wire [4:0] id_inst_f_subtype_port0_o;    // F扩展指令子类型
+wire [4:0] id_inst_f_subtype_port1_o;
+wire id_rd_is_float_port0_o;             // 目的寄存器是否为浮点
+wire id_rd_is_float_port1_o;
+wire id_rs1_is_float_port0_o;            // 源寄存器1是否为浮点
+wire id_rs1_is_float_port1_o;
+wire id_rs2_is_float_port0_o;            // 源寄存器2是否为浮点
+wire id_rs2_is_float_port1_o;
+wire [4:0] id_rs3_raddr_port0_o;         // 源寄存器3地址
+wire [4:0] id_rs3_raddr_port1_o;
+`endif
+
 // id_rename
 wire [2:0] id_rn_ras_snap_ptr_o;            // RAS快照指针
 wire [31:0] id_rn_inst_addr_o;              // 指令地址
@@ -164,6 +191,19 @@ wire id_rn_bpu_pre_flag_port0_o;          // 预测标志
 wire id_rn_bpu_pre_flag_port1_o;          // 预测标志
 wire [31:0] id_rn_bpu_pre_addr_port0_o;   // 预测地址
 wire [31:0] id_rn_bpu_pre_addr_port1_o;   // 预测地址
+
+`ifdef use_f_extension
+wire [4:0] id_rn_inst_f_subtype_port0_o;   // F扩展指令子类型
+wire [4:0] id_rn_inst_f_subtype_port1_o;
+wire id_rn_rd_is_float_port0_o;            // 目的寄存器是否为浮点
+wire id_rn_rd_is_float_port1_o;
+wire id_rn_rs1_is_float_port0_o;           // 源寄存器1是否为浮点
+wire id_rn_rs1_is_float_port1_o;
+wire id_rn_rs2_is_float_port0_o;           // 源寄存器2是否为浮点
+wire id_rn_rs2_is_float_port1_o;
+wire [4:0] id_rn_rs3_raddr_port0_o;        // 源寄存器3地址
+wire [4:0] id_rn_rs3_raddr_port1_o;
+`endif
 
 // rename
 wire rename_alloc_snap_inst0 = id_rn_inst_valid_port0_o && ((id_rn_inst_type_port0_o == `TYPE_BR) || (id_rn_inst_type_port0_o == `TYPE_JAL && id_rn_inst_subtype_port0_o == `JUMP_JALR));          // 为指令0分配快照标志
@@ -232,6 +272,19 @@ id u_id(
     .bpu_pre_flag_port1_o(id_bpu_pre_flag_port1_o),               // 预测标志
     .bpu_pre_addr_port0_o(id_bpu_pre_addr_port0_o),        // 预测地址
     .bpu_pre_addr_port1_o(id_bpu_pre_addr_port1_o)         // 预测地址
+    `ifdef use_f_extension
+    ,
+    .inst_f_subtype_port0_o(id_inst_f_subtype_port0_o),
+    .inst_f_subtype_port1_o(id_inst_f_subtype_port1_o),
+    .rd_is_float_port0_o(id_rd_is_float_port0_o),
+    .rd_is_float_port1_o(id_rd_is_float_port1_o),
+    .rs1_is_float_port0_o(id_rs1_is_float_port0_o),
+    .rs1_is_float_port1_o(id_rs1_is_float_port1_o),
+    .rs2_is_float_port0_o(id_rs2_is_float_port0_o),
+    .rs2_is_float_port1_o(id_rs2_is_float_port1_o),
+    .rs3_raddr_port0_o(id_rs3_raddr_port0_o),
+    .rs3_raddr_port1_o(id_rs3_raddr_port1_o)
+    `endif
 );
 
 // id_rn
@@ -271,6 +324,18 @@ id_rn u_id_rn(
     .bpu_pre_flag_port1_i(id_bpu_pre_flag_port1_o),               // 预测标志
     .bpu_pre_addr_port0_i(id_bpu_pre_addr_port0_o),        // 预测地址
     .bpu_pre_addr_port1_i(id_bpu_pre_addr_port1_o),        // 预测地址
+    `ifdef use_f_extension
+    .inst_f_subtype_port0_i(id_inst_f_subtype_port0_o),
+    .inst_f_subtype_port1_i(id_inst_f_subtype_port1_o),
+    .rd_is_float_port0_i(id_rd_is_float_port0_o),
+    .rd_is_float_port1_i(id_rd_is_float_port1_o),
+    .rs1_is_float_port0_i(id_rs1_is_float_port0_o),
+    .rs1_is_float_port1_i(id_rs1_is_float_port1_o),
+    .rs2_is_float_port0_i(id_rs2_is_float_port0_o),
+    .rs2_is_float_port1_i(id_rs2_is_float_port1_o),
+    .rs3_raddr_port0_i(id_rs3_raddr_port0_o),
+    .rs3_raddr_port1_i(id_rs3_raddr_port1_o),
+    `endif
     // from ctrl
     .int_flag_i(int_flag_i),                          // 中断标志
     .jump_flag_i(jump_flag_i),                  // 执行确认阶段跳转标志
@@ -308,7 +373,28 @@ id_rn u_id_rn(
     .bpu_pre_flag_port1_o(id_rn_bpu_pre_flag_port1_o),               // 预测标志
     .bpu_pre_addr_port0_o(id_rn_bpu_pre_addr_port0_o),        // 预测地址
     .bpu_pre_addr_port1_o(id_rn_bpu_pre_addr_port1_o)         // 预测地址
+    `ifdef use_f_extension
+    ,
+    .inst_f_subtype_port0_o(id_rn_inst_f_subtype_port0_o),
+    .inst_f_subtype_port1_o(id_rn_inst_f_subtype_port1_o),
+    .rd_is_float_port0_o(id_rn_rd_is_float_port0_o),
+    .rd_is_float_port1_o(id_rn_rd_is_float_port1_o),
+    .rs1_is_float_port0_o(id_rn_rs1_is_float_port0_o),
+    .rs1_is_float_port1_o(id_rn_rs1_is_float_port1_o),
+    .rs2_is_float_port0_o(id_rn_rs2_is_float_port0_o),
+    .rs2_is_float_port1_o(id_rn_rs2_is_float_port1_o),
+    .rs3_raddr_port0_o(id_rn_rs3_raddr_port0_o),
+    .rs3_raddr_port1_o(id_rn_rs3_raddr_port1_o)
+    `endif
 );
+
+`ifdef use_f_extension
+wire inst0_rn_valid = id_rn_inst_valid_port0_o && !id_rn_rd_is_float_port0_o;
+wire inst1_rn_valid = id_rn_inst_valid_port1_o && !id_rn_rd_is_float_port1_o;
+`else
+wire inst0_rn_valid = id_rn_inst_valid_port0_o;
+wire inst1_rn_valid = id_rn_inst_valid_port1_o;
+`endif
 
 // rename
 rename u_rename(
@@ -321,8 +407,8 @@ rename u_rename(
     .alloc_snap_inst0_i(rename_alloc_snap_inst0),          // 为指令0分配快照标志
     .alloc_snap_inst1_i(rename_alloc_snap_inst1),          // 为指令1分配快照标志
     // from id
-    .inst0_valid_i(id_rn_inst_valid_port0_o),              // 指令0有效标志
-    .inst1_valid_i(id_rn_inst_valid_port1_o),              // 指令1有效标志
+    .inst0_valid_i(inst0_rn_valid),              // 指令0有效标志
+    .inst1_valid_i(inst1_rn_valid),              // 指令1有效标志
     .raddr1_inst0_i(id_rn_reg1_raddr_port0_o),       // 读寄存器1地址
     .raddr2_inst0_i(id_rn_reg2_raddr_port0_o),       // 读寄存器2地址
     .raddr1_inst1_i(id_rn_reg1_raddr_port1_o),       // 读寄存器1地址
@@ -369,6 +455,22 @@ rename u_rename(
     .snap_id_inst1_o(rn_snap_id_inst1_o)
 );
 
+`ifdef use_f_extension
+wire [5:0] pwaddr_inst0 = id_rn_rd_is_float_port0_o ? {1'b0, id_rn_reg_waddr_port0_o} : rn_pwaddr_inst0_o;
+wire [5:0] pwaddr_inst1 = id_rn_rd_is_float_port1_o ? {1'b0, id_rn_reg_waddr_port1_o} : rn_pwaddr_inst1_o;
+wire [5:0] praddr1_inst0 = id_rn_rs1_is_float_port0_o ? {1'b0, id_rn_reg1_raddr_port0_o} : rn_praddr1_inst0_o;
+wire [5:0] praddr1_inst1 = id_rn_rs1_is_float_port1_o ? {1'b0, id_rn_reg1_raddr_port1_o} : rn_praddr1_inst1_o;
+wire [5:0] praddr2_inst0 = id_rn_rs2_is_float_port0_o ? {1'b0, id_rn_reg2_raddr_port0_o} : rn_praddr2_inst0_o;
+wire [5:0] praddr2_inst1 = id_rn_rs2_is_float_port1_o ? {1'b0, id_rn_reg2_raddr_port1_o} : rn_praddr2_inst1_o;
+`else
+wire [5:0] pwaddr_inst0 = rn_pwaddr_inst0_o;
+wire [5:0] pwaddr_inst1 = rn_pwaddr_inst1_o;
+wire [5:0] praddr1_inst0 = rn_praddr1_inst0_o;
+wire [5:0] praddr1_inst1 = rn_praddr1_inst1_o;
+wire [5:0] praddr2_inst0 = rn_praddr2_inst0_o;
+wire [5:0] praddr2_inst1 = rn_praddr2_inst1_o;
+`endif
+
 // rn_dp
 rn_dp u_rn_dp(
     .clk(clk),
@@ -402,13 +504,25 @@ rn_dp u_rn_dp(
     .bpu_pre_flag_port1_i(id_rn_bpu_pre_flag_port1_o),                 // 预测标志
     .bpu_pre_addr_port0_i(id_rn_bpu_pre_addr_port0_o),          // 预测地址
     .bpu_pre_addr_port1_i(id_rn_bpu_pre_addr_port1_o),          // 预测地址
+    `ifdef use_f_extension
+    .inst_f_subtype_port0_i(id_rn_inst_f_subtype_port0_o),
+    .inst_f_subtype_port1_i(id_rn_inst_f_subtype_port1_o),
+    .rd_is_float_port0_i(id_rn_rd_is_float_port0_o),
+    .rd_is_float_port1_i(id_rn_rd_is_float_port1_o),
+    .rs1_is_float_port0_i(id_rn_rs1_is_float_port0_o),
+    .rs1_is_float_port1_i(id_rn_rs1_is_float_port1_o),
+    .rs2_is_float_port0_i(id_rn_rs2_is_float_port0_o),
+    .rs2_is_float_port1_i(id_rn_rs2_is_float_port1_o),
+    .rs3_raddr_port0_i(id_rn_rs3_raddr_port0_o),
+    .rs3_raddr_port1_i(id_rn_rs3_raddr_port1_o),
+    `endif
     // from rename
-    .praddr1_inst0_i(rn_praddr1_inst0_o),        // 指令0物理寄存器1读地址
-    .praddr2_inst0_i(rn_praddr2_inst0_o),        // 指令0物理寄存器2读地址
-    .praddr1_inst1_i(rn_praddr1_inst1_o),        // 指令1物理寄存器1读地址
-    .praddr2_inst1_i(rn_praddr2_inst1_o),        // 指令1物理寄存器2读地址
-    .pwaddr_inst0_i(rn_pwaddr_inst0_o),         // 指令0物理寄存器写地址
-    .pwaddr_inst1_i(rn_pwaddr_inst1_o),         // 指令1物理寄存器写地址
+    .praddr1_inst0_i(praddr1_inst0),        // 指令0物理寄存器1读地址
+    .praddr2_inst0_i(praddr2_inst0),        // 指令0物理寄存器2读地址
+    .praddr1_inst1_i(praddr1_inst1),        // 指令1物理寄存器1读地址
+    .praddr2_inst1_i(praddr2_inst1),        // 指令1物理寄存器2读地址
+    .pwaddr_inst0_i(pwaddr_inst0),         // 指令0物理寄存器写地址
+    .pwaddr_inst1_i(pwaddr_inst1),         // 指令1物理寄存器写地址
     .branch_mask_inst0_i(rn_branch_mask_inst0_o),    // 指令0分支掩码
     .branch_mask_inst1_i(rn_branch_mask_inst1_o),    // 指令1分支掩码
     .old_paddr_inst0_i(rn_old_paddr_inst0_o),      // 指令0旧的物理寄存器映射
@@ -466,6 +580,19 @@ rn_dp u_rn_dp(
     .old_paddr_inst1_o(rn_dp_old_paddr_inst1_o),              // 指令1旧的物理寄存器映射
     .snap_id_inst0_o(rn_dp_snap_id_inst0_o),                // 指令0快照id
     .snap_id_inst1_o(rn_dp_snap_id_inst1_o)                 // 指令1快照id
+    `ifdef use_f_extension
+    ,
+    .inst_f_subtype_port0_o(rn_dp_inst_f_subtype_port0_o),
+    .inst_f_subtype_port1_o(rn_dp_inst_f_subtype_port1_o),
+    .rd_is_float_port0_o(rn_dp_rd_is_float_port0_o),
+    .rd_is_float_port1_o(rn_dp_rd_is_float_port1_o),
+    .rs1_is_float_port0_o(rn_dp_rs1_is_float_port0_o),
+    .rs1_is_float_port1_o(rn_dp_rs1_is_float_port1_o),
+    .rs2_is_float_port0_o(rn_dp_rs2_is_float_port0_o),
+    .rs2_is_float_port1_o(rn_dp_rs2_is_float_port1_o),
+    .rs3_raddr_port0_o(rn_dp_rs3_raddr_port0_o),
+    .rs3_raddr_port1_o(rn_dp_rs3_raddr_port1_o)
+    `endif
 );
 
 

@@ -10,17 +10,26 @@ module LSU_WB (
     input [5:0] pwaddr_i,               // 物理寄存器写地址
     input [31:0] reg_wdata_i,           // 写寄存器数据
 
+    `ifdef use_f_extension
+    input rd_is_float_i,                // 写回寄存器是否为浮点寄存器
+    `endif
+
     // to regs
     output reg_wflag_o,                 // 写回阶段写寄存器标志
     output [5:0] reg_waddr_o,           // 写回阶段写寄存器地址
     output [31:0] reg_wdata_o,          // 写回阶段写寄存器数据
+
+    `ifdef use_f_extension
+    output float_reg_wflag_o,           // 写回阶段写浮点寄存器标志
+    `endif
 
     // to ROB
     output load_complete_flag_o,              // load指令完成标志
     output [5:0] load_commit_rob_id_o         // load提交ROB id
 );
 
-assign reg_wflag_o = inst_valid_i && (subtype_i[3] == 1'b0); // 只有load指令才写寄存器
+assign reg_wflag_o = inst_valid_i && (subtype_i[3] == 1'b0) && !rd_is_float_i; // 只有load指令才写寄存器
+assign float_reg_wflag_o = inst_valid_i && (subtype_i[3] == 1'b0) && rd_is_float_i;
 assign reg_waddr_o = pwaddr_i;
 assign reg_wdata_o = reg_wdata_i;
 assign load_complete_flag_o = inst_valid_i && (subtype_i[3] == 1'b0); // 只有load指令才完成

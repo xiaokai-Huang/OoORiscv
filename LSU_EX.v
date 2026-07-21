@@ -11,6 +11,11 @@ module LSU_EX (
     input [3:0] subtype_i,            // 指令子类型
     input [31:0] rs1_data_i,          // rs1数据
     input [31:0] rs2_data_i,          // rs2数据
+
+    `ifdef use_f_extension
+    input [31:0] float_rs2_data_i,     // 浮点rs2数据
+    `endif
+
     input [5:0] pwaddr_i,             // 物理寄存器写地址
     input [31:0] imm_i,               // 立即数
 
@@ -31,6 +36,11 @@ module LSU_EX (
     output [1:0] sq_id_o,              // SQ id
     output [3:0] subtype_o,            // 指令子类型
     output [31:0] rs2_data_o,          // rs2数据
+
+    `ifdef use_f_extension
+    output [31:0] float_rs2_data_o,    // 浮点rs2数据
+    `endif
+
     output [5:0] pwaddr_o,             // 物理寄存器写地址
     output [31:0] mem_addr_o           // 访存地址
 );
@@ -41,6 +51,9 @@ assign rob_id_o = rob_id_i;
 assign sq_id_o = sq_id_i;
 assign subtype_o = subtype_i;
 assign rs2_data_o = rs2_data_i;
+`ifdef use_f_extension
+assign float_rs2_data_o = float_rs2_data_i;
+`endif
 assign pwaddr_o = pwaddr_i;
 assign mem_addr_o = rs1_data_i + imm_i;
 

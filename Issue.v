@@ -39,8 +39,22 @@ module Issue (
     input [1:0] snap_id_inst0_i,         // 指令0快照id
     input [1:0] snap_id_inst1_i,         // 指令1快照id
 
+    `ifdef use_f_extension
+    input [4:0] inst_f_subtype_port0_i,  // F扩展指令子类型
+    input [4:0] inst_f_subtype_port1_i,
+    input rs1_is_float_port0_i,          // 源寄存器1是否为浮点
+    input rs1_is_float_port1_i,
+    input rs2_is_float_port0_i,          // 源寄存器2是否为浮点
+    input rs2_is_float_port1_i,
+    input [4:0] rs3_raddr_port0_i,       // 源寄存器3地址
+    input [4:0] rs3_raddr_port1_i,
+    `endif
+
     // from ROB
     input rob_stall_i,                       // ROB满暂停标志
+    `ifdef use_f_extension
+    input float_stall_i,                     // 浮点冲突暂停（来自ROB）
+    `endif
     input [5:0] rob_id_inst0_i,              // 指令0 ROB id
     input [5:0] rob_id_inst1_i,              // 指令1 ROB id
 
@@ -77,6 +91,7 @@ module Issue (
 
     // from regs
     input [63:0] ready_flag_i,          // 寄存器就绪标志，位0-63分别对应物理寄存器0-63
+    input [63:0] ready_flag_d0_i,
 
     // to ALU0
     output alu_inst_valid_inst0_o,       // ALU0指令有效标志
@@ -163,6 +178,21 @@ module Issue (
 
 // 冲刷逻辑
 wire [3:0] kill_mask = jump_flag_i ? (4'b0001 << kill_mask_id_i) : 4'b0000;
+
+`ifdef use_f_extension
+wire is_float_port0 = inst_valid_port0_i && ((inst_type_port0_i == `TYPE_F_EXT) || ((inst_type_port0_i == `TYPE_MEM) && inst_subtype_port0_i[2] && inst_subtype_port0_i[1]));
+wire is_float_port1 = inst_valid_port1_i && ((inst_type_port1_i == `TYPE_F_EXT) || ((inst_type_port1_i == `TYPE_MEM) && inst_subtype_port1_i[2] && inst_subtype_port1_i[1]));
+wire dual_float = is_float_port0 && is_float_port1;
+
+reg dual_float_latch;  // 1=首拍已收inst0，本拍mask inst0放inst1
+wire dual_float_stall = dual_float && !dual_float_latch;  // 只首拍暂停，latch=1后靠float_stall_i
+
+wire inst0_valid = inst_valid_port0_i && !dual_float_latch;
+wire inst1_valid = inst_valid_port1_i && !(dual_float && !dual_float_latch);
+`else
+wire inst0_valid = inst_valid_port0_i;
+wire inst1_valid = inst_valid_port1_i;
+`endif
 
 // ALU发射队列
 reg alu_inst_valid[0:7];       // 指令有效标志
@@ -334,7 +364,7 @@ always @(posedge clk) begin
         if (alu_issue_flag_inst0) alu_inst_valid[alu_issue_slot_inst0] <= 1'b0;
         if (alu_issue_flag_inst1) alu_inst_valid[alu_issue_slot_inst1] <= 1'b0;
         // 写入新指令
-        if (~stall_o) begin
+        if (issue_wen) begin
             // 分配指令0
             if (alu_need_slot0) begin
                 alu_inst_valid[alu_free_slot0] <= 1'b1;
@@ -627,7 +657,7 @@ always @(posedge clk) begin
         // 发射后将指令无效化
         if (br_issue_flag) branch_inst_valid[br_issue_slot] <= 1'b0;
         // 写入新指令
-        if (~stall_o) begin
+        if (issue_wen) begin
             // 分配指令0
             if (branch_need_slot0) begin
                 branch_inst_valid[br_free_slot0] <= 1'b1;
@@ -775,6 +805,9 @@ reg [1:0] mem_sq_id[0:7];      // store queue id
 reg [3:0] mem_subtype[0:7];    // 指令子类型
 reg [1:0] mem_op1_src[0:7];    // 操作数1来源选择
 reg [1:0] mem_op2_src[0:7];    // 操作数2来源选择
+`ifdef use_f_extension
+reg mem_rs2_is_float[0:7];     // rs2是否为浮点数
+`endif
 reg [5:0] mem_praddr1[0:7];    // 物理寄存器1读地址
 reg [5:0] mem_praddr2[0:7];    // 物理寄存器2读地址
 reg [5:0] mem_pwaddr[0:7];     // 物理寄存器写地址
@@ -788,12 +821,12 @@ wire [3:0] mem_count = mem_inst_valid[0] + mem_inst_valid[1] + mem_inst_valid[2]
 reg [2:0] sq_alloc_ptr;    // SQ 分配指针 (截取低两位0~3)
 reg [2:0] sq_count;        // SQ 占用计数 (0~4)
 // Store 指令判断
-wire is_store_inst0 = inst_valid_port0_i && (inst_type_port0_i == `TYPE_MEM && inst_subtype_port0_i[3] == 1'b1); // mem指令且是store
-wire is_store_inst1 = inst_valid_port1_i && (inst_type_port1_i == `TYPE_MEM && inst_subtype_port1_i[3] == 1'b1); // mem指令且是store
+wire is_store_inst0 = inst0_valid && (inst_type_port0_i == `TYPE_MEM && inst_subtype_port0_i[3] == 1'b1); // mem指令且是store
+wire is_store_inst1 = inst1_valid && (inst_type_port1_i == `TYPE_MEM && inst_subtype_port1_i[3] == 1'b1); // mem指令且是store
 wire [1:0] store_req = is_store_inst0 + is_store_inst1;
 // 分配需求
-wire mem_need_slot0 = (inst_valid_port0_i && inst_type_port0_i == `TYPE_MEM);
-wire mem_need_slot1 = (inst_valid_port1_i && inst_type_port1_i == `TYPE_MEM);
+wire mem_need_slot0 = (inst0_valid && inst_type_port0_i == `TYPE_MEM);
+wire mem_need_slot1 = (inst1_valid && inst_type_port1_i == `TYPE_MEM);
 wire [1:0] mem_req = mem_need_slot0 + mem_need_slot1;
 // 暂停信号
 wire mem_stall = (mem_req + mem_count > 4'd8) || (sq_count + store_req > 3'd4);
@@ -804,7 +837,11 @@ wire mem_op1_ready = (mem_op1_src[mem_rd_ptr] != `OP1_REG) || ready_flag_i[mem_p
                      (mem_praddr1[mem_rd_ptr] == mem_pwaddr_i);
 wire mem_op2_ready = (mem_op2_src[mem_rd_ptr] != `OP2_REG) || ready_flag_i[mem_praddr2[mem_rd_ptr]] || 
                      (mem_praddr2[mem_rd_ptr] == alu0_rf_pwaddr_i) || (mem_praddr2[mem_rd_ptr] == alu1_rf_pwaddr_i) ||
-                     (mem_praddr2[mem_rd_ptr] == mem_pwaddr_i);
+                     (mem_praddr2[mem_rd_ptr] == mem_pwaddr_i)
+                     `ifdef use_f_extension
+                     || mem_rs2_is_float[mem_rd_ptr]
+                     `endif
+                     ;
 always @(*) begin
     mem_issue_flag = 1'b0;
     if (mem_inst_valid[mem_rd_ptr] && mem_op1_ready && mem_op2_ready && ((mem_mask[mem_rd_ptr] & kill_mask) == 0) && !mem_stall_i) begin
@@ -824,37 +861,6 @@ always @(*) begin
     if (is_store_inst1) next_sq_ptr_1 = next_sq_ptr_0 + 3'd1; // 自动回绕
     else next_sq_ptr_1 = next_sq_ptr_0;
 end
-// 统计本拍 Flush 掉了多少个 Store
-// reg [2:0] flushed_store_cnt;
-// always @(*) begin
-//     flushed_store_cnt = 0;
-//     for (i = 0; i < 8; i = i + 1) begin
-//         if ((mem_mask[i] & kill_mask) != 0) begin
-//             // 它是有效的且是 Store
-//             if (mem_inst_valid[i] && mem_subtype[i][3]) begin
-//                 flushed_store_cnt = flushed_store_cnt + 1;
-//             end
-//         end
-//     end
-// end
-// 写指针回滚
-// reg [2:0] recovered_wr_ptr;
-// reg [2:0] p_idx;
-// integer k;
-// always @(*) begin
-//     // 默认回退到读指针（假设全部被 Kill 或 队列为空）
-//     recovered_wr_ptr = mem_rd_ptr;
-//     // 逻辑倒序遍历：从 rd_ptr 开始往后找，找到逻辑上最新的一个幸存者
-//     // 只有在有效范围内 (count) 才检查
-//     for (k = 0; k < 8; k = k + 1) begin
-//         p_idx = mem_rd_ptr + k[2:0]; // 计算物理索引（自动回绕）
-//         // 如果该指令有效 且 没有被杀死
-//         if (mem_inst_valid[p_idx] && ((mem_mask[p_idx] & kill_mask) == 0)) begin
-//             // 更新恢复指针为：当前幸存者位置 + 1
-//             recovered_wr_ptr = p_idx + 3'd1;
-//         end
-//     end
-// end
 // 计算sq指针回滚距离
 wire [2:0] rollback_dist = sq_alloc_ptr - restore_sq_ptr_i; // 3位自动回绕
 // 时序逻辑
@@ -868,6 +874,7 @@ always @(posedge clk) begin
             mem_subtype[i] <= 4'b0;
             mem_op1_src[i] <= 2'b0;
             mem_op2_src[i] <= 2'b0;
+            mem_rs2_is_float[i] <= 1'b0;
             mem_praddr1[i] <= 6'b0;
             mem_praddr2[i] <= 6'b0;
             mem_pwaddr[i] <= 6'b0;
@@ -922,10 +929,8 @@ always @(posedge clk) begin
         end
         // 更新SQ占用计数
         sq_count <= sq_count - rollback_dist - {1'b0, sq_commit_cnt_i};
-        // sq_count <= sq_count - flushed_store_cnt - sq_commit_cnt_i;
         // 恢复 SQ 分配指针 (回滚)
         sq_alloc_ptr <= restore_sq_ptr_i;
-        // sq_alloc_ptr <= sq_alloc_ptr - flushed_store_cnt[1:0]; // 2-bit 自然回绕
     end
     else begin
         // 发射后将指令无效化并更新读指针
@@ -934,8 +939,8 @@ always @(posedge clk) begin
             mem_rd_ptr <= mem_rd_ptr + 3'd1; // 读指针前移,溢出自动回绕
         end
         // 更新SQ占用计数
-        sq_count <= sq_count + ((~stall_o) ? {1'b0, store_req} : 3'd0) - {1'b0, sq_commit_cnt_i};
-        if (~stall_o) begin // 资源足够可以分配
+        sq_count <= sq_count + (issue_wen ? {1'b0, store_req} : 3'd0) - {1'b0, sq_commit_cnt_i};
+        if (issue_wen) begin // 资源足够可以分配
             // 更新SQ分配指针
             sq_alloc_ptr <= next_sq_ptr_1;
             // 更新队列写指针
@@ -953,6 +958,9 @@ always @(posedge clk) begin
                 mem_praddr2[mem_wr_ptr] <= praddr2_inst0_i;
                 mem_pwaddr[mem_wr_ptr] <= pwaddr_inst0_i;
                 mem_imm[mem_wr_ptr] <= imm_port0_i;
+                `ifdef use_f_extension
+                mem_rs2_is_float[mem_wr_ptr] <= rs2_is_float_port0_i;
+                `endif
                 if (mem_need_slot1) begin // 指令0和指令1都需要
                     mem_inst_valid[(mem_wr_ptr + 3'd1) & 3'b111] <= 1'b1; // 3位指针溢出自动回绕到0
                     mem_rob_id[(mem_wr_ptr + 3'd1) & 3'b111] <= rob_id_inst1_i;
@@ -965,6 +973,9 @@ always @(posedge clk) begin
                     mem_praddr2[(mem_wr_ptr + 3'd1) & 3'b111] <= praddr2_inst1_i;
                     mem_pwaddr[(mem_wr_ptr + 3'd1) & 3'b111] <= pwaddr_inst1_i;
                     mem_imm[(mem_wr_ptr + 3'd1) & 3'b111] <= imm_port1_i;
+                    `ifdef use_f_extension
+                    mem_rs2_is_float[(mem_wr_ptr + 3'd1) & 3'b111] <= rs2_is_float_port1_i;
+                    `endif
                 end
             end
             else if (mem_need_slot1) begin // 指令0不需要但指令1需要
@@ -979,6 +990,9 @@ always @(posedge clk) begin
                 mem_praddr2[mem_wr_ptr] <= praddr2_inst1_i;
                 mem_pwaddr[mem_wr_ptr] <= pwaddr_inst1_i;
                 mem_imm[mem_wr_ptr] <= imm_port1_i;
+                `ifdef use_f_extension
+                mem_rs2_is_float[mem_wr_ptr] <= rs2_is_float_port1_i;
+                `endif
             end
         end
         // 提交释放掩码
@@ -1193,7 +1207,7 @@ always @(posedge clk) begin
         // 发射后将指令无效化
         if (mul_issue_flag) mul_inst_valid[mul_issue_slot] <= 1'b0;
         // 写入新指令
-        if (~stall_o) begin
+        if (issue_wen) begin
             // 分配指令0
             if (mul_need_slot0) begin
                 mul_inst_valid[mul_free_slot0] <= 1'b1;
@@ -1417,7 +1431,7 @@ always @(posedge clk) begin
         // 发射后将指令无效化
         if (div_issue_flag) div_inst_valid[div_issue_slot] <= 1'b0;
         // 写入新指令
-        if (~stall_o) begin
+        if (issue_wen) begin
             // 分配指令0
             if (div_need_slot0) begin
                 div_inst_valid[div_free_slot0] <= 1'b1;
@@ -1512,9 +1526,38 @@ assign stall_rob_o = alu_stall || branch_stall || mem_stall
                      || mul_stall || div_stall
                     `endif
                     ;
+
+// 写使能：所有队列共用，任一stall则停写
+wire issue_wen = !rob_stall_i && !alu_stall && !branch_stall && !mem_stall
+                `ifdef use_m_extension
+                 && !mul_stall && !div_stall
+                `endif
+                `ifdef use_f_extension
+                 && !float_stall_i   // 浮点冲突时整拍不写入，等前一条提交
+                `endif
+                ;
+
+`ifdef use_f_extension
+// dual_float_latch: 首拍收inst0置1，次拍收inst1清0
+// 状态机：0→(dual_float && issue_wen)→1→(issue_wen)→0
+always @(posedge clk) begin
+    if (!rst)
+        dual_float_latch <= 1'b0;
+    else if (int_flag_i || jump_flag_i)
+        dual_float_latch <= 1'b0;
+    else if (!dual_float_latch && dual_float && issue_wen)
+        dual_float_latch <= 1'b1;  // 首拍：锁存，收inst0
+    else if (dual_float_latch && issue_wen)
+        dual_float_latch <= 1'b0;  // 次拍：收inst1，解锁
+end
+`endif
+
 assign stall_o = rob_stall_i || alu_stall || branch_stall || mem_stall
                 `ifdef use_m_extension
                  || mul_stall || div_stall
+                `endif
+                `ifdef use_f_extension
+                 || dual_float_stall || float_stall_i
                 `endif
                 ;
 

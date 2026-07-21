@@ -13,17 +13,26 @@ module lsu_mem_wb (
     input [5:0] pwaddr_i,               // 物理寄存器写地址
     input [31:0] reg_wdata_i,           // 写寄存器数据
 
+    `ifdef use_f_extension
+    input rd_is_float_i,                // 写回寄存器是否为浮点寄存器
+    `endif
+
     input stall_i,
 
     // from clint
     input int_flag_i,                   // 中断标志
 
     // to wb
-    output reg inst_valid_o,                 // 指令有效标志
-    output reg [3:0] subtype_o,              // 指令子类型
-    output reg [5:0] rob_id_o,               // ROB id
-    output reg [5:0] pwaddr_o,               // 物理寄存器写地址
-    output reg [31:0] reg_wdata_o            // 写寄存器数据
+    output reg inst_valid_o,            // 指令有效标志
+    output reg [3:0] subtype_o,         // 指令子类型
+    output reg [5:0] rob_id_o,          // ROB id
+    output reg [5:0] pwaddr_o,          // 物理寄存器写地址
+    output reg [31:0] reg_wdata_o       // 写寄存器数据
+
+    `ifdef use_f_extension
+    ,
+    output reg rd_is_float_o            // 写回寄存器是否为浮点寄存器
+    `endif
 
 );
 
@@ -47,6 +56,9 @@ always @(posedge clk) begin
     rob_id_o <= rob_id_i;
     pwaddr_o <= pwaddr_i;
     reg_wdata_o <= reg_wdata_i;
+    `ifdef use_f_extension
+    rd_is_float_o <= rd_is_float_i;
+    `endif
 end
 
 endmodule

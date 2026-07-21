@@ -14,6 +14,11 @@ module lsu_rf_ex (
     input [3:0] subtype_i,            // 指令子类型
     input [31:0] rs1_data_i,          // rs1数据
     input [31:0] rs2_data_i,          // rs2数据
+
+    `ifdef use_f_extension
+    input [31:0] float_rs2_data_i,     // 浮点rs2数据
+    `endif
+
     input [5:0] pwaddr_i,             // 物理寄存器写地址
     input [31:0] imm_i,               // 立即数
 
@@ -42,6 +47,11 @@ module lsu_rf_ex (
     output reg [3:0] subtype_o,            // 指令子类型
     output reg [31:0] rs1_data_o,          // rs1数据
     output reg [31:0] rs2_data_o,          // rs2数据
+
+    `ifdef use_f_extension
+    output reg [31:0] float_rs2_data_o,    // 浮点rs2数据
+    `endif
+
     output reg [5:0] pwaddr_o,             // 物理寄存器写地址
     output reg [31:0] imm_o                // 立即数
 );
@@ -99,6 +109,9 @@ always @(posedge clk) begin
         subtype_o <= subtype_i;
         rs1_data_o <= rs1_data_i;
         rs2_data_o <= rs2_data_i;
+        `ifdef use_f_extension
+        float_rs2_data_o <= float_rs2_data_i;
+        `endif
         imm_o <= imm_i;
     end
 end
