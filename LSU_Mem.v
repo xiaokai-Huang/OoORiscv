@@ -50,6 +50,7 @@ module LSU_Mem (
     output flush_o,
 
     // to pipeline
+    output load_valid_o,
     output stall_o,
 
     // to commit
@@ -80,8 +81,7 @@ assign store_commit_rob_id_o = rob_id_i;
 // 内存地址范围
 localparam DRAM_ADDR_START = 32'h8010_0000;
 localparam DRAM_ADDR_END   = 32'h8013_FFFF;
-wire access_dram;
-assign access_dram = mem_addr_i[31] == 1'b1 && mem_addr_i[21] == 1'b0;
+wire access_dram = mem_addr_i[31] == 1'b1 && mem_addr_i[21] == 1'b0;
 assign mem_addr_o = mem_addr_i;
 // 冲刷逻辑
 wire [3:0] kill_mask = jump_flag_i ? (4'b0001 << kill_mask_id_i) : 4'b0000;
@@ -170,9 +170,14 @@ reg sq_multi_match;               // 是否存在多于1个的SQ匹配 (需要St
 // reg [3:0] effective_byte_from_sq; // SQ能提供的有效字节总和
 integer k;
 assign dcache_ren = inst_valid_i && access_dram && (subtype_i[3] == 1'b0) && !sq_multi_match;
-assign stall_o = inst_valid_i && (subtype_i[3] == 1'b0) && sq_multi_match; // 如果Load指令存在多于1个的SQ匹配，Stall等待
+assign load_valid_o = inst_valid_i && (subtype_i[3] == 1'b0);
+assign stall_o = sq_multi_match; // 如果Load指令存在多于1个的SQ匹配，Stall等待
 assign mem_reg_waddr_o = pwaddr_i;
+`ifdef use_f_extension
 assign mem_reg_wflag_o = inst_valid_i && (subtype_i[3] == 1'b0) && !(subtype_i[2] && subtype_i[1]) && !sq_multi_match;
+`else
+assign mem_reg_wflag_o = inst_valid_i && (subtype_i[3] == 1'b0) && !sq_multi_match;
+`endif
 // 匹配逻辑
 always @(*) begin
     // Load Mask 生成

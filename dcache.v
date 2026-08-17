@@ -29,6 +29,7 @@ module dcache (
 localparam DRAM_ADDR_START = 32'h8010_0000;
 localparam DRAM_ADDR_END   = 32'h8013_FFFF;
 wire access_dram = mem_waddr[31] == 1'b1 && mem_waddr[21] == 1'b0;
+wire read_dram = mem_addr[31] == 1'b1 && mem_addr[21] == 1'b0;
 
 // 地址映射
 wire [8:0] tag;              // 标签
@@ -111,7 +112,7 @@ always @(posedge clk) begin
 end
 
 always @(*) begin
-    if (cache_miss && mem_ren && (miss_cnt < 2)) begin
+    if (cache_miss && read_dram && (miss_cnt < 2)) begin
         miss_hold = 1'b1;
     end
     else begin

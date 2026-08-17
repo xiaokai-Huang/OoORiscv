@@ -5,7 +5,7 @@
 
 // `define DEBUG
 `define use_m_extension
-`define use_f_extension
+// `define use_f_extension
 
 
 // RV32IM

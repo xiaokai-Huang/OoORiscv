@@ -28,8 +28,14 @@ module LSU_WB (
     output [5:0] load_commit_rob_id_o         // load提交ROB id
 );
 
+`ifdef use_f_extension
 assign reg_wflag_o = inst_valid_i && (subtype_i[3] == 1'b0) && !rd_is_float_i; // 只有load指令才写寄存器
+`else
+assign reg_wflag_o = inst_valid_i && (subtype_i[3] == 1'b0); // 只有load指令才写寄存器
+`endif
+`ifdef use_f_extension
 assign float_reg_wflag_o = inst_valid_i && (subtype_i[3] == 1'b0) && rd_is_float_i;
+`endif
 assign reg_waddr_o = pwaddr_i;
 assign reg_wdata_o = reg_wdata_i;
 assign load_complete_flag_o = inst_valid_i && (subtype_i[3] == 1'b0); // 只有load指令才完成

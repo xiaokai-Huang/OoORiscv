@@ -80,10 +80,9 @@ module Forwarding_Unit (
 // ALU0_rs1转发
 always @(*) begin
     if (alu0_rf_raddr1_i != 6'b0) begin
-        alu0_rs1_forward_flag_o = (alu0_rf_raddr1_i == alu0_exe_waddr_i) | (alu0_rf_raddr1_i == alu1_exe_waddr_i) | (alu0_rf_raddr1_i == mem_exe_waddr_i);
+        alu0_rs1_forward_flag_o = (alu0_rf_raddr1_i == alu0_exe_waddr_i) | (alu0_rf_raddr1_i == alu1_exe_waddr_i);
         alu0_rs1_forward_data_o = {32{alu0_rf_raddr1_i == alu0_exe_waddr_i}} & alu0_exe_wdata_i |
-                                  {32{alu0_rf_raddr1_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i |
-                                  {32{alu0_rf_raddr1_i == mem_exe_waddr_i}}  & mem_exe_wdata_i;
+                                  {32{alu0_rf_raddr1_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i;
     end 
     else begin
         alu0_rs1_forward_flag_o = 1'b0;
@@ -93,10 +92,9 @@ end
 // ALU0_rs2转发
 always @(*) begin
     if (alu0_rf_raddr2_i != 6'b0) begin
-        alu0_rs2_forward_flag_o = (alu0_rf_raddr2_i == alu0_exe_waddr_i) | (alu0_rf_raddr2_i == alu1_exe_waddr_i) | (alu0_rf_raddr2_i == mem_exe_waddr_i);
+        alu0_rs2_forward_flag_o = (alu0_rf_raddr2_i == alu0_exe_waddr_i) | (alu0_rf_raddr2_i == alu1_exe_waddr_i);
         alu0_rs2_forward_data_o = {32{alu0_rf_raddr2_i == alu0_exe_waddr_i}} & alu0_exe_wdata_i |
-                                  {32{alu0_rf_raddr2_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i |
-                                  {32{alu0_rf_raddr2_i == mem_exe_waddr_i}}  & mem_exe_wdata_i;
+                                  {32{alu0_rf_raddr2_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i;
     end 
     else begin
         alu0_rs2_forward_flag_o = 1'b0;
@@ -106,10 +104,9 @@ end
 // ALU1_rs1转发
 always @(*) begin
     if (alu1_rf_raddr1_i != 6'b0) begin
-        alu1_rs1_forward_flag_o = (alu1_rf_raddr1_i == alu0_exe_waddr_i) | (alu1_rf_raddr1_i == alu1_exe_waddr_i) | (alu1_rf_raddr1_i == mem_exe_waddr_i);
+        alu1_rs1_forward_flag_o = (alu1_rf_raddr1_i == alu0_exe_waddr_i) | (alu1_rf_raddr1_i == alu1_exe_waddr_i);
         alu1_rs1_forward_data_o = {32{alu1_rf_raddr1_i == alu0_exe_waddr_i}} & alu0_exe_wdata_i |
-                                  {32{alu1_rf_raddr1_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i |
-                                  {32{alu1_rf_raddr1_i == mem_exe_waddr_i}}  & mem_exe_wdata_i;
+                                  {32{alu1_rf_raddr1_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i;
     end 
     else begin
         alu1_rs1_forward_flag_o = 1'b0;
@@ -119,10 +116,9 @@ end
 // ALU1_rs2转发
 always @(*) begin
     if (alu1_rf_raddr2_i != 6'b0) begin
-        alu1_rs2_forward_flag_o = (alu1_rf_raddr2_i == alu0_exe_waddr_i) | (alu1_rf_raddr2_i == alu1_exe_waddr_i) | (alu1_rf_raddr2_i == mem_exe_waddr_i);
+        alu1_rs2_forward_flag_o = (alu1_rf_raddr2_i == alu0_exe_waddr_i) | (alu1_rf_raddr2_i == alu1_exe_waddr_i);
         alu1_rs2_forward_data_o = {32{alu1_rf_raddr2_i == alu0_exe_waddr_i}} & alu0_exe_wdata_i |
-                                  {32{alu1_rf_raddr2_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i |
-                                  {32{alu1_rf_raddr2_i == mem_exe_waddr_i}}  & mem_exe_wdata_i;
+                                  {32{alu1_rf_raddr2_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i;
     end 
     else begin
         alu1_rs2_forward_flag_o = 1'b0;
@@ -132,10 +128,9 @@ end
 // mem_rs1转发
 always @(*) begin
     if (mem_rf_raddr1_i != 6'b0) begin
-        mem_rs1_forward_flag_o = (mem_rf_raddr1_i == alu0_exe_waddr_i) | (mem_rf_raddr1_i == alu1_exe_waddr_i) | (mem_rf_raddr1_i == mem_exe_waddr_i);
+        mem_rs1_forward_flag_o = (mem_rf_raddr1_i == alu0_exe_waddr_i) | (mem_rf_raddr1_i == alu1_exe_waddr_i);
         mem_rs1_forward_data_o = {32{mem_rf_raddr1_i == alu0_exe_waddr_i}} & alu0_exe_wdata_i |
-                                 {32{mem_rf_raddr1_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i |
-                                 {32{mem_rf_raddr1_i == mem_exe_waddr_i}}  & mem_exe_wdata_i;
+                                 {32{mem_rf_raddr1_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i;
     end 
     else begin
         mem_rs1_forward_flag_o = 1'b0;
@@ -145,10 +140,9 @@ end
 // mem_rs2转发
 always @(*) begin
     if (mem_rf_raddr2_i != 6'b0) begin
-        mem_rs2_forward_flag_o = (mem_rf_raddr2_i == alu0_exe_waddr_i) | (mem_rf_raddr2_i == alu1_exe_waddr_i) | (mem_rf_raddr2_i == mem_exe_waddr_i);
+        mem_rs2_forward_flag_o = (mem_rf_raddr2_i == alu0_exe_waddr_i) | (mem_rf_raddr2_i == alu1_exe_waddr_i);
         mem_rs2_forward_data_o = {32{mem_rf_raddr2_i == alu0_exe_waddr_i}} & alu0_exe_wdata_i |
-                                 {32{mem_rf_raddr2_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i |
-                                 {32{mem_rf_raddr2_i == mem_exe_waddr_i}}  & mem_exe_wdata_i;
+                                 {32{mem_rf_raddr2_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i;
     end 
     else begin
         mem_rs2_forward_flag_o = 1'b0;
@@ -158,10 +152,9 @@ end
 // branch_rs1转发
 always @(*) begin
     if (branch_rf_raddr1_i != 6'b0) begin
-        branch_rs1_forward_flag_o = (branch_rf_raddr1_i == alu0_exe_waddr_i) | (branch_rf_raddr1_i == alu1_exe_waddr_i) | (branch_rf_raddr1_i == mem_exe_waddr_i);
+        branch_rs1_forward_flag_o = (branch_rf_raddr1_i == alu0_exe_waddr_i) | (branch_rf_raddr1_i == alu1_exe_waddr_i);
         branch_rs1_forward_data_o = {32{branch_rf_raddr1_i == alu0_exe_waddr_i}} & alu0_exe_wdata_i |
-                                    {32{branch_rf_raddr1_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i |
-                                    {32{branch_rf_raddr1_i == mem_exe_waddr_i}}  & mem_exe_wdata_i;
+                                    {32{branch_rf_raddr1_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i;
     end 
     else begin
         branch_rs1_forward_flag_o = 1'b0;
@@ -171,10 +164,9 @@ end
 // branch_rs2转发
 always @(*) begin
     if (branch_rf_raddr2_i != 6'b0) begin
-        branch_rs2_forward_flag_o = (branch_rf_raddr2_i == alu0_exe_waddr_i) | (branch_rf_raddr2_i == alu1_exe_waddr_i) | (branch_rf_raddr2_i == mem_exe_waddr_i);
+        branch_rs2_forward_flag_o = (branch_rf_raddr2_i == alu0_exe_waddr_i) | (branch_rf_raddr2_i == alu1_exe_waddr_i);
         branch_rs2_forward_data_o = {32{branch_rf_raddr2_i == alu0_exe_waddr_i}} & alu0_exe_wdata_i |
-                                    {32{branch_rf_raddr2_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i |
-                                    {32{branch_rf_raddr2_i == mem_exe_waddr_i}}  & mem_exe_wdata_i;
+                                    {32{branch_rf_raddr2_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i;
     end 
     else begin
         branch_rs2_forward_flag_o = 1'b0;
@@ -186,10 +178,9 @@ end
 // mul_rs1转发
 always @(*) begin
     if (mul_rf_raddr1_i != 6'b0) begin
-        mul_rs1_forward_flag_o = (mul_rf_raddr1_i == alu0_exe_waddr_i) | (mul_rf_raddr1_i == alu1_exe_waddr_i) | (mul_rf_raddr1_i == mem_exe_waddr_i);
+        mul_rs1_forward_flag_o = (mul_rf_raddr1_i == alu0_exe_waddr_i) | (mul_rf_raddr1_i == alu1_exe_waddr_i);
         mul_rs1_forward_data_o = {32{mul_rf_raddr1_i == alu0_exe_waddr_i}} & alu0_exe_wdata_i |
-                                 {32{mul_rf_raddr1_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i |
-                                 {32{mul_rf_raddr1_i == mem_exe_waddr_i}}  & mem_exe_wdata_i;
+                                 {32{mul_rf_raddr1_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i;
     end 
     else begin
         mul_rs1_forward_flag_o = 1'b0;
@@ -199,10 +190,9 @@ end
 // mul_rs2转发
 always @(*) begin
     if (mul_rf_raddr2_i != 6'b0) begin
-        mul_rs2_forward_flag_o = (mul_rf_raddr2_i == alu0_exe_waddr_i) | (mul_rf_raddr2_i == alu1_exe_waddr_i) | (mul_rf_raddr2_i == mem_exe_waddr_i);
+        mul_rs2_forward_flag_o = (mul_rf_raddr2_i == alu0_exe_waddr_i) | (mul_rf_raddr2_i == alu1_exe_waddr_i);
         mul_rs2_forward_data_o = {32{mul_rf_raddr2_i == alu0_exe_waddr_i}} & alu0_exe_wdata_i |
-                                 {32{mul_rf_raddr2_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i |
-                                 {32{mul_rf_raddr2_i == mem_exe_waddr_i}}  & mem_exe_wdata_i;
+                                 {32{mul_rf_raddr2_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i;
     end 
     else begin
         mul_rs2_forward_flag_o = 1'b0;
@@ -212,10 +202,9 @@ end
 // div_rs1转发
 always @(*) begin
     if (div_rf_raddr1_i != 6'b0) begin
-        div_rs1_forward_flag_o = (div_rf_raddr1_i == alu0_exe_waddr_i) | (div_rf_raddr1_i == alu1_exe_waddr_i) | (div_rf_raddr1_i == mem_exe_waddr_i);
+        div_rs1_forward_flag_o = (div_rf_raddr1_i == alu0_exe_waddr_i) | (div_rf_raddr1_i == alu1_exe_waddr_i);
         div_rs1_forward_data_o = {32{div_rf_raddr1_i == alu0_exe_waddr_i}} & alu0_exe_wdata_i |
-                                 {32{div_rf_raddr1_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i |
-                                 {32{div_rf_raddr1_i == mem_exe_waddr_i}}  & mem_exe_wdata_i;
+                                 {32{div_rf_raddr1_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i;
     end 
     else begin
         div_rs1_forward_flag_o = 1'b0;
@@ -225,10 +214,9 @@ end
 // div_rs2转发
 always @(*) begin
     if (div_rf_raddr2_i != 6'b0) begin
-        div_rs2_forward_flag_o = (div_rf_raddr2_i == alu0_exe_waddr_i) | (div_rf_raddr2_i == alu1_exe_waddr_i) | (div_rf_raddr2_i == mem_exe_waddr_i);
+        div_rs2_forward_flag_o = (div_rf_raddr2_i == alu0_exe_waddr_i) | (div_rf_raddr2_i == alu1_exe_waddr_i);
         div_rs2_forward_data_o = {32{div_rf_raddr2_i == alu0_exe_waddr_i}} & alu0_exe_wdata_i |
-                                 {32{div_rf_raddr2_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i |
-                                 {32{div_rf_raddr2_i == mem_exe_waddr_i}}  & mem_exe_wdata_i;
+                                 {32{div_rf_raddr2_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i;
     end 
     else begin
         div_rs2_forward_flag_o = 1'b0;

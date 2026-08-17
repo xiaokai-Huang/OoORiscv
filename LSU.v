@@ -134,14 +134,6 @@ LSU_RF u_LSU_RF(
     // from f_regs
     .float_rs2_rdata_i(float_rs2_rdata_i),
     `endif
-    // from branch
-    .jump_flag_i(jump_flag_i),                 // 跳转标志
-    .kill_mask_id_i(kill_mask_id_i),        // 分支掩码id
-    // from commit
-    .free_mask_inst0_i(free_mask_inst0_i),                   // 指令0释放掩码标志
-    .free_id_inst0_i(free_id_inst0_i),               // 指令0释放id
-    .free_mask_inst1_i(free_mask_inst1_i),                   // 指令1释放掩码标志
-    .free_id_inst1_i(free_id_inst1_i),               // 指令1释放id
     // to regs
     .rf_raddr1_o(rf_raddr1_o),           // RF 阶段读寄存器1地址（同时传到转发模块）
     .rf_raddr2_o(rf_raddr2_o),           // RF 阶段读寄存器2地址（同时传到转发模块）
@@ -175,8 +167,6 @@ wire [5:0] rf_ex_pwaddr_o;             // 物理寄存器写地址
 wire [31:0] rf_ex_imm_o;               // 立即数
 
 lsu_rf_ex u_lsu_rf_ex(
-    .clk(clk),
-    .rst(rst),
     // from rf
     .inst_valid_i(rf_inst_valid_o),               // 指令有效标志
     .rob_id_i(rf_rob_id_o),             // ROB id
@@ -190,19 +180,6 @@ lsu_rf_ex u_lsu_rf_ex(
     `endif
     .pwaddr_i(rf_pwaddr_o),             // 物理寄存器写地址
     .imm_i(rf_imm_o),                   // 立即数
-    // from clint
-    .int_flag_i(int_flag_i),                   // 中断标志
-    // from mem
-    .flush_i(flush_o),                      // 冲刷标志
-    .stall_i(stall_o),
-    // from commit
-    .free_mask_inst0_i(free_mask_inst0_i),                   // 指令0释放掩码标志
-    .free_id_inst0_i(free_id_inst0_i),               // 指令0释放id
-    .free_mask_inst1_i(free_mask_inst1_i),                   // 指令1释放掩码标志
-    .free_id_inst1_i(free_id_inst1_i),               // 指令1释放id
-    // from branch
-    .jump_flag_i(jump_flag_i),                 // 跳转标志
-    .kill_mask_id_i(kill_mask_id_i),        // 分支掩码id
     // to ex
     .inst_valid_o(rf_ex_inst_valid_o),               // 指令有效标志
     .rob_id_o(rf_ex_rob_id_o),             // ROB id
@@ -323,7 +300,9 @@ lsu_ex_mem u_lsu_ex_mem(
 wire mem_inst_valid_o;
 wire [3:0] mem_subtype_o;
 wire mem_dcache_ren;
+wire mem_load_valid_o;
 wire mem_stall_o;
+wire mem_reg_wflag;
 `ifdef use_f_extension
 wire mem_rd_is_float;
 `endif
@@ -365,13 +344,14 @@ LSU_Mem u_LSU_Mem(
     .mem_addr_o(mem_addr_o),
     .flush_o(flush_o),
     // to pipeline
+    .load_valid_o(mem_load_valid_o),
     .stall_o(mem_stall_o),
     // to peripheral and dcache
     .sq_mask_o(sq_mask_o),
     .sq_addr_o(sq_addr_o),
     .sq_data_o(sq_data_o),
     // to regs
-    .mem_reg_wflag_o(mem_reg_wflag_o),                     // Mem阶段load写寄存器标志(给ready置1)
+    .mem_reg_wflag_o(mem_reg_wflag),                     // Mem阶段load写寄存器标志(给ready置1)
     // to forward_unit and wb
     .mem_reg_waddr_o(mem_reg_waddr_o),               // Mem阶段写寄存器地址(同时传到regs)
     .mem_reg_wdata_o(mem_reg_wdata_o),          // Mem阶段写寄存器数据
@@ -390,7 +370,8 @@ LSU_Mem u_LSU_Mem(
 wire [31:0] dcache_mem_rdata;
 wire dcache_stall_o;
 wire dcache_miss;
-assign stall_o = mem_stall_o || dcache_stall_o;
+assign stall_o = mem_load_valid_o && (mem_stall_o || dcache_stall_o);
+assign mem_reg_wflag_o = mem_reg_wflag && !dcache_stall_o;
 
 dcache u_dcache(
     .clk(clk),

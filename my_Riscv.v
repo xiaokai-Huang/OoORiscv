@@ -669,7 +669,6 @@ Issue u_Issue(
 `endif
     // from regs
     .ready_flag_i(regs_ready_flag_o),          // 寄存器就绪标志，位0-63分别对应物理寄存器0-63
-    .ready_flag_d0_i(ready_d0),
     // to ALU0
     .alu_inst_valid_inst0_o(iss_alu_inst_valid_inst0_o),       // ALU0指令有效标志
     .alu_rob_id_inst0_o(iss_alu_rob_id_inst0_o),               // ALU0 ROB id
@@ -1164,10 +1163,6 @@ Forwarding_Unit u_Forwarding_Unit(
 );
 
 // 物理寄存器文件
-reg [63:0] ready_d0;
-always @(posedge clk) begin
-    ready_d0 <= regs_ready_flag_o;
-end
 regs u_regs(
     .clk(clk),
     .rst(rst),
