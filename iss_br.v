@@ -17,6 +17,9 @@ module iss_br (
     input [2:0] ras_ptr_i,            // RAS快照指针
     input [2:0] mem_wr_ptr_i,         // mem队列写操作快照指针
     input [2:0] sq_ptr_i,             // store queue快照指针
+    input [2:0] alu_wr_ptr_i,         // ALU队列写操作快照指针
+    input [2:0] branch_wr_ptr_i,      // branch队列写操作快照指针
+    input [2:0] mul_div_wr_ptr_i,     // mul_div队列写操作快照指针
     input [1:0] snap_id_i,            // 快照id
     input [2:0] type_i,               // 指令类型
     input [3:0] subtype_i,            // 指令子类型
@@ -38,6 +41,9 @@ module iss_br (
     output reg [2:0] ras_ptr_o,       // RAS快照指针
     output reg [2:0] mem_wr_ptr_o,    // mem队列写操作快照指针
     output reg [2:0] sq_ptr_o,        // store queue快照指针
+    output reg [2:0] alu_wr_ptr_o,    // ALU队列写操作快照指针
+    output reg [2:0] branch_wr_ptr_o, // branch队列写操作快照指针
+    output reg [2:0] mul_div_wr_ptr_o,// mul_div队列写操作快照指针
     output reg [1:0] snap_id_o,       // 快照id
     output reg [2:0] type_o,          // 指令类型
     output reg [3:0] subtype_o,       // 指令子类型
@@ -75,6 +81,9 @@ always @(posedge clk) begin
     ras_ptr_o <= ras_ptr_i;
     mem_wr_ptr_o <= mem_wr_ptr_i;
     sq_ptr_o <= sq_ptr_i;
+    alu_wr_ptr_o <= alu_wr_ptr_i;
+    branch_wr_ptr_o <= branch_wr_ptr_i;
+    mul_div_wr_ptr_o <= mul_div_wr_ptr_i;
     snap_id_o <= snap_id_i;
     type_o <= type_i;
     subtype_o <= subtype_i;

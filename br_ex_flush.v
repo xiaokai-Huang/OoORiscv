@@ -14,6 +14,9 @@ module br_ex_flush (
     input [2:0] ras_snap_ptr_i,         // RAS快照指针
     input [2:0] br_mem_wr_ptr_i,        // branch mem队列写操作快照指针
     input [2:0] br_sq_ptr_i,            // branch store queue快照指针
+    input [2:0] br_alu_wr_ptr_i,        // branch ALU队列写操作快照指针
+    input [2:0] br_branch_wr_ptr_i,     // branch branch队列写操作快照指针
+    input [2:0] br_mul_div_wr_ptr_i,    // branch mul_div队列写操作快照指针
     input [31:0] jump_addr_i,           // 跳转地址
 
     // from clint
@@ -27,6 +30,9 @@ module br_ex_flush (
     output reg [2:0] ras_snap_ptr_o,         // RAS快照指针
     output reg [2:0] br_mem_wr_ptr_o,        // branch mem队列写操作快照指针
     output reg [2:0] br_sq_ptr_o,            // branch store queue快照指针
+    output reg [2:0] br_alu_wr_ptr_o,        // branch ALU队列写操作快照指针
+    output reg [2:0] br_branch_wr_ptr_o,     // branch branch队列写操作快照指针
+    output reg [2:0] br_mul_div_wr_ptr_o,    // branch mul_div队列写操作快照指针
     output reg [31:0] jump_addr_o            // 跳转地址
 );
 
@@ -51,6 +57,9 @@ always @(posedge clk) begin
     ras_snap_ptr_o <= ras_snap_ptr_i;
     br_mem_wr_ptr_o <= br_mem_wr_ptr_i;
     br_sq_ptr_o <= br_sq_ptr_i;
+    br_alu_wr_ptr_o <= br_alu_wr_ptr_i;
+    br_branch_wr_ptr_o <= br_branch_wr_ptr_i;
+    br_mul_div_wr_ptr_o <= br_mul_div_wr_ptr_i;
     jump_addr_o <= jump_addr_i;
 end
 

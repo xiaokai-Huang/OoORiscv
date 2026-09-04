@@ -13,6 +13,9 @@ module br_rf (
     input [2:0] br_ras_ptr_i,           // branch RAS快照指针
     input [2:0] br_mem_wr_ptr_i,        // branch mem队列写操作快照指针
     input [2:0] br_sq_ptr_i,            // branch store queue快照指针
+    input [2:0] br_alu_wr_ptr_i,        // branch ALU队列写操作快照指针
+    input [2:0] br_branch_wr_ptr_i,     // branch branch队列写操作快照指针
+    input [2:0] br_mul_div_wr_ptr_i,    // branch mul_div队列写操作快照指针
     input [1:0] br_snap_id_i,           // branch快照id
     input [2:0] br_type_i,              // branch指令类型
     input [3:0] br_subtype_i,           // branch指令子类型
@@ -52,6 +55,9 @@ module br_rf (
     output [2:0] br_ras_ptr_o,           // branch RAS快照指针
     output [2:0] br_mem_wr_ptr_o,        // branch mem队列写操作快照指针
     output [2:0] br_sq_ptr_o,            // branch store queue快照指针
+    output [2:0] br_alu_wr_ptr_o,        // branch ALU队列写操作快照指针
+    output [2:0] br_branch_wr_ptr_o,     // branch branch队列写操作快照指针
+    output [2:0] br_mul_div_wr_ptr_o,    // branch mul_div队列写操作快照指针
     output [1:0] br_snap_id_o,           // branch快照id
     output [2:0] br_type_o,              // branch指令类型
     output [3:0] br_subtype_o,           // branch指令子类型
@@ -79,6 +85,9 @@ assign br_mask_o = br_mask_i;
 assign br_ras_ptr_o = br_ras_ptr_i;
 assign br_mem_wr_ptr_o = br_mem_wr_ptr_i;
 assign br_sq_ptr_o = br_sq_ptr_i;
+assign br_alu_wr_ptr_o = br_alu_wr_ptr_i;
+assign br_branch_wr_ptr_o = br_branch_wr_ptr_i;
+assign br_mul_div_wr_ptr_o = br_mul_div_wr_ptr_i;
 assign br_snap_id_o = br_snap_id_i;
 assign br_type_o = br_type_i;
 assign br_subtype_o = br_subtype_i;

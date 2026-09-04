@@ -16,6 +16,9 @@ module Branch (
     input [2:0] br_ras_ptr_i,           // branch RAS快照指针
     input [2:0] br_mem_wr_ptr_i,        // branch mem队列写操作快照指针
     input [2:0] br_sq_ptr_i,            // branch store queue快照指针
+    input [2:0] br_alu_wr_ptr_i,        // branch ALU队列写操作快照指针
+    input [2:0] br_branch_wr_ptr_i,     // branch branch队列写操作快照指针
+    input [2:0] br_mul_div_wr_ptr_i,    // branch mul_div队列写操作快照指针
     input [1:0] br_snap_id_i,           // branch快照id
     input [2:0] br_type_i,              // branch指令类型
     input [3:0] br_subtype_i,           // branch指令子类型
@@ -48,6 +51,9 @@ module Branch (
     // to issue
     output [2:0] br_mem_wr_ptr_o,        // branch mem队列写操作快照指针
     output [2:0] br_sq_ptr_o,            // branch store queue快照指针
+    output [2:0] br_alu_wr_ptr_o,        // branch ALU队列写操作快照指针
+    output [2:0] br_branch_wr_ptr_o,     // branch branch队列写操作快照指针
+    output [2:0] br_mul_div_wr_ptr_o,    // branch mul_div队列写操作快照指针
 
     // to PC
     output [31:0] jump_addr_o,          // 跳转地址
@@ -84,6 +90,9 @@ wire [3:0] rf_br_mask_o;              // branch分支掩码
 wire [2:0] rf_br_ras_ptr_o;           // branch RAS快照指针
 wire [2:0] rf_br_mem_wr_ptr_o;        // branch mem队列写操作快照指针
 wire [2:0] rf_br_sq_ptr_o;            // branch store queue快照指针
+wire [2:0] rf_br_alu_wr_ptr_o;        // branch ALU队列写操作快照指针
+wire [2:0] rf_br_branch_wr_ptr_o;     // branch branch队列写操作快照指针
+wire [2:0] rf_br_mul_div_wr_ptr_o;    // branch mul_div队列写操作快照指针
 wire [1:0] rf_br_snap_id_o;           // branch快照id
 wire [2:0] rf_br_type_o;              // branch指令类型
 wire [3:0] rf_br_subtype_o;           // branch指令子类型
@@ -102,6 +111,9 @@ wire [3:0] rf_ex_br_mask_o;              // branch分支掩码
 wire [2:0] rf_ex_br_ras_ptr_o;           // branch RAS快照指针
 wire [2:0] rf_ex_br_mem_wr_ptr_o;        // branch mem队列写操作快照指针
 wire [2:0] rf_ex_br_sq_ptr_o;            // branch store queue快照指针
+wire [2:0] rf_ex_br_alu_wr_ptr_o;        // branch ALU队列写操作快照指针
+wire [2:0] rf_ex_br_branch_wr_ptr_o;     // branch branch队列写操作快照指针
+wire [2:0] rf_ex_br_mul_div_wr_ptr_o;    // branch mul_div队列写操作快照指针
 wire [1:0] rf_ex_br_snap_id_o;           // branch快照id
 wire [2:0] rf_ex_br_type_o;              // branch指令类型
 wire [3:0] rf_ex_br_subtype_o;           // branch指令子类型
@@ -119,6 +131,9 @@ wire [1:0] ex_kill_mask_id_o;         // 分支掩码id
 wire [2:0] ex_ras_snap_ptr_o;         // RAS快照指针
 wire [2:0] ex_br_mem_wr_ptr_o;        // branch mem队列写操作快照指针
 wire [2:0] ex_br_sq_ptr_o;            // branch store queue快照指针
+wire [2:0] ex_br_alu_wr_ptr_o;        // branch ALU队列写操作快照指针
+wire [2:0] ex_br_branch_wr_ptr_o;     // branch branch队列写操作快照指针
+wire [2:0] ex_br_mul_div_wr_ptr_o;    // branch mul_div队列写操作快照指针
 
 
 // 实例化
@@ -134,6 +149,9 @@ br_rf u_br_rf(
     .br_ras_ptr_i(br_ras_ptr_i),           // branch RAS快照指针
     .br_mem_wr_ptr_i(br_mem_wr_ptr_i),        // branch mem队列写操作快照指针
     .br_sq_ptr_i(br_sq_ptr_i),            // branch store queue快照指
+    .br_alu_wr_ptr_i(br_alu_wr_ptr_i),        // branch ALU队列写操作快照指针
+    .br_branch_wr_ptr_i(br_branch_wr_ptr_i),  // branch branch队列写操作快照指针
+    .br_mul_div_wr_ptr_i(br_mul_div_wr_ptr_i),// branch mul_div队列写操作快照指针
     .br_snap_id_i(br_snap_id_i),           // branch快照id
     .br_type_i(br_type_i),              // branch指令类型
     .br_subtype_i(br_subtype_i),           // branch指令子类型
@@ -168,6 +186,9 @@ br_rf u_br_rf(
     .br_ras_ptr_o(rf_br_ras_ptr_o),           // branch RAS快照指针
     .br_mem_wr_ptr_o(rf_br_mem_wr_ptr_o),        // branch mem队列写操作快照指针
     .br_sq_ptr_o(rf_br_sq_ptr_o),            // branch store queue快照指针
+    .br_alu_wr_ptr_o(rf_br_alu_wr_ptr_o),        // branch ALU队列写操作快照指针
+    .br_branch_wr_ptr_o(rf_br_branch_wr_ptr_o),  // branch branch队列写操作快照指针
+    .br_mul_div_wr_ptr_o(rf_br_mul_div_wr_ptr_o),// branch mul_div队列写操作快照指针
     .br_snap_id_o(rf_br_snap_id_o),           // branch快照id
     .br_type_o(rf_br_type_o),              // branch指令类型
     .br_subtype_o(rf_br_subtype_o),           // branch指令子类型
@@ -191,6 +212,9 @@ br_rf_ex u_br_rf_ex(
     .br_ras_ptr_i(rf_br_ras_ptr_o),           // branch RAS快照指针
     .br_mem_wr_ptr_i(rf_br_mem_wr_ptr_o),        // branch mem队列写操作快照指针
     .br_sq_ptr_i(rf_br_sq_ptr_o),            // branch store queue快照指针
+    .br_alu_wr_ptr_i(rf_br_alu_wr_ptr_o),        // branch ALU队列写操作快照指针
+    .br_branch_wr_ptr_i(rf_br_branch_wr_ptr_o),  // branch branch队列写操作快照指针
+    .br_mul_div_wr_ptr_i(rf_br_mul_div_wr_ptr_o),// branch mul_div队列写操作快照指针
     .br_snap_id_i(rf_br_snap_id_o),           // branch快照id
     .br_type_i(rf_br_type_o),              // branch指令类型
     .br_subtype_i(rf_br_subtype_o),           // branch指令子类型
@@ -211,6 +235,9 @@ br_rf_ex u_br_rf_ex(
     .br_ras_ptr_o(rf_ex_br_ras_ptr_o),           // branch RAS快照指针
     .br_mem_wr_ptr_o(rf_ex_br_mem_wr_ptr_o),        // branch mem队列写操作快照指针
     .br_sq_ptr_o(rf_ex_br_sq_ptr_o),            // branch store queue快照指针
+    .br_alu_wr_ptr_o(rf_ex_br_alu_wr_ptr_o),        // branch ALU队列写操作快照指针
+    .br_branch_wr_ptr_o(rf_ex_br_branch_wr_ptr_o),  // branch branch队列写操作快照指针
+    .br_mul_div_wr_ptr_o(rf_ex_br_mul_div_wr_ptr_o),// branch mul_div队列写操作快照指针
     .br_snap_id_o(rf_ex_br_snap_id_o),           // branch快照id
     .br_type_o(rf_ex_br_type_o),              // branch指令类型
     .br_subtype_o(rf_ex_br_subtype_o),           // branch指令子类型
@@ -233,6 +260,9 @@ br_ex u_br_ex(
     .br_ras_ptr_i(rf_ex_br_ras_ptr_o),           // branch RAS快照指针
     .br_mem_wr_ptr_i(rf_ex_br_mem_wr_ptr_o),        // branch mem队列写操作快照指针
     .br_sq_ptr_i(rf_ex_br_sq_ptr_o),            // branch store queue快照指针
+    .br_alu_wr_ptr_i(rf_ex_br_alu_wr_ptr_o),        // branch ALU队列写操作快照指针
+    .br_branch_wr_ptr_i(rf_ex_br_branch_wr_ptr_o),  // branch branch队列写操作快照指针
+    .br_mul_div_wr_ptr_i(rf_ex_br_mul_div_wr_ptr_o),// branch mul_div队列写操作快照指针
     .br_snap_id_i(rf_ex_br_snap_id_o),           // branch快照id
     .br_type_i(rf_ex_br_type_o),              // branch指令类型
     .br_subtype_i(rf_ex_br_subtype_o),           // branch指令子类型
@@ -252,6 +282,9 @@ br_ex u_br_ex(
     // to issue
     .br_mem_wr_ptr_o(ex_br_mem_wr_ptr_o),        // branch mem队列写操作快照指针
     .br_sq_ptr_o(ex_br_sq_ptr_o),            // branch store queue快照指针
+    .br_alu_wr_ptr_o(ex_br_alu_wr_ptr_o),        // branch ALU队列写操作快照指针
+    .br_branch_wr_ptr_o(ex_br_branch_wr_ptr_o),  // branch branch队列写操作快照指针
+    .br_mul_div_wr_ptr_o(ex_br_mul_div_wr_ptr_o),// branch mul_div队列写操作快照指针
     // to PC
     .jump_addr_o(ex_jump_addr_o),          // 跳转地址(同时传到bpu_update_buffer)
     // to bpu_update_buffer
@@ -281,6 +314,9 @@ br_ex_flush u_br_ex_flush(
     .ras_snap_ptr_i(ex_ras_snap_ptr_o),         // RAS快照指针
     .br_mem_wr_ptr_i(ex_br_mem_wr_ptr_o),        // branch mem队列写操作快照指针
     .br_sq_ptr_i(ex_br_sq_ptr_o),            // branch store queue快照指针
+    .br_alu_wr_ptr_i(ex_br_alu_wr_ptr_o),        // branch ALU队列写操作快照指针
+    .br_branch_wr_ptr_i(ex_br_branch_wr_ptr_o),  // branch branch队列写操作快照指针
+    .br_mul_div_wr_ptr_i(ex_br_mul_div_wr_ptr_o),// branch mul_div队列写操作快照指针
     .jump_addr_i(ex_jump_addr_o),           // 跳转地址
     // from clint
     .int_flag_i(int_flag_i),                   // 中断标志
@@ -292,6 +328,9 @@ br_ex_flush u_br_ex_flush(
     .ras_snap_ptr_o(ras_snap_ptr_o),         // RAS快照指针
     .br_mem_wr_ptr_o(br_mem_wr_ptr_o),        // branch mem队列写操作快照指针
     .br_sq_ptr_o(br_sq_ptr_o),            // branch store queue快照指针
+    .br_alu_wr_ptr_o(br_alu_wr_ptr_o),        // branch ALU队列写操作快照指针
+    .br_branch_wr_ptr_o(br_branch_wr_ptr_o),  // branch branch队列写操作快照指针
+    .br_mul_div_wr_ptr_o(br_mul_div_wr_ptr_o),// branch mul_div队列写操作快照指针
     .jump_addr_o(jump_addr_o)            // 跳转地址
 );
 

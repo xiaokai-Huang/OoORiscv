@@ -187,6 +187,9 @@ wire [3:0] iss_br_mask_o;              // branch分支掩码
 wire [2:0] iss_br_ras_ptr_o;           // branch RAS快照指针
 wire [2:0] iss_br_mem_wr_ptr_o;        // branch mem队列写操作快照指针
 wire [2:0] iss_br_sq_ptr_o;            // branch store queue快照指针
+wire [2:0] iss_br_alu_wr_ptr_o;        // branch ALU队列写操作快照指针
+wire [2:0] iss_br_branch_wr_ptr_o;     // branch branch队列写操作快照指针
+wire [2:0] iss_br_mul_div_wr_ptr_o;    // branch mul_div队列写操作快照指针
 wire [1:0] iss_br_snap_id_o;           // branch快照id
 wire [2:0] iss_br_type_o;              // branch指令类型
 wire [3:0] iss_br_subtype_o;           // branch指令子类型
@@ -259,6 +262,9 @@ wire [1:0] br_kill_mask_id_o;        // 分支掩码id
 wire [2:0] br_ras_snap_ptr_o;        // RAS快照指针
 wire [2:0] br_mem_wr_ptr_o;          // branch mem队列写操作快照指针
 wire [2:0] br_sq_ptr_o;              // branch store queue快照指针
+wire [2:0] br_alu_wr_ptr_o;          // branch ALU队列写操作快照指针
+wire [2:0] br_branch_wr_ptr_o;       // branch branch队列写操作快照指针
+wire [2:0] br_mul_div_wr_ptr_o;      // branch mul_div队列写操作快照指针
 wire [31:0] br_jump_addr_o;          // 跳转地址(同时传到bpu_update_buffer)
 wire br_btb_update_en;               // 执行阶段更新BTB使能
 wire [15:0] br_ex_pc;                // 执行阶段的pc
@@ -656,6 +662,9 @@ Issue u_Issue(
     .kill_mask_id_i(br_kill_mask_id_o),             // 杀死指令掩码
     .restore_mem_wr_ptr_i(br_mem_wr_ptr_o),       // 恢复mem队列写指针
     .restore_sq_ptr_i(br_sq_ptr_o),           // 恢复store queue指针
+    .restore_alu_wr_ptr_i(br_alu_wr_ptr_o),       // 恢复ALU队列写指针
+    .restore_branch_wr_ptr_i(br_branch_wr_ptr_o), // 恢复branch队列写指针
+    .restore_mul_div_wr_ptr_i(br_mul_div_wr_ptr_o), // 恢复mul_div队列写指针
     // from ALU0
     .alu0_rf_pwaddr_i(alu0_rf_waddr_o),           // ALU0读寄存器文件阶段物理寄存器地址
     // from ALU1
@@ -705,6 +714,9 @@ Issue u_Issue(
     .br_ras_ptr_o(iss_br_ras_ptr_o),           // branch RAS快照指针
     .br_mem_wr_ptr_o(iss_br_mem_wr_ptr_o),        // branch mem队列写操作快照指针
     .br_sq_ptr_o(iss_br_sq_ptr_o),            // branch store queue快照指针
+    .br_alu_wr_ptr_o(iss_br_alu_wr_ptr_o),        // branch ALU队列写操作快照指针
+    .br_branch_wr_ptr_o(iss_br_branch_wr_ptr_o),  // branch branch队列写操作快照指针
+    .br_mul_div_wr_ptr_o(iss_br_mul_div_wr_ptr_o),// branch mul_div队列写操作快照指针
     .br_snap_id_o(iss_br_snap_id_o),           // branch快照id
     .br_type_o(iss_br_type_o),              // branch指令类型
     .br_subtype_o(iss_br_subtype_o),           // branch指令子类型
@@ -863,6 +875,9 @@ Branch u_Branch(
     .br_ras_ptr_i(iss_br_ras_ptr_o),           // branch RAS快照指针
     .br_mem_wr_ptr_i(iss_br_mem_wr_ptr_o),        // branch mem队列写操作快照指针
     .br_sq_ptr_i(iss_br_sq_ptr_o),            // branch store queue快照指针
+    .br_alu_wr_ptr_i(iss_br_alu_wr_ptr_o),        // branch ALU队列写操作快照指针
+    .br_branch_wr_ptr_i(iss_br_branch_wr_ptr_o),  // branch branch队列写操作快照指针
+    .br_mul_div_wr_ptr_i(iss_br_mul_div_wr_ptr_o),// branch mul_div队列写操作快照指针
     .br_snap_id_i(iss_br_snap_id_o),           // branch快照id
     .br_type_i(iss_br_type_o),              // branch指令类型
     .br_subtype_i(iss_br_subtype_o),           // branch指令子类型
@@ -889,6 +904,9 @@ Branch u_Branch(
     // to issue
     .br_mem_wr_ptr_o(br_mem_wr_ptr_o),        // branch mem队列写操作快照指针
     .br_sq_ptr_o(br_sq_ptr_o),            // branch store queue快照指针
+    .br_alu_wr_ptr_o(br_alu_wr_ptr_o),        // branch ALU队列写操作快照指针
+    .br_branch_wr_ptr_o(br_branch_wr_ptr_o),  // branch branch队列写操作快照指针
+    .br_mul_div_wr_ptr_o(br_mul_div_wr_ptr_o),// branch mul_div队列写操作快照指针
     // to PC
     .jump_addr_o(br_jump_addr_o),          // 跳转地址
     // to bpu_update_buffer

@@ -76,6 +76,9 @@ module Issue (
     input [1:0] kill_mask_id_i,             // 杀死指令掩码
     input [2:0] restore_mem_wr_ptr_i,       // 恢复mem队列写指针
     input [2:0] restore_sq_ptr_i,           // 恢复store queue指针
+    input [2:0] restore_alu_wr_ptr_i,       // 恢复ALU队列写指针
+    input [2:0] restore_branch_wr_ptr_i,    // 恢复branch队列写指针
+    input [2:0] restore_mul_div_wr_ptr_i,   // 恢复mul_div队列写指针
     // from ALU0
     input [5:0] alu0_rf_pwaddr_i,           // ALU0读寄存器文件阶段物理寄存器地址
     // from ALU1
@@ -129,6 +132,9 @@ module Issue (
     output [2:0] br_ras_ptr_o,           // branch RAS快照指针
     output [2:0] br_mem_wr_ptr_o,        // branch mem队列写操作快照指针
     output [2:0] br_sq_ptr_o,            // branch store queue快照指针
+    output [2:0] br_alu_wr_ptr_o,        // branch ALU队列写操作快照指针
+    output [2:0] br_branch_wr_ptr_o,     // branch branch队列写操作快照指针
+    output [2:0] br_mul_div_wr_ptr_o,    // branch mul_div队列写操作快照指针
     output [1:0] br_snap_id_o,           // branch快照id
     output [2:0] br_type_o,              // branch指令类型
     output [3:0] br_subtype_o,           // branch指令子类型
@@ -1588,113 +1594,50 @@ reg [5:0] alu_praddr1[0:7];    // 物理寄存器1读地址
 reg [5:0] alu_praddr2[0:7];    // 物理寄存器2读地址
 reg [5:0] alu_pwaddr[0:7];     // 物理寄存器写地址
 reg [31:0] alu_imm[0:7];       // 立即数
-// 空闲计数
-wire [3:0] alu_busy_cnt = alu_inst_valid[0] + alu_inst_valid[1] + alu_inst_valid[2] + alu_inst_valid[3] +
-                          alu_inst_valid[4] + alu_inst_valid[5] + alu_inst_valid[6] + alu_inst_valid[7];
-wire [3:0] alu_free_cnt = 4'd8 - alu_busy_cnt;
+// 指针管理 (Ring Buffer)
+reg [2:0] alu_wr_ptr;      // 写指针 (Dispatch 阶段入队)
+reg [2:0] alu_rd_ptr;      // 读指针 (Issue 阶段出队)
+// ALU 队列占用计数
+wire [3:0] alu_count = alu_inst_valid[0] + alu_inst_valid[1] + alu_inst_valid[2] + alu_inst_valid[3] +
+                       alu_inst_valid[4] + alu_inst_valid[5] + alu_inst_valid[6] + alu_inst_valid[7];
 // 分配需求
 wire alu_need_slot0 = (inst_valid_port0_i && inst_type_port0_i == `TYPE_ALU);
 wire alu_need_slot1 = (inst_valid_port1_i && inst_type_port1_i == `TYPE_ALU);
 wire [1:0] alu_req = alu_need_slot0 + alu_need_slot1;
 // 暂停信号
-wire alu_stall = (alu_req > alu_free_cnt);
+wire alu_stall = (alu_req + alu_count > 4'd8);
 // 发射逻辑
 integer i;
 reg alu_issue_flag_inst0, alu_issue_flag_inst1;
-reg [2:0] alu_issue_slot_inst0, alu_issue_slot_inst1;
-// 检查操作数是否就绪
-reg alu_op1_ready[0:7];
-reg alu_op2_ready[0:7];
-reg alu_dep_mem[0:7];
+wire [2:0] alu_slot0 = alu_rd_ptr;                     // 队头
+wire [2:0] alu_slot1 = (alu_rd_ptr + 3'd1) & 3'b111;   // 队头第二条
+// 检查操作数是否就绪（只看队头两条）
+wire alu_op1_ready0 = (alu_op1_src[alu_slot0] != `OP1_REG) || ready_flag_i[alu_praddr1[alu_slot0]] || 
+                      (alu_praddr1[alu_slot0] == alu0_rf_pwaddr_i) || (alu_praddr1[alu_slot0] == alu1_rf_pwaddr_i) ||
+                      (alu_praddr1[alu_slot0] == mem_pwaddr_i);
+wire alu_op2_ready0 = (alu_op2_src[alu_slot0] != `OP2_REG) || ready_flag_i[alu_praddr2[alu_slot0]] || 
+                      (alu_praddr2[alu_slot0] == alu0_rf_pwaddr_i) || (alu_praddr2[alu_slot0] == alu1_rf_pwaddr_i) ||
+                      (alu_praddr2[alu_slot0] == mem_pwaddr_i);
+wire alu_op1_ready1 = (alu_op1_src[alu_slot1] != `OP1_REG) || ready_flag_i[alu_praddr1[alu_slot1]] || 
+                      (alu_praddr1[alu_slot1] == alu0_rf_pwaddr_i) || (alu_praddr1[alu_slot1] == alu1_rf_pwaddr_i) ||
+                      (alu_praddr1[alu_slot1] == mem_pwaddr_i);
+wire alu_op2_ready1 = (alu_op2_src[alu_slot1] != `OP2_REG) || ready_flag_i[alu_praddr2[alu_slot1]] || 
+                      (alu_praddr2[alu_slot1] == alu0_rf_pwaddr_i) || (alu_praddr2[alu_slot1] == alu1_rf_pwaddr_i) ||
+                      (alu_praddr2[alu_slot1] == mem_pwaddr_i);
+wire alu_dep_mem0 = ((alu_praddr1[alu_slot0] == mem_pwaddr_i) || (alu_praddr2[alu_slot0] == mem_pwaddr_i)) 
+                    && (mem_pwaddr_i != 6'b0);
+wire alu_dep_mem1 = ((alu_praddr1[alu_slot1] == mem_pwaddr_i) || (alu_praddr2[alu_slot1] == mem_pwaddr_i)) 
+                    && (mem_pwaddr_i != 6'b0);
+// 选择发射指令：第一条能发射，第二条才能发射
 always @(*) begin
-    for (i = 0; i < 8; i = i + 1) begin
-        alu_op1_ready[i] = (alu_op1_src[i] != `OP1_REG) || ready_flag_i[alu_praddr1[i]] || 
-                       (alu_praddr1[i] == alu0_rf_pwaddr_i) || (alu_praddr1[i] == alu1_rf_pwaddr_i) ||
-                       (alu_praddr1[i] == mem_pwaddr_i);
-        alu_op2_ready[i] = (alu_op2_src[i] != `OP2_REG) || ready_flag_i[alu_praddr2[i]] || 
-                       (alu_praddr2[i] == alu0_rf_pwaddr_i) || (alu_praddr2[i] == alu1_rf_pwaddr_i) ||
-                       (alu_praddr2[i] == mem_pwaddr_i);
-
-        alu_dep_mem[i] = ((alu_praddr1[i] == mem_pwaddr_i) || (alu_praddr2[i] == mem_pwaddr_i)) 
-                                && (mem_pwaddr_i != 6'b0);
-    end
-end
-// 选择发射指令
-reg alu_ns_flag0, alu_ns_flag1;
-reg [2:0] alu_ns_slot0, alu_ns_slot1;
-reg alu_s_flag0, alu_s_flag1;
-reg [2:0] alu_s_slot0, alu_s_slot1;
-
-always @(*) begin
-    alu_ns_flag0 = 1'b0;
-    alu_ns_flag1 = 1'b0;
-    alu_ns_slot0 = 3'd0;
-    alu_ns_slot1 = 3'd0;
-    alu_s_flag0 = 1'b0;
-    alu_s_flag1 = 1'b0;
-    alu_s_slot0 = 3'd0;
-    alu_s_slot1 = 3'd0;
-    for (i = 0; i < 8; i = i + 1) begin
-        if (alu_inst_valid[i] && alu_op1_ready[i] && alu_op2_ready[i] && ((alu_mask[i] & kill_mask) == 0)) begin // 找到就绪指令
-            // 没有stall的情况
-            if (!alu_ns_flag0) begin
-                alu_ns_flag0 = 1'b1;
-                alu_ns_slot0 = i[2:0];
-            end
-            else if (!alu_ns_flag1) begin
-                alu_ns_flag1 = 1'b1;
-                alu_ns_slot1 = i[2:0];
-            end
-            
-            // 有stall的情况
-            if (!alu_dep_mem[i]) begin
-                if (!alu_s_flag0) begin
-                    alu_s_flag0 = 1'b1;
-                    alu_s_slot0 = i[2:0];
-                end
-                else if (!alu_s_flag1) begin
-                    alu_s_flag1 = 1'b1;
-                    alu_s_slot1 = i[2:0];
-                end
-            end
-        end
-    end
-end
-
-always @(*) begin
-    if (mem_stall_i) begin
-        alu_issue_flag_inst0 = alu_s_flag0;
-        alu_issue_slot_inst0 = alu_s_slot0;
-        alu_issue_flag_inst1 = alu_s_flag1;
-        alu_issue_slot_inst1 = alu_s_slot1;
-    end else begin
-        alu_issue_flag_inst0 = alu_ns_flag0;
-        alu_issue_slot_inst0 = alu_ns_slot0;
-        alu_issue_flag_inst1 = alu_ns_flag1;
-        alu_issue_slot_inst1 = alu_ns_slot1;
-    end
-end
-// 分配逻辑
-// 寻找空位
-reg [2:0] alu_free_slot0, alu_free_slot1;
-reg alu_found_slot0, alu_found_slot1;
-always @(*) begin
-    alu_found_slot0 = 1'b0;
-    alu_found_slot1 = 1'b0;
-    alu_free_slot0 = 3'd0;
-    alu_free_slot1 = 3'd0;
-    for (i = 0; i < 8; i = i + 1) begin
-        if (!alu_inst_valid[i]) begin // 发现空位
-            if (!alu_found_slot0) begin
-                // 找到第一个空位
-                alu_free_slot0 = i[2:0];
-                alu_found_slot0 = 1'b1;
-            end
-            else if (!alu_found_slot1) begin
-                // 已经找到第一个了，现在找到第二个
-                alu_free_slot1 = i[2:0];
-                alu_found_slot1 = 1'b1;
-            end
+    alu_issue_flag_inst0 = 1'b0;
+    alu_issue_flag_inst1 = 1'b0;
+    if (alu_inst_valid[alu_slot0] && alu_op1_ready0 && alu_op2_ready0 && ((alu_mask[alu_slot0] & kill_mask) == 0) && 
+        (!mem_stall_i || !alu_dep_mem0)) begin
+        alu_issue_flag_inst0 = 1'b1; // 队头可以发射
+        if (alu_inst_valid[alu_slot1] && alu_op1_ready1 && alu_op2_ready1 && ((alu_mask[alu_slot1] & kill_mask) == 0) &&
+            (!mem_stall_i || !alu_dep_mem1)) begin
+            alu_issue_flag_inst1 = 1'b1; // 队头第二条连续发射
         end
     end
 end
@@ -1713,12 +1656,16 @@ always @(posedge clk) begin
             alu_pwaddr[i] <= 6'b0;
             alu_imm[i] <= 32'b0;
         end
+        alu_wr_ptr <= 3'b0;
+        alu_rd_ptr <= 3'b0;
     end
     else if (int_flag_i) begin
         // 冲刷所有指令
         for (i = 0; i < 8; i = i + 1) begin
             alu_inst_valid[i] <= 1'b0; // 冲刷指令
         end
+        alu_wr_ptr <= 3'b0;
+        alu_rd_ptr <= 3'b0;
     end
     else if (jump_flag_i) begin
         // 冲刷所有被杀死的指令
@@ -1727,9 +1674,26 @@ always @(posedge clk) begin
                 alu_inst_valid[i] <= 1'b0; // 冲刷指令
             end
         end
-        // 发射后将指令无效化
-        if (alu_issue_flag_inst0) alu_inst_valid[alu_issue_slot_inst0] <= 1'b0;
-        if (alu_issue_flag_inst1) alu_inst_valid[alu_issue_slot_inst1] <= 1'b0;
+        // 发射后将指令无效化并更新读指针
+        if (alu_issue_flag_inst0 && alu_issue_flag_inst1) begin
+            alu_inst_valid[alu_slot0] <= 1'b0;
+            alu_inst_valid[alu_slot1] <= 1'b0;
+            alu_rd_ptr <= alu_rd_ptr + 3'd2; // 连续发射两条，读指针加2
+        end
+        else if (alu_issue_flag_inst0) begin
+            alu_inst_valid[alu_slot0] <= 1'b0;
+            alu_rd_ptr <= alu_rd_ptr + 3'd1; // 只发射队头，读指针加1
+        end
+        // 更新写指针
+        if (alu_inst_valid[alu_slot0] && ((alu_mask[alu_slot0] & kill_mask) != 0)) begin
+            alu_wr_ptr <= alu_rd_ptr; // 队头命中 Kill Mask，整个队列都在错误路上，拉回队头开始写
+        end
+        else if (alu_inst_valid[alu_slot0]) begin
+            alu_wr_ptr <= restore_alu_wr_ptr_i; 
+        end
+        else begin
+            alu_wr_ptr <= alu_rd_ptr; 
+        end
         // 提交释放掩码
         if (free_mask_inst0_i) begin
             for (i = 0; i < 8; i = i + 1) begin
@@ -1743,48 +1707,57 @@ always @(posedge clk) begin
         end
     end
     else begin
-        // 发射后将指令无效化
-        if (alu_issue_flag_inst0) alu_inst_valid[alu_issue_slot_inst0] <= 1'b0;
-        if (alu_issue_flag_inst1) alu_inst_valid[alu_issue_slot_inst1] <= 1'b0;
+        // 发射后将指令无效化并更新读指针
+        if (alu_issue_flag_inst0 && alu_issue_flag_inst1) begin
+            alu_inst_valid[alu_slot0] <= 1'b0;
+            alu_inst_valid[alu_slot1] <= 1'b0;
+            alu_rd_ptr <= alu_rd_ptr + 3'd2; // 连续发射两条，读指针加2
+        end
+        else if (alu_issue_flag_inst0) begin
+            alu_inst_valid[alu_slot0] <= 1'b0;
+            alu_rd_ptr <= alu_rd_ptr + 3'd1; // 只发射队头，读指针加1
+        end
         // 写入新指令
         if (~stall_o) begin
+            // 更新队列写指针
+            alu_wr_ptr <= alu_wr_ptr + alu_req;
             // 分配指令0
             if (alu_need_slot0) begin
-                alu_inst_valid[alu_free_slot0] <= 1'b1;
-                alu_rob_id[alu_free_slot0] <= rob_id_inst0_i;
-                alu_mask[alu_free_slot0] <= branch_mask_inst0_i;
-                alu_subtype[alu_free_slot0] <= inst_subtype_port0_i;
-                alu_op1_src[alu_free_slot0] <= op1_src_port0_i;
-                alu_op2_src[alu_free_slot0] <= op2_src_port0_i;
-                alu_praddr1[alu_free_slot0] <= praddr1_inst0_i;
-                alu_praddr2[alu_free_slot0] <= praddr2_inst0_i;
-                alu_pwaddr[alu_free_slot0] <= pwaddr_inst0_i;
-                alu_imm[alu_free_slot0] <= imm_port0_i;
+                alu_inst_valid[alu_wr_ptr] <= 1'b1;
+                alu_rob_id[alu_wr_ptr] <= rob_id_inst0_i;
+                alu_mask[alu_wr_ptr] <= branch_mask_inst0_i;
+                alu_subtype[alu_wr_ptr] <= inst_subtype_port0_i;
+                alu_op1_src[alu_wr_ptr] <= op1_src_port0_i;
+                alu_op2_src[alu_wr_ptr] <= op2_src_port0_i;
+                alu_praddr1[alu_wr_ptr] <= praddr1_inst0_i;
+                alu_praddr2[alu_wr_ptr] <= praddr2_inst0_i;
+                alu_pwaddr[alu_wr_ptr] <= pwaddr_inst0_i;
+                alu_imm[alu_wr_ptr] <= imm_port0_i;
                 // 分配指令1
                 if (alu_need_slot1) begin
-                    alu_inst_valid[alu_free_slot1] <= 1'b1;
-                    alu_rob_id[alu_free_slot1] <= rob_id_inst1_i;
-                    alu_mask[alu_free_slot1] <= branch_mask_inst1_i;
-                    alu_subtype[alu_free_slot1] <= inst_subtype_port1_i;
-                    alu_op1_src[alu_free_slot1] <= op1_src_port1_i;
-                    alu_op2_src[alu_free_slot1] <= op2_src_port1_i;
-                    alu_praddr1[alu_free_slot1] <= praddr1_inst1_i;
-                    alu_praddr2[alu_free_slot1] <= praddr2_inst1_i;
-                    alu_pwaddr[alu_free_slot1] <= pwaddr_inst1_i;
-                    alu_imm[alu_free_slot1] <= imm_port1_i;
+                    alu_inst_valid[(alu_wr_ptr + 3'd1) & 3'b111] <= 1'b1;
+                    alu_rob_id[(alu_wr_ptr + 3'd1) & 3'b111] <= rob_id_inst1_i;
+                    alu_mask[(alu_wr_ptr + 3'd1) & 3'b111] <= branch_mask_inst1_i;
+                    alu_subtype[(alu_wr_ptr + 3'd1) & 3'b111] <= inst_subtype_port1_i;
+                    alu_op1_src[(alu_wr_ptr + 3'd1) & 3'b111] <= op1_src_port1_i;
+                    alu_op2_src[(alu_wr_ptr + 3'd1) & 3'b111] <= op2_src_port1_i;
+                    alu_praddr1[(alu_wr_ptr + 3'd1) & 3'b111] <= praddr1_inst1_i;
+                    alu_praddr2[(alu_wr_ptr + 3'd1) & 3'b111] <= praddr2_inst1_i;
+                    alu_pwaddr[(alu_wr_ptr + 3'd1) & 3'b111] <= pwaddr_inst1_i;
+                    alu_imm[(alu_wr_ptr + 3'd1) & 3'b111] <= imm_port1_i;
                 end
             end
             else if (alu_need_slot1) begin // 指令0不需要但指令1需要
-                alu_inst_valid[alu_free_slot0] <= 1'b1;
-                alu_rob_id[alu_free_slot0] <= rob_id_inst1_i;
-                alu_mask[alu_free_slot0] <= branch_mask_inst1_i;
-                alu_subtype[alu_free_slot0] <= inst_subtype_port1_i;
-                alu_op1_src[alu_free_slot0] <= op1_src_port1_i;
-                alu_op2_src[alu_free_slot0] <= op2_src_port1_i;
-                alu_praddr1[alu_free_slot0] <= praddr1_inst1_i;
-                alu_praddr2[alu_free_slot0] <= praddr2_inst1_i;
-                alu_pwaddr[alu_free_slot0] <= pwaddr_inst1_i;
-                alu_imm[alu_free_slot0] <= imm_port1_i;
+                alu_inst_valid[alu_wr_ptr] <= 1'b1;
+                alu_rob_id[alu_wr_ptr] <= rob_id_inst1_i;
+                alu_mask[alu_wr_ptr] <= branch_mask_inst1_i;
+                alu_subtype[alu_wr_ptr] <= inst_subtype_port1_i;
+                alu_op1_src[alu_wr_ptr] <= op1_src_port1_i;
+                alu_op2_src[alu_wr_ptr] <= op2_src_port1_i;
+                alu_praddr1[alu_wr_ptr] <= praddr1_inst1_i;
+                alu_praddr2[alu_wr_ptr] <= praddr2_inst1_i;
+                alu_pwaddr[alu_wr_ptr] <= pwaddr_inst1_i;
+                alu_imm[alu_wr_ptr] <= imm_port1_i;
             end
         end
         // 提交释放掩码
@@ -1804,8 +1777,8 @@ end
 // 输出寄存器
 reg [3:0] alu0_mask_new, alu1_mask_new;
 always @(*) begin
-    alu0_mask_new = alu_mask[alu_issue_slot_inst0];
-    alu1_mask_new = alu_mask[alu_issue_slot_inst1];
+    alu0_mask_new = alu_mask[alu_slot0];
+    alu1_mask_new = alu_mask[alu_slot1];
     if (free_mask_inst0_i) begin
         alu0_mask_new[free_id_inst0_i] = 1'b0;
         alu1_mask_new[free_id_inst0_i] = 1'b0;
@@ -1821,15 +1794,15 @@ iss_alu u_iss_alu_inst0 (
     // from issue
     .int_flag_i(int_flag_i),                     // 中断标志
     .issue_flag_i(alu_issue_flag_inst0),                   // 发射标志
-    .alu_rob_id_i(alu_rob_id[alu_issue_slot_inst0]),                   // ROB id
+    .alu_rob_id_i(alu_rob_id[alu_slot0]),                   // ROB id
     .alu_mask_i(alu0_mask_new),                                        // 分支掩码
-    .alu_subtype_i(alu_subtype[alu_issue_slot_inst0]),                 // 指令子类型
-    .alu_op1_src_i(alu_op1_src[alu_issue_slot_inst0]),                 // 操作数1来源选择
-    .alu_op2_src_i(alu_op2_src[alu_issue_slot_inst0]),                 // 操作数2来源选择
-    .alu_praddr1_i(alu_praddr1[alu_issue_slot_inst0]),                 // 物理寄存器1读地址
-    .alu_praddr2_i(alu_praddr2[alu_issue_slot_inst0]),                 // 物理寄存器2读地址
-    .alu_pwaddr_i(alu_pwaddr[alu_issue_slot_inst0]),                   // 物理寄存器写地址
-    .alu_imm_i(alu_imm[alu_issue_slot_inst0]),                           // 立即数
+    .alu_subtype_i(alu_subtype[alu_slot0]),                 // 指令子类型
+    .alu_op1_src_i(alu_op1_src[alu_slot0]),                 // 操作数1来源选择
+    .alu_op2_src_i(alu_op2_src[alu_slot0]),                 // 操作数2来源选择
+    .alu_praddr1_i(alu_praddr1[alu_slot0]),                 // 物理寄存器1读地址
+    .alu_praddr2_i(alu_praddr2[alu_slot0]),                 // 物理寄存器2读地址
+    .alu_pwaddr_i(alu_pwaddr[alu_slot0]),                   // 物理寄存器写地址
+    .alu_imm_i(alu_imm[alu_slot0]),                           // 立即数
     // to ex
     .alu_inst_valid_o(alu_inst_valid_inst0_o),          // 指令有效标志
     .alu_rob_id_o(alu_rob_id_inst0_o),                   // ROB id
@@ -1848,15 +1821,15 @@ iss_alu u_iss_alu_inst1 (
     // from issue
     .int_flag_i(int_flag_i),                     // 中断标志
     .issue_flag_i(alu_issue_flag_inst1),                   // 发射标志
-    .alu_rob_id_i(alu_rob_id[alu_issue_slot_inst1]),                   // ROB id
+    .alu_rob_id_i(alu_rob_id[alu_slot1]),                   // ROB id
     .alu_mask_i(alu1_mask_new),                                        // 分支掩码
-    .alu_subtype_i(alu_subtype[alu_issue_slot_inst1]),                 // 指令子类型
-    .alu_op1_src_i(alu_op1_src[alu_issue_slot_inst1]),                 // 操作数1来源选择
-    .alu_op2_src_i(alu_op2_src[alu_issue_slot_inst1]),                 // 操作数2来源选择
-    .alu_praddr1_i(alu_praddr1[alu_issue_slot_inst1]),                 // 物理寄存器1读地址
-    .alu_praddr2_i(alu_praddr2[alu_issue_slot_inst1]),                 // 物理寄存器2读地址
-    .alu_pwaddr_i(alu_pwaddr[alu_issue_slot_inst1]),                   // 物理寄存器写地址
-    .alu_imm_i(alu_imm[alu_issue_slot_inst1]),                           // 立即数
+    .alu_subtype_i(alu_subtype[alu_slot1]),                 // 指令子类型
+    .alu_op1_src_i(alu_op1_src[alu_slot1]),                 // 操作数1来源选择
+    .alu_op2_src_i(alu_op2_src[alu_slot1]),                 // 操作数2来源选择
+    .alu_praddr1_i(alu_praddr1[alu_slot1]),                 // 物理寄存器1读地址
+    .alu_praddr2_i(alu_praddr2[alu_slot1]),                 // 物理寄存器2读地址
+    .alu_pwaddr_i(alu_pwaddr[alu_slot1]),                   // 物理寄存器写地址
+    .alu_imm_i(alu_imm[alu_slot1]),                           // 立即数
     // to ex
     .alu_inst_valid_o(alu_inst_valid_inst1_o),          // 指令有效标志
     .alu_rob_id_o(alu_rob_id_inst1_o),                   // ROB id
@@ -1882,6 +1855,9 @@ reg [3:0] branch_mask[0:3];        // 分支掩码
 reg [2:0] branch_ras_ptr[0:3];     // RAS快照指针
 reg [2:0] branch_mem_wr_ptr[0:3];  // mem队列写操作快照指针
 reg [2:0] branch_sq_ptr[0:3];      // store queue分配快照指针
+reg [2:0] branch_alu_wr_ptr[0:3];  // ALU队列写操作快照指针
+reg [2:0] branch_branch_wr_ptr[0:3]; // branch队列写操作快照指针
+reg [2:0] branch_mul_div_wr_ptr[0:3]; // mul_div队列写操作快照指针
 reg [1:0] branch_snap_id[0:3];     // 快照id
 reg [2:0] branch_type[0:3];        // 指令类型
 reg [3:0] branch_subtype[0:3];     // 指令子类型
@@ -1892,96 +1868,32 @@ reg [5:0] branch_praddr2[0:3];     // 物理寄存器2读地址
 reg [5:0] branch_pwaddr[0:3];      // 物理寄存器写地址
 reg [31:0] branch_imm[0:3];        // 立即数
 reg [31:0] branch_aux_addr[0:3];   // 辅助地址
-// 空闲计数
-wire [2:0] branch_busy_cnt = branch_inst_valid[0] + branch_inst_valid[1] + branch_inst_valid[2] + branch_inst_valid[3];
-wire [2:0] branch_free_cnt = 3'd4 - branch_busy_cnt;
+// 指针管理 (Ring Buffer)
+reg [1:0] branch_wr_ptr;      // 写指针 (Dispatch 阶段入队)
+reg [1:0] branch_rd_ptr;      // 读指针 (Issue 阶段出队)
+// 占用计数
+wire [2:0] branch_count = branch_inst_valid[0] + branch_inst_valid[1] + branch_inst_valid[2] + branch_inst_valid[3];
 // 分配需求
 wire branch_need_slot0 = (inst_valid_port0_i && (inst_type_port0_i == `TYPE_BR || inst_type_port0_i == `TYPE_JAL));
 wire branch_need_slot1 = (inst_valid_port1_i && (inst_type_port1_i == `TYPE_BR || inst_type_port1_i == `TYPE_JAL));
 wire [1:0] branch_req = branch_need_slot0 + branch_need_slot1;
 // 暂停信号
-wire branch_stall = (branch_req > branch_free_cnt);
+wire branch_stall = (branch_req + branch_count > 3'd4);
 // 发射逻辑
 reg br_issue_flag;
-reg [1:0] br_issue_slot;
-// 检查操作数是否就绪
-reg br_op1_ready[0:3];
-reg br_op2_ready[0:3];
-reg br_dep_mem[0:3];
+wire br_op1_ready = (branch_op1_src[branch_rd_ptr] != `OP1_REG) || ready_flag_i[branch_praddr1[branch_rd_ptr]] || 
+                    (branch_praddr1[branch_rd_ptr] == alu0_rf_pwaddr_i) || (branch_praddr1[branch_rd_ptr] == alu1_rf_pwaddr_i) ||
+                    (branch_praddr1[branch_rd_ptr] == mem_pwaddr_i);
+wire br_op2_ready = (branch_op2_src[branch_rd_ptr] != `OP2_REG) || ready_flag_i[branch_praddr2[branch_rd_ptr]] || 
+                    (branch_praddr2[branch_rd_ptr] == alu0_rf_pwaddr_i) || (branch_praddr2[branch_rd_ptr] == alu1_rf_pwaddr_i) ||
+                    (branch_praddr2[branch_rd_ptr] == mem_pwaddr_i);
+wire br_dep_mem = ((branch_praddr1[branch_rd_ptr] == mem_pwaddr_i) || (branch_praddr2[branch_rd_ptr] == mem_pwaddr_i)) 
+                  && (mem_pwaddr_i != 6'b0);
 always @(*) begin
-    for (i = 0; i < 4; i = i + 1) begin
-        br_op1_ready[i] = (branch_op1_src[i] != `OP1_REG) || ready_flag_i[branch_praddr1[i]] || 
-                       (branch_praddr1[i] == alu0_rf_pwaddr_i) || (branch_praddr1[i] == alu1_rf_pwaddr_i) ||
-                       (branch_praddr1[i] == mem_pwaddr_i);
-        br_op2_ready[i] = (branch_op2_src[i] != `OP2_REG) || ready_flag_i[branch_praddr2[i]] || 
-                       (branch_praddr2[i] == alu0_rf_pwaddr_i) || (branch_praddr2[i] == alu1_rf_pwaddr_i) ||
-                       (branch_praddr2[i] == mem_pwaddr_i);
-
-        br_dep_mem[i] = ((branch_praddr1[i] == mem_pwaddr_i) || (branch_praddr2[i] == mem_pwaddr_i)) 
-                               && (mem_pwaddr_i != 6'b0);
-    end
-end
-// 选择发射指令
-reg br_ns_flag;
-reg [1:0] br_ns_slot;
-reg br_s_flag;
-reg [1:0] br_s_slot;
-
-always @(*) begin
-    br_ns_flag = 1'b0;
-    br_ns_slot = 2'd0;
-    br_s_flag = 1'b0;
-    br_s_slot = 2'd0;
-    for (i = 0; i < 4; i = i + 1) begin
-        if (branch_inst_valid[i] && br_op1_ready[i] && br_op2_ready[i] && ((branch_mask[i] & kill_mask) == 0)) begin // 找到就绪指令
-            // 假设没有 stall
-            if (!br_ns_flag) begin
-                br_ns_flag = 1'b1;
-                br_ns_slot = i[1:0];
-            end
-            
-            // 假设有 stall
-            if (!br_dep_mem[i]) begin
-                if (!br_s_flag) begin
-                    br_s_flag = 1'b1;
-                    br_s_slot = i[1:0];
-                end
-            end
-        end
-    end
-end
-
-always @(*) begin
-    if (mem_stall_i) begin
-        br_issue_flag = br_s_flag;
-        br_issue_slot = br_s_slot;
-    end else begin
-        br_issue_flag = br_ns_flag;
-        br_issue_slot = br_ns_slot;
-    end
-end
-// 分配逻辑
-// 寻找空位
-reg [1:0] br_free_slot0, br_free_slot1;
-reg br_found_slot0, br_found_slot1;
-always @(*) begin
-    br_found_slot0 = 1'b0;
-    br_found_slot1 = 1'b0;
-    br_free_slot0 = 2'd0;
-    br_free_slot1 = 2'd0;
-    for (i = 0; i < 4; i = i + 1) begin
-        if (!branch_inst_valid[i]) begin // 发现空位
-            if (!br_found_slot0) begin
-                // 找到第一个空位
-                br_free_slot0 = i[1:0];
-                br_found_slot0 = 1'b1;
-            end
-            else if (!br_found_slot1) begin
-                // 已经找到第一个了，现在找到第二个
-                br_free_slot1 = i[1:0];
-                br_found_slot1 = 1'b1;
-            end
-        end
+    br_issue_flag = 1'b0;
+    if (branch_inst_valid[branch_rd_ptr] && br_op1_ready && br_op2_ready && ((branch_mask[branch_rd_ptr] & kill_mask) == 0) && 
+        (!mem_stall_i || !br_dep_mem)) begin
+        br_issue_flag = 1'b1; // 当前队头指令就绪，未被冲刷杀死且访存没有因为miss暂停，可以发射
     end
 end
 // 写入队列
@@ -1997,6 +1909,9 @@ always @(posedge clk) begin
             branch_ras_ptr[i] <= 3'b0;
             branch_mem_wr_ptr[i] <= 3'b0;
             branch_sq_ptr[i] <= 3'b0;
+            branch_alu_wr_ptr[i] <= 3'b0;
+            branch_branch_wr_ptr[i] <= 3'b0;
+            branch_mul_div_wr_ptr[i] <= 3'b0;
             branch_snap_id[i] <= 2'b0;
             branch_type[i] <= 3'b0;
             branch_subtype[i] <= 4'b0;
@@ -2008,12 +1923,16 @@ always @(posedge clk) begin
             branch_imm[i] <= 32'b0;
             branch_aux_addr[i] <= 32'b0;
         end
+        branch_wr_ptr <= 2'b0;
+        branch_rd_ptr <= 2'b0;
     end
     else if (int_flag_i) begin
         // 冲刷所有指令
         for (i = 0; i < 4; i = i + 1) begin
             branch_inst_valid[i] <= 1'b0; // 冲刷指令
         end
+        branch_wr_ptr <= 2'b0;
+        branch_rd_ptr <= 2'b0;
     end
     else if (jump_flag_i) begin
         // 冲刷所有被杀死的指令
@@ -2022,8 +1941,21 @@ always @(posedge clk) begin
                 branch_inst_valid[i] <= 1'b0; // 冲刷指令
             end
         end
-        // 发射后将指令无效化
-        if (br_issue_flag) branch_inst_valid[br_issue_slot] <= 1'b0;
+        // 发射后将指令无效化并更新读指针
+        if (br_issue_flag) begin
+            branch_inst_valid[branch_rd_ptr] <= 1'b0;
+            branch_rd_ptr <= branch_rd_ptr + 2'd1; // 读指针前移,溢出自动回绕
+        end
+        // 更新写指针
+        if (branch_inst_valid[branch_rd_ptr] && ((branch_mask[branch_rd_ptr] & kill_mask) != 0)) begin
+            branch_wr_ptr <= branch_rd_ptr; // 队头命中 Kill Mask，整个队列都在错误路上，拉回队头开始写
+        end
+        else if (branch_inst_valid[branch_rd_ptr]) begin
+            branch_wr_ptr <= restore_branch_wr_ptr_i; 
+        end
+        else begin
+            branch_wr_ptr <= branch_rd_ptr; 
+        end
         // 提交释放掩码
         if (free_mask_inst0_i) begin
             for (i = 0; i < 4; i = i + 1) begin
@@ -2037,74 +1969,88 @@ always @(posedge clk) begin
         end
     end
     else begin
-        // 发射后将指令无效化
-        if (br_issue_flag) branch_inst_valid[br_issue_slot] <= 1'b0;
+        // 发射后将指令无效化并更新读指针
+        if (br_issue_flag) begin
+            branch_inst_valid[branch_rd_ptr] <= 1'b0;
+            branch_rd_ptr <= branch_rd_ptr + 2'd1; // 读指针前移,溢出自动回绕
+        end
         // 写入新指令
         if (~stall_o) begin
+            // 更新队列写指针
+            branch_wr_ptr <= branch_wr_ptr + branch_req;
             // 分配指令0
             if (branch_need_slot0) begin
-                branch_inst_valid[br_free_slot0] <= 1'b1;
-                branch_inst_addr[br_free_slot0] <= {inst_addr_i[15:3], 3'b000};
-                branch_rob_id[br_free_slot0] <= rob_id_inst0_i;
-                branch_pre_flag[br_free_slot0] <= bpu_pre_flag_port0_i;
-                branch_pre_addr[br_free_slot0] <= bpu_pre_addr_port0_i;
-                branch_mask[br_free_slot0] <= branch_mask_inst0_i;
-                branch_ras_ptr[br_free_slot0] <= ras_snap_ptr_i;
-                branch_mem_wr_ptr[br_free_slot0] <= mem_wr_ptr;
-                branch_sq_ptr[br_free_slot0] <= sq_alloc_ptr;
-                branch_snap_id[br_free_slot0] <= snap_id_inst0_i;
-                branch_type[br_free_slot0] <= inst_type_port0_i;
-                branch_subtype[br_free_slot0] <= inst_subtype_port0_i;
-                branch_op1_src[br_free_slot0] <= op1_src_port0_i;
-                branch_op2_src[br_free_slot0] <= op2_src_port0_i;
-                branch_praddr1[br_free_slot0] <= praddr1_inst0_i;
-                branch_praddr2[br_free_slot0] <= praddr2_inst0_i;
-                branch_pwaddr[br_free_slot0] <= pwaddr_inst0_i;
-                branch_imm[br_free_slot0] <= imm_port0_i;
-                branch_aux_addr[br_free_slot0] <= aux_addr_port0_i;
+                branch_inst_valid[branch_wr_ptr] <= 1'b1;
+                branch_inst_addr[branch_wr_ptr] <= {inst_addr_i[15:3], 3'b000};
+                branch_rob_id[branch_wr_ptr] <= rob_id_inst0_i;
+                branch_pre_flag[branch_wr_ptr] <= bpu_pre_flag_port0_i;
+                branch_pre_addr[branch_wr_ptr] <= bpu_pre_addr_port0_i;
+                branch_mask[branch_wr_ptr] <= branch_mask_inst0_i;
+                branch_ras_ptr[branch_wr_ptr] <= ras_snap_ptr_i;
+                branch_mem_wr_ptr[branch_wr_ptr] <= mem_wr_ptr;
+                branch_sq_ptr[branch_wr_ptr] <= sq_alloc_ptr;
+                branch_alu_wr_ptr[branch_wr_ptr] <= alu_wr_ptr;
+                branch_branch_wr_ptr[branch_wr_ptr] <= branch_wr_ptr;
+                branch_mul_div_wr_ptr[branch_wr_ptr] <= mul_div_wr_ptr;
+                branch_snap_id[branch_wr_ptr] <= snap_id_inst0_i;
+                branch_type[branch_wr_ptr] <= inst_type_port0_i;
+                branch_subtype[branch_wr_ptr] <= inst_subtype_port0_i;
+                branch_op1_src[branch_wr_ptr] <= op1_src_port0_i;
+                branch_op2_src[branch_wr_ptr] <= op2_src_port0_i;
+                branch_praddr1[branch_wr_ptr] <= praddr1_inst0_i;
+                branch_praddr2[branch_wr_ptr] <= praddr2_inst0_i;
+                branch_pwaddr[branch_wr_ptr] <= pwaddr_inst0_i;
+                branch_imm[branch_wr_ptr] <= imm_port0_i;
+                branch_aux_addr[branch_wr_ptr] <= aux_addr_port0_i;
                 // 分配指令1
                 if (branch_need_slot1) begin
-                    branch_inst_valid[br_free_slot1] <= 1'b1;
-                    branch_inst_addr[br_free_slot1] <= {inst_addr_i[15:3], 3'b100};
-                    branch_rob_id[br_free_slot1] <= rob_id_inst1_i;
-                    branch_pre_flag[br_free_slot1] <= bpu_pre_flag_port1_i;
-                    branch_pre_addr[br_free_slot1] <= bpu_pre_addr_port1_i;
-                    branch_mask[br_free_slot1] <= branch_mask_inst1_i;
-                    branch_ras_ptr[br_free_slot1] <= ras_snap_ptr_i;
-                    branch_mem_wr_ptr[br_free_slot1] <= mem_wr_ptr;
-                    branch_sq_ptr[br_free_slot1] <= sq_alloc_ptr;
-                    branch_snap_id[br_free_slot1] <= snap_id_inst1_i;
-                    branch_type[br_free_slot1] <= inst_type_port1_i;
-                    branch_subtype[br_free_slot1] <= inst_subtype_port1_i;
-                    branch_op1_src[br_free_slot1] <= op1_src_port1_i;
-                    branch_op2_src[br_free_slot1] <= op2_src_port1_i;
-                    branch_praddr1[br_free_slot1] <= praddr1_inst1_i;
-                    branch_praddr2[br_free_slot1] <= praddr2_inst1_i;
-                    branch_pwaddr[br_free_slot1] <= pwaddr_inst1_i;
-                    branch_imm[br_free_slot1] <= imm_port1_i;
-                    branch_aux_addr[br_free_slot1] <= aux_addr_port1_i;
+                    branch_inst_valid[(branch_wr_ptr + 2'd1) & 2'b11] <= 1'b1;
+                    branch_inst_addr[(branch_wr_ptr + 2'd1) & 2'b11] <= {inst_addr_i[15:3], 3'b100};
+                    branch_rob_id[(branch_wr_ptr + 2'd1) & 2'b11] <= rob_id_inst1_i;
+                    branch_pre_flag[(branch_wr_ptr + 2'd1) & 2'b11] <= bpu_pre_flag_port1_i;
+                    branch_pre_addr[(branch_wr_ptr + 2'd1) & 2'b11] <= bpu_pre_addr_port1_i;
+                    branch_mask[(branch_wr_ptr + 2'd1) & 2'b11] <= branch_mask_inst1_i;
+                    branch_ras_ptr[(branch_wr_ptr + 2'd1) & 2'b11] <= ras_snap_ptr_i;
+                    branch_mem_wr_ptr[(branch_wr_ptr + 2'd1) & 2'b11] <= mem_wr_ptr;
+                    branch_sq_ptr[(branch_wr_ptr + 2'd1) & 2'b11] <= sq_alloc_ptr;
+                    branch_alu_wr_ptr[(branch_wr_ptr + 2'd1) & 2'b11] <= alu_wr_ptr;
+                    branch_branch_wr_ptr[(branch_wr_ptr + 2'd1) & 2'b11] <= branch_wr_ptr + {2'b0, branch_need_slot0};
+                    branch_mul_div_wr_ptr[(branch_wr_ptr + 2'd1) & 2'b11] <= mul_div_wr_ptr;
+                    branch_snap_id[(branch_wr_ptr + 2'd1) & 2'b11] <= snap_id_inst1_i;
+                    branch_type[(branch_wr_ptr + 2'd1) & 2'b11] <= inst_type_port1_i;
+                    branch_subtype[(branch_wr_ptr + 2'd1) & 2'b11] <= inst_subtype_port1_i;
+                    branch_op1_src[(branch_wr_ptr + 2'd1) & 2'b11] <= op1_src_port1_i;
+                    branch_op2_src[(branch_wr_ptr + 2'd1) & 2'b11] <= op2_src_port1_i;
+                    branch_praddr1[(branch_wr_ptr + 2'd1) & 2'b11] <= praddr1_inst1_i;
+                    branch_praddr2[(branch_wr_ptr + 2'd1) & 2'b11] <= praddr2_inst1_i;
+                    branch_pwaddr[(branch_wr_ptr + 2'd1) & 2'b11] <= pwaddr_inst1_i;
+                    branch_imm[(branch_wr_ptr + 2'd1) & 2'b11] <= imm_port1_i;
+                    branch_aux_addr[(branch_wr_ptr + 2'd1) & 2'b11] <= aux_addr_port1_i;
                 end
             end
             else if (branch_need_slot1) begin // 指令0不需要但指令1需要
-                branch_inst_valid[br_free_slot0] <= 1'b1;
-                branch_inst_addr[br_free_slot0] <= {inst_addr_i[15:3], 3'b100};
-                branch_rob_id[br_free_slot0] <= rob_id_inst1_i;
-                branch_pre_flag[br_free_slot0] <= bpu_pre_flag_port1_i;
-                branch_pre_addr[br_free_slot0] <= bpu_pre_addr_port1_i;
-                branch_mask[br_free_slot0] <= branch_mask_inst1_i;
-                branch_ras_ptr[br_free_slot0] <= ras_snap_ptr_i;
-                branch_mem_wr_ptr[br_free_slot0] <= mem_wr_ptr + {2'b0, mem_need_slot0};
-                branch_sq_ptr[br_free_slot0] <= sq_alloc_ptr + {2'b0, is_store_inst0};
-                branch_snap_id[br_free_slot0] <= snap_id_inst1_i;
-                branch_type[br_free_slot0] <= inst_type_port1_i;
-                branch_subtype[br_free_slot0] <= inst_subtype_port1_i;
-                branch_op1_src[br_free_slot0] <= op1_src_port1_i;
-                branch_op2_src[br_free_slot0] <= op2_src_port1_i;
-                branch_praddr1[br_free_slot0] <= praddr1_inst1_i;
-                branch_praddr2[br_free_slot0] <= praddr2_inst1_i;
-                branch_pwaddr[br_free_slot0] <= pwaddr_inst1_i;
-                branch_imm[br_free_slot0] <= imm_port1_i;
-                branch_aux_addr[br_free_slot0] <= aux_addr_port1_i;
+                branch_inst_valid[branch_wr_ptr] <= 1'b1;
+                branch_inst_addr[branch_wr_ptr] <= {inst_addr_i[15:3], 3'b100};
+                branch_rob_id[branch_wr_ptr] <= rob_id_inst1_i;
+                branch_pre_flag[branch_wr_ptr] <= bpu_pre_flag_port1_i;
+                branch_pre_addr[branch_wr_ptr] <= bpu_pre_addr_port1_i;
+                branch_mask[branch_wr_ptr] <= branch_mask_inst1_i;
+                branch_ras_ptr[branch_wr_ptr] <= ras_snap_ptr_i;
+                branch_mem_wr_ptr[branch_wr_ptr] <= mem_wr_ptr + {2'b0, mem_need_slot0};
+                branch_sq_ptr[branch_wr_ptr] <= sq_alloc_ptr + {2'b0, is_store_inst0};
+                branch_alu_wr_ptr[branch_wr_ptr] <= alu_wr_ptr + {2'b0, alu_need_slot0};
+                branch_branch_wr_ptr[branch_wr_ptr] <= branch_wr_ptr + {2'b0, branch_need_slot0};
+                branch_mul_div_wr_ptr[branch_wr_ptr] <= mul_div_wr_ptr + {2'b0, mul_div_need_slot0};
+                branch_snap_id[branch_wr_ptr] <= snap_id_inst1_i;
+                branch_type[branch_wr_ptr] <= inst_type_port1_i;
+                branch_subtype[branch_wr_ptr] <= inst_subtype_port1_i;
+                branch_op1_src[branch_wr_ptr] <= op1_src_port1_i;
+                branch_op2_src[branch_wr_ptr] <= op2_src_port1_i;
+                branch_praddr1[branch_wr_ptr] <= praddr1_inst1_i;
+                branch_praddr2[branch_wr_ptr] <= praddr2_inst1_i;
+                branch_pwaddr[branch_wr_ptr] <= pwaddr_inst1_i;
+                branch_imm[branch_wr_ptr] <= imm_port1_i;
+                branch_aux_addr[branch_wr_ptr] <= aux_addr_port1_i;
             end
         end
         // 提交释放掩码
@@ -2124,7 +2070,7 @@ end
 // 输出寄存器
 reg [3:0] br_mask_new;
 always @(*) begin
-    br_mask_new = branch_mask[br_issue_slot];
+    br_mask_new = branch_mask[branch_rd_ptr];
     if (free_mask_inst0_i) begin
         br_mask_new[free_id_inst0_i] = 1'b0;
     end
@@ -2138,24 +2084,27 @@ iss_br u_iss_br (
     // from issue
     .int_flag_i(int_flag_i),                 // 中断标志
     .issue_flag_i(br_issue_flag),               // 发射标志
-    .bpu_pre_flag_i(branch_pre_flag[br_issue_slot]),           // 预测标志
-    .bpu_pre_addr_i(branch_pre_addr[br_issue_slot]),           // 预测地址
-    .inst_addr_i(branch_inst_addr[br_issue_slot]),               // 指令地址
-    .rob_id_i(branch_rob_id[br_issue_slot]),                   // ROB id
+    .bpu_pre_flag_i(branch_pre_flag[branch_rd_ptr]),           // 预测标志
+    .bpu_pre_addr_i(branch_pre_addr[branch_rd_ptr]),           // 预测地址
+    .inst_addr_i(branch_inst_addr[branch_rd_ptr]),               // 指令地址
+    .rob_id_i(branch_rob_id[branch_rd_ptr]),                   // ROB id
     .mask_i(br_mask_new),                                 // 分支掩码
-    .ras_ptr_i(branch_ras_ptr[br_issue_slot]),            // RAS快照指针
-    .mem_wr_ptr_i(branch_mem_wr_ptr[br_issue_slot]),            // mem队列写操作快照指针
-    .sq_ptr_i(branch_sq_ptr[br_issue_slot]),            // store queue快照指针
-    .snap_id_i(branch_snap_id[br_issue_slot]),            // 快照id
-    .type_i(branch_type[br_issue_slot]),               // 指令类型
-    .subtype_i(branch_subtype[br_issue_slot]),            // 指令子类型
-    .op1_src_i(branch_op1_src[br_issue_slot]),            // 操作数1来源选择
-    .op2_src_i(branch_op2_src[br_issue_slot]),            // 操作数2来源选择
-    .praddr1_i(branch_praddr1[br_issue_slot]),            // 物理寄存器1读地址
-    .praddr2_i(branch_praddr2[br_issue_slot]),            // 物理寄存器2读地址
-    .pwaddr_i(branch_pwaddr[br_issue_slot]),              // 物理寄存器写地址
-    .imm_i(branch_imm[br_issue_slot]),               // 立即数
-    .aux_addr_i(branch_aux_addr[br_issue_slot]),          // 辅助地址
+    .ras_ptr_i(branch_ras_ptr[branch_rd_ptr]),            // RAS快照指针
+    .mem_wr_ptr_i(branch_mem_wr_ptr[branch_rd_ptr]),            // mem队列写操作快照指针
+    .sq_ptr_i(branch_sq_ptr[branch_rd_ptr]),            // store queue快照指针
+    .alu_wr_ptr_i(branch_alu_wr_ptr[branch_rd_ptr]),            // ALU队列写操作快照指针
+    .branch_wr_ptr_i(branch_branch_wr_ptr[branch_rd_ptr]),      // branch队列写操作快照指针
+    .mul_div_wr_ptr_i(branch_mul_div_wr_ptr[branch_rd_ptr]),    // mul_div队列写操作快照指针
+    .snap_id_i(branch_snap_id[branch_rd_ptr]),            // 快照id
+    .type_i(branch_type[branch_rd_ptr]),               // 指令类型
+    .subtype_i(branch_subtype[branch_rd_ptr]),            // 指令子类型
+    .op1_src_i(branch_op1_src[branch_rd_ptr]),            // 操作数1来源选择
+    .op2_src_i(branch_op2_src[branch_rd_ptr]),            // 操作数2来源选择
+    .praddr1_i(branch_praddr1[branch_rd_ptr]),            // 物理寄存器1读地址
+    .praddr2_i(branch_praddr2[branch_rd_ptr]),            // 物理寄存器2读地址
+    .pwaddr_i(branch_pwaddr[branch_rd_ptr]),              // 物理寄存器写地址
+    .imm_i(branch_imm[branch_rd_ptr]),               // 立即数
+    .aux_addr_i(branch_aux_addr[branch_rd_ptr]),          // 辅助地址
     // to ex
     .inst_valid_o(br_inst_valid_o),          // 指令有效标志
     .inst_addr_o(br_inst_addr_o),          // 指令地址
@@ -2166,6 +2115,9 @@ iss_br u_iss_br (
     .ras_ptr_o(br_ras_ptr_o),               // RAS快照指针
     .mem_wr_ptr_o(br_mem_wr_ptr_o),         // mem队列写操作快照指针
     .sq_ptr_o(br_sq_ptr_o),                 // store queue快照指针
+    .alu_wr_ptr_o(br_alu_wr_ptr_o),         // ALU队列写操作快照指针
+    .branch_wr_ptr_o(br_branch_wr_ptr_o),   // branch队列写操作快照指针
+    .mul_div_wr_ptr_o(br_mul_div_wr_ptr_o), // mul_div队列写操作快照指针
     .snap_id_o(br_snap_id_o),       // 快照id
     .type_o(br_type_o),          // 指令类型
     .subtype_o(br_subtype_o),       // 指令子类型
@@ -2662,116 +2614,37 @@ reg [3:0] mul_div_subtype[0:3];    // 指令子类型
 reg [5:0] mul_div_praddr1[0:3];    // 物理寄存器1读地址
 reg [5:0] mul_div_praddr2[0:3];    // 物理寄存器2读地址
 reg [5:0] mul_div_pwaddr[0:3];     // 物理寄存器写地址
-// 空闲计数
-wire [2:0] mul_div_busy_cnt = mul_div_inst_valid[0] + mul_div_inst_valid[1] + mul_div_inst_valid[2] + mul_div_inst_valid[3];
-wire [2:0] mul_div_free_cnt = 3'd4 - mul_div_busy_cnt;
+// 指针管理 (Ring Buffer)
+reg [1:0] mul_div_wr_ptr;      // 写指针 (Dispatch 阶段入队)
+reg [1:0] mul_div_rd_ptr;      // 读指针 (Issue 阶段出队)
+// 占用计数
+wire [2:0] mul_div_count = mul_div_inst_valid[0] + mul_div_inst_valid[1] + mul_div_inst_valid[2] + mul_div_inst_valid[3];
 // 分配需求
 wire mul_div_need_slot0 = (inst_valid_port0_i && (inst_type_port0_i == `TYPE_M_EXT));
 wire mul_div_need_slot1 = (inst_valid_port1_i && (inst_type_port1_i == `TYPE_M_EXT));
 wire [1:0] mul_div_req = mul_div_need_slot0 + mul_div_need_slot1;
 // 暂停信号
-wire mul_div_stall = (mul_div_req > mul_div_free_cnt);
+wire mul_div_stall = (mul_div_req + mul_div_count > 3'd4);
 // 发射逻辑
 reg div_issue_flag;
-reg [1:0] div_issue_slot;
-
 reg mul_issue_flag;
-reg [1:0] mul_issue_slot;
-// 检查操作数是否就绪
-reg mul_div_op1_ready[0:3];
-reg mul_div_op2_ready[0:3];
-reg mul_div_dep_mem[0:3];
+// 检查操作数是否就绪（只看队头）
+wire mul_div_op1_ready = ready_flag_i[mul_div_praddr1[mul_div_rd_ptr]] || (mul_div_praddr1[mul_div_rd_ptr] == alu0_rf_pwaddr_i) ||
+                         (mul_div_praddr1[mul_div_rd_ptr] == alu1_rf_pwaddr_i) || (mul_div_praddr1[mul_div_rd_ptr] == mem_pwaddr_i);
+wire mul_div_op2_ready = ready_flag_i[mul_div_praddr2[mul_div_rd_ptr]] || (mul_div_praddr2[mul_div_rd_ptr] == alu0_rf_pwaddr_i) ||
+                         (mul_div_praddr2[mul_div_rd_ptr] == alu1_rf_pwaddr_i) || (mul_div_praddr2[mul_div_rd_ptr] == mem_pwaddr_i);
+wire mul_div_dep_mem = ((mul_div_praddr1[mul_div_rd_ptr] == mem_pwaddr_i) || (mul_div_praddr2[mul_div_rd_ptr] == mem_pwaddr_i)) 
+                       && (mem_pwaddr_i != 6'b0);
 always @(*) begin
-    for (i = 0; i < 4; i = i + 1) begin
-        // 乘除法只需要寄存器
-        mul_div_op1_ready[i] = ready_flag_i[mul_div_praddr1[i]] || (mul_div_praddr1[i] == alu0_rf_pwaddr_i) ||
-                       (mul_div_praddr1[i] == alu1_rf_pwaddr_i) || (mul_div_praddr1[i] == mem_pwaddr_i);
-        mul_div_op2_ready[i] = ready_flag_i[mul_div_praddr2[i]] || (mul_div_praddr2[i] == alu0_rf_pwaddr_i) ||
-                       (mul_div_praddr2[i] == alu1_rf_pwaddr_i) || (mul_div_praddr2[i] == mem_pwaddr_i);
-
-        mul_div_dep_mem[i] = ((mul_div_praddr1[i] == mem_pwaddr_i) || (mul_div_praddr2[i] == mem_pwaddr_i)) 
-                                && (mem_pwaddr_i != 6'b0);
-    end
-end
-// 选择发射指令
-reg div_ns_flag;
-reg [1:0] div_ns_slot;
-reg div_s_flag;
-reg [1:0] div_s_slot;
-
-reg mul_ns_flag;
-reg [1:0] mul_ns_slot;
-reg mul_s_flag;
-reg [1:0] mul_s_slot;
-
-always @(*) begin
-    div_ns_flag = 1'b0;    mul_ns_flag = 1'b0;
-    div_ns_slot = 2'd0;    mul_ns_slot = 2'd0;
-    div_s_flag  = 1'b0;    mul_s_flag  = 1'b0;
-    div_s_slot  = 2'd0;    mul_s_slot  = 2'd0;
-    for (i = 0; i < 4; i = i + 1) begin
-        if (mul_div_inst_valid[i] && mul_div_op1_ready[i] && mul_div_op2_ready[i] && ((mul_div_mask[i] & kill_mask) == 0)) begin // div自身有一个状态机暂停标志div_stall_i
-            // 假设没有 stall
-            if (!div_ns_flag && is_div_or_mul[i] && !div_stall_i) begin // 除法
-                div_ns_flag = 1'b1;
-                div_ns_slot = i[1:0];
-            end
-
-            if (!mul_ns_flag && !is_div_or_mul[i]) begin // 乘法
-                mul_ns_flag = 1'b1;
-                mul_ns_slot = i[1:0];
-            end
-            
-            // 假设有 stall
-            if (!mul_div_dep_mem[i]) begin
-                if (!div_s_flag && is_div_or_mul[i] && !div_stall_i) begin // 除法
-                    div_s_flag = 1'b1;
-                    div_s_slot = i[1:0];
-                end
-                
-                if (!mul_s_flag && !is_div_or_mul[i]) begin // 乘法
-                    mul_s_flag = 1'b1;
-                    mul_s_slot = i[1:0];
-                end
-            end
+    div_issue_flag = 1'b0;
+    mul_issue_flag = 1'b0;
+    if (mul_div_inst_valid[mul_div_rd_ptr] && mul_div_op1_ready && mul_div_op2_ready && 
+        ((mul_div_mask[mul_div_rd_ptr] & kill_mask) == 0) && (!mem_stall_i || !mul_div_dep_mem)) begin
+        if (is_div_or_mul[mul_div_rd_ptr]) begin // 除法
+            if (!div_stall_i) div_issue_flag = 1'b1;
         end
-    end
-end
-
-always @(*) begin
-    if (mem_stall_i) begin
-        div_issue_flag = div_s_flag;
-        div_issue_slot = div_s_slot;
-        mul_issue_flag = mul_s_flag;
-        mul_issue_slot = mul_s_slot;
-    end else begin
-        div_issue_flag = div_ns_flag;
-        div_issue_slot = div_ns_slot;
-        mul_issue_flag = mul_ns_flag;
-        mul_issue_slot = mul_ns_slot;
-    end
-end
-// 分配逻辑
-// 寻找空位
-reg [1:0] mul_div_free_slot0, mul_div_free_slot1;
-reg mul_div_found_slot0, mul_div_found_slot1;
-always @(*) begin
-    mul_div_found_slot0 = 1'b0;
-    mul_div_found_slot1 = 1'b0;
-    mul_div_free_slot0 = 2'd0;
-    mul_div_free_slot1 = 2'd0;
-    for (i = 0; i < 4; i = i + 1) begin
-        if (!mul_div_inst_valid[i]) begin // 发现空位
-            if (!mul_div_found_slot0) begin
-                // 找到第一个空位
-                mul_div_free_slot0 = i[1:0];
-                mul_div_found_slot0 = 1'b1;
-            end
-            else if (!mul_div_found_slot1) begin
-                // 已经找到第一个了，现在找到第二个
-                mul_div_free_slot1 = i[1:0];
-                mul_div_found_slot1 = 1'b1;
-            end
+        else begin // 乘法
+            mul_issue_flag = 1'b1;
         end
     end
 end
@@ -2780,6 +2653,7 @@ always @(posedge clk) begin
     if (!rst) begin
         for (i = 0; i < 4; i = i + 1) begin
             mul_div_inst_valid[i] <= 1'b0;
+            is_div_or_mul[i] <= 1'b0;
             mul_div_rob_id[i] <= 6'b0;
             mul_div_mask[i] <= 4'b0;
             mul_div_subtype[i] <= 4'b0;
@@ -2787,12 +2661,16 @@ always @(posedge clk) begin
             mul_div_praddr2[i] <= 6'b0;
             mul_div_pwaddr[i] <= 6'b0;
         end
+        mul_div_wr_ptr <= 2'b0;
+        mul_div_rd_ptr <= 2'b0;
     end
     else if (int_flag_i) begin
         // 冲刷所有指令
         for (i = 0; i < 4; i = i + 1) begin
             mul_div_inst_valid[i] <= 1'b0; // 冲刷指令
         end
+        mul_div_wr_ptr <= 2'b0;
+        mul_div_rd_ptr <= 2'b0;
     end
     else if (jump_flag_i) begin
         // 冲刷所有被杀死的指令
@@ -2801,9 +2679,21 @@ always @(posedge clk) begin
                 mul_div_inst_valid[i] <= 1'b0; // 冲刷指令
             end
         end
-        // 发射后将指令无效化
-        if (div_issue_flag) mul_div_inst_valid[div_issue_slot] <= 1'b0;
-        if (mul_issue_flag) mul_div_inst_valid[mul_issue_slot] <= 1'b0;
+        // 发射后将指令无效化并更新读指针（乘法与除法每周期最多发射一条）
+        if (div_issue_flag || mul_issue_flag) begin
+            mul_div_inst_valid[mul_div_rd_ptr] <= 1'b0;
+            mul_div_rd_ptr <= mul_div_rd_ptr + 2'd1; // 读指针前移,溢出自动回绕
+        end
+        // 更新写指针
+        if (mul_div_inst_valid[mul_div_rd_ptr] && ((mul_div_mask[mul_div_rd_ptr] & kill_mask) != 0)) begin
+            mul_div_wr_ptr <= mul_div_rd_ptr; // 队头命中 Kill Mask，整个队列都在错误路上，拉回队头开始写
+        end
+        else if (mul_div_inst_valid[mul_div_rd_ptr]) begin
+            mul_div_wr_ptr <= restore_mul_div_wr_ptr_i; 
+        end
+        else begin
+            mul_div_wr_ptr <= mul_div_rd_ptr; 
+        end
         // 提交释放掩码
         if (free_mask_inst0_i) begin
             for (i = 0; i < 4; i = i + 1) begin
@@ -2817,42 +2707,46 @@ always @(posedge clk) begin
         end
     end
     else begin
-        // 发射后将指令无效化
-        if (div_issue_flag) mul_div_inst_valid[div_issue_slot] <= 1'b0;
-        if (mul_issue_flag) mul_div_inst_valid[mul_issue_slot] <= 1'b0;
+        // 发射后将指令无效化并更新读指针
+        if (div_issue_flag || mul_issue_flag) begin
+            mul_div_inst_valid[mul_div_rd_ptr] <= 1'b0;
+            mul_div_rd_ptr <= mul_div_rd_ptr + 2'd1; // 读指针前移,溢出自动回绕
+        end
         // 写入新指令
         if (~stall_o) begin
+            // 更新队列写指针
+            mul_div_wr_ptr <= mul_div_wr_ptr + mul_div_req;
             // 分配指令0
             if (mul_div_need_slot0) begin
-                mul_div_inst_valid[mul_div_free_slot0] <= 1'b1;
-                is_div_or_mul[mul_div_free_slot0] <= (inst_subtype_port0_i >= 4'd4); // 0123属于mul，4567属于div
-                mul_div_rob_id[mul_div_free_slot0] <= rob_id_inst0_i;
-                mul_div_mask[mul_div_free_slot0] <= branch_mask_inst0_i;
-                mul_div_subtype[mul_div_free_slot0] <= inst_subtype_port0_i;
-                mul_div_praddr1[mul_div_free_slot0] <= praddr1_inst0_i;
-                mul_div_praddr2[mul_div_free_slot0] <= praddr2_inst0_i;
-                mul_div_pwaddr[mul_div_free_slot0] <= pwaddr_inst0_i;
+                mul_div_inst_valid[mul_div_wr_ptr] <= 1'b1;
+                is_div_or_mul[mul_div_wr_ptr] <= (inst_subtype_port0_i >= 4'd4); // 0123属于mul，4567属于div
+                mul_div_rob_id[mul_div_wr_ptr] <= rob_id_inst0_i;
+                mul_div_mask[mul_div_wr_ptr] <= branch_mask_inst0_i;
+                mul_div_subtype[mul_div_wr_ptr] <= inst_subtype_port0_i;
+                mul_div_praddr1[mul_div_wr_ptr] <= praddr1_inst0_i;
+                mul_div_praddr2[mul_div_wr_ptr] <= praddr2_inst0_i;
+                mul_div_pwaddr[mul_div_wr_ptr] <= pwaddr_inst0_i;
                 // 分配指令1
                 if (mul_div_need_slot1) begin
-                    mul_div_inst_valid[mul_div_free_slot1] <= 1'b1;
-                    is_div_or_mul[mul_div_free_slot1] <= (inst_subtype_port1_i >= 4'd4); // 0123属于mul，4567属于div
-                    mul_div_rob_id[mul_div_free_slot1] <= rob_id_inst1_i;
-                    mul_div_mask[mul_div_free_slot1] <= branch_mask_inst1_i;
-                    mul_div_subtype[mul_div_free_slot1] <= inst_subtype_port1_i;
-                    mul_div_praddr1[mul_div_free_slot1] <= praddr1_inst1_i;
-                    mul_div_praddr2[mul_div_free_slot1] <= praddr2_inst1_i;
-                    mul_div_pwaddr[mul_div_free_slot1] <= pwaddr_inst1_i;
+                    mul_div_inst_valid[(mul_div_wr_ptr + 2'd1) & 2'b11] <= 1'b1;
+                    is_div_or_mul[(mul_div_wr_ptr + 2'd1) & 2'b11] <= (inst_subtype_port1_i >= 4'd4); // 0123属于mul，4567属于div
+                    mul_div_rob_id[(mul_div_wr_ptr + 2'd1) & 2'b11] <= rob_id_inst1_i;
+                    mul_div_mask[(mul_div_wr_ptr + 2'd1) & 2'b11] <= branch_mask_inst1_i;
+                    mul_div_subtype[(mul_div_wr_ptr + 2'd1) & 2'b11] <= inst_subtype_port1_i;
+                    mul_div_praddr1[(mul_div_wr_ptr + 2'd1) & 2'b11] <= praddr1_inst1_i;
+                    mul_div_praddr2[(mul_div_wr_ptr + 2'd1) & 2'b11] <= praddr2_inst1_i;
+                    mul_div_pwaddr[(mul_div_wr_ptr + 2'd1) & 2'b11] <= pwaddr_inst1_i;
                 end
             end
             else if (mul_div_need_slot1) begin // 指令0不需要但指令1需要
-                mul_div_inst_valid[mul_div_free_slot0] <= 1'b1;
-                is_div_or_mul[mul_div_free_slot0] <= (inst_subtype_port1_i >= 4'd4); // 0123属于mul，4567属于div
-                mul_div_rob_id[mul_div_free_slot0] <= rob_id_inst1_i;
-                mul_div_mask[mul_div_free_slot0] <= branch_mask_inst1_i;
-                mul_div_subtype[mul_div_free_slot0] <= inst_subtype_port1_i;
-                mul_div_praddr1[mul_div_free_slot0] <= praddr1_inst1_i;
-                mul_div_praddr2[mul_div_free_slot0] <= praddr2_inst1_i;
-                mul_div_pwaddr[mul_div_free_slot0] <= pwaddr_inst1_i;
+                mul_div_inst_valid[mul_div_wr_ptr] <= 1'b1;
+                is_div_or_mul[mul_div_wr_ptr] <= (inst_subtype_port1_i >= 4'd4); // 0123属于mul，4567属于div
+                mul_div_rob_id[mul_div_wr_ptr] <= rob_id_inst1_i;
+                mul_div_mask[mul_div_wr_ptr] <= branch_mask_inst1_i;
+                mul_div_subtype[mul_div_wr_ptr] <= inst_subtype_port1_i;
+                mul_div_praddr1[mul_div_wr_ptr] <= praddr1_inst1_i;
+                mul_div_praddr2[mul_div_wr_ptr] <= praddr2_inst1_i;
+                mul_div_pwaddr[mul_div_wr_ptr] <= pwaddr_inst1_i;
             end
         end
         // 提交释放掩码
@@ -2872,7 +2766,7 @@ end
 // 输出寄存器
 reg [3:0] div_mask_new;
 always @(*) begin
-    div_mask_new = mul_div_mask[div_issue_slot];
+    div_mask_new = mul_div_mask[mul_div_rd_ptr];
     if (free_mask_inst0_i) begin
         div_mask_new[free_id_inst0_i] = 1'b0;
     end
@@ -2888,12 +2782,12 @@ iss_div u_iss_div(
     .div_flush_i(div_flush_i),                    // div冲刷标志
     .div_stall_i(div_stall_i),               // div暂停标志
     .issue_flag_i(div_issue_flag),               // 发射标志
-    .rob_id_i(mul_div_rob_id[div_issue_slot]),                   // ROB id
+    .rob_id_i(mul_div_rob_id[mul_div_rd_ptr]),                   // ROB id
     .mask_i(div_mask_new),               // 分支掩码
-    .subtype_i(mul_div_subtype[div_issue_slot]),            // 指令子类型
-    .praddr1_i(mul_div_praddr1[div_issue_slot]),            // 物理寄存器1读地址
-    .praddr2_i(mul_div_praddr2[div_issue_slot]),            // 物理寄存器2读地址
-    .pwaddr_i(mul_div_pwaddr[div_issue_slot]),             // 物理寄存器写地址
+    .subtype_i(mul_div_subtype[mul_div_rd_ptr]),            // 指令子类型
+    .praddr1_i(mul_div_praddr1[mul_div_rd_ptr]),            // 物理寄存器1读地址
+    .praddr2_i(mul_div_praddr2[mul_div_rd_ptr]),            // 物理寄存器2读地址
+    .pwaddr_i(mul_div_pwaddr[mul_div_rd_ptr]),             // 物理寄存器写地址
     // from commit
     .free_mask_inst0_i(free_mask_inst0_i),                   // 指令0释放掩码标志
     .free_id_inst0_i(free_id_inst0_i),               // 指令0释放id
@@ -2914,7 +2808,7 @@ iss_div u_iss_div(
 
 reg [3:0] mul_mask_new;
 always @(*) begin
-    mul_mask_new = mul_div_mask[mul_issue_slot];
+    mul_mask_new = mul_div_mask[mul_div_rd_ptr];
     if (free_mask_inst0_i) begin
         mul_mask_new[free_id_inst0_i] = 1'b0;
     end
@@ -2928,12 +2822,12 @@ iss_mul u_iss_mul(
     // from issue
     .int_flag_i(int_flag_i),                 // 中断标志
     .issue_flag_i(mul_issue_flag),               // 发射标志
-    .rob_id_i(mul_div_rob_id[mul_issue_slot]),                   // ROB id
+    .rob_id_i(mul_div_rob_id[mul_div_rd_ptr]),                   // ROB id
     .mask_i(mul_mask_new),               // 分支掩码
-    .subtype_i(mul_div_subtype[mul_issue_slot]),            // 指令子类型
-    .praddr1_i(mul_div_praddr1[mul_issue_slot]),            // 物理寄存器1读地址
-    .praddr2_i(mul_div_praddr2[mul_issue_slot]),            // 物理寄存器2读地址
-    .pwaddr_i(mul_div_pwaddr[mul_issue_slot]),             // 物理寄存器写地址
+    .subtype_i(mul_div_subtype[mul_div_rd_ptr]),            // 指令子类型
+    .praddr1_i(mul_div_praddr1[mul_div_rd_ptr]),            // 物理寄存器1读地址
+    .praddr2_i(mul_div_praddr2[mul_div_rd_ptr]),            // 物理寄存器2读地址
+    .pwaddr_i(mul_div_pwaddr[mul_div_rd_ptr]),             // 物理寄存器写地址
     // to ex
     .inst_valid_o(mul_inst_valid_o),          // 指令有效标志
     .rob_id_o(mul_rob_id_o),               // ROB id

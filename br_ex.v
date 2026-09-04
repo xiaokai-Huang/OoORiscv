@@ -13,6 +13,9 @@ module br_ex (
     input [2:0] br_ras_ptr_i,           // branch RAS快照指针
     input [2:0] br_mem_wr_ptr_i,        // branch mem队列写操作快照指针
     input [2:0] br_sq_ptr_i,            // branch store queue快照指针
+    input [2:0] br_alu_wr_ptr_i,        // branch ALU队列写操作快照指针
+    input [2:0] br_branch_wr_ptr_i,     // branch branch队列写操作快照指针
+    input [2:0] br_mul_div_wr_ptr_i,    // branch mul_div队列写操作快照指针
     input [1:0] br_snap_id_i,           // branch快照id
     input [2:0] br_type_i,              // branch指令类型
     input [3:0] br_subtype_i,           // branch指令子类型
@@ -36,6 +39,9 @@ module br_ex (
     // to issue
     output [2:0] br_mem_wr_ptr_o,        // branch mem队列写操作快照指针
     output [2:0] br_sq_ptr_o,            // branch store queue快照指针
+    output [2:0] br_alu_wr_ptr_o,        // branch ALU队列写操作快照指针
+    output [2:0] br_branch_wr_ptr_o,     // branch branch队列写操作快照指针
+    output [2:0] br_mul_div_wr_ptr_o,    // branch mul_div队列写操作快照指针
 
     // to PC
     output reg [31:0] jump_addr_o,          // 跳转地址(同时传到bpu_update_buffer)
@@ -64,6 +70,9 @@ assign kill_mask_id_o = br_snap_id_i;
 assign ras_snap_ptr_o = br_ras_ptr_i;
 assign br_mem_wr_ptr_o = br_mem_wr_ptr_i;
 assign br_sq_ptr_o = br_sq_ptr_i;
+assign br_alu_wr_ptr_o = br_alu_wr_ptr_i;
+assign br_branch_wr_ptr_o = br_branch_wr_ptr_i;
+assign br_mul_div_wr_ptr_o = br_mul_div_wr_ptr_i;
 assign reg_wflag_o = br_inst_valid_i && (br_type_i == `TYPE_JAL);
 assign reg_waddr_o = br_waddr_i;
 assign ex_pc = br_inst_addr_i;
