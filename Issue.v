@@ -50,6 +50,9 @@ module Issue (
     input [4:0] rs3_raddr_port1_i,
     `endif
 
+    // from rename
+    input rn_stall_i,
+
     // from ROB
     input rob_stall_i,                       // ROB满暂停标志
     `ifdef use_f_extension
@@ -2943,12 +2946,12 @@ iss_mul u_iss_mul(
 `endif // m ext end
 
 // 总暂停信号
-assign stall_rob_o = alu_stall || branch_stall || mem_stall
+assign stall_rob_o = rn_stall_i || alu_stall || branch_stall || mem_stall
                     `ifdef use_m_extension
                      || mul_div_stall
                     `endif
                     ;
-assign stall_o = rob_stall_i || alu_stall || branch_stall || mem_stall
+assign stall_o = rn_stall_i || rob_stall_i || alu_stall || branch_stall || mem_stall
                 `ifdef use_m_extension
                  || mul_div_stall
                 `endif

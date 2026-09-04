@@ -59,42 +59,19 @@ module if_id(
 
 );
 
-always @(posedge clk) begin
-    if(!rst) begin
-        inst_valid_port0_o <= 1'b0;
-        inst_valid_port1_o <= 1'b0;
-    end
-    else if(int_flag_i || jump_flag_i) begin
-        inst_valid_port0_o <= 1'b0;
-        inst_valid_port1_o <= 1'b0;
-    end
-    else if(stall_flag_i) begin
-        inst_valid_port0_o <= inst_valid_port0_o;
-        inst_valid_port1_o <= inst_valid_port1_o;
-    end
-    else if(jal_flush_i) begin
-        inst_valid_port0_o <= 1'b0;
-        inst_valid_port1_o <= 1'b0;
-    end
-    else begin
-        inst_valid_port0_o <= inst_valid_port0_i;
-        inst_valid_port1_o <= inst_valid_port1_i;
-    end
-end
-
-always @(posedge clk) begin
-    if (!stall_flag_i) begin
-        ras_snap_ptr_o <= ras_snap_ptr_i;
-        inst_port0_o <= inst_port0_i;           
-        inst_port1_o <= inst_port1_i;           
-        inst_addr_o <= inst_addr_i;   
-        imm_port0_o <= imm_port0_i;
-        imm_port1_o <= imm_port1_i;
-        bpu_pre_flag_port0_o <= bpu_pre_flag_port0_i;
-        bpu_pre_flag_port1_o <= bpu_pre_flag_port1_i;
-        bpu_pre_addr_port0_o <= bpu_pre_addr_port0_i;
-        bpu_pre_addr_port1_o <= bpu_pre_addr_port1_i;
-    end
+always @(*) begin
+    inst_valid_port0_o = inst_valid_port0_i;
+    inst_valid_port1_o = inst_valid_port1_i;
+    ras_snap_ptr_o = ras_snap_ptr_i;
+    inst_port0_o = inst_port0_i;
+    inst_port1_o = inst_port1_i;
+    inst_addr_o = inst_addr_i;
+    imm_port0_o = imm_port0_i;
+    imm_port1_o = imm_port1_i;
+    bpu_pre_flag_port0_o = bpu_pre_flag_port0_i;
+    bpu_pre_flag_port1_o = bpu_pre_flag_port1_i;
+    bpu_pre_addr_port0_o = bpu_pre_addr_port0_i;
+    bpu_pre_addr_port1_o = bpu_pre_addr_port1_i;
 end
 
 endmodule

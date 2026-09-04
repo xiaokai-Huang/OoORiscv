@@ -132,107 +132,59 @@ module rn_dp (
     `endif
 );
 
-reg [3:0] next_mask_inst0;
-reg [3:0] next_mask_inst1;
 always @(*) begin
-    next_mask_inst0 = branch_mask_inst0_o;
-    next_mask_inst1 = branch_mask_inst1_o;
-    if (free_mask_inst0_i) begin
-        next_mask_inst0[free_id_inst0_i] = 1'b0;
-        next_mask_inst1[free_id_inst0_i] = 1'b0;
-    end
-    if (free_mask_inst1_i) begin
-        next_mask_inst0[free_id_inst1_i] = 1'b0;
-        next_mask_inst1[free_id_inst1_i] = 1'b0;
-    end
-end
-
-always @(posedge clk) begin
-    if (!rst) begin
-        inst_valid_port0_o <= 1'b0;
-        inst_valid_port1_o <= 1'b0;
-    end
-    else if (int_flag_i || jump_flag_i) begin
-        inst_valid_port0_o <= 1'b0;
-        inst_valid_port1_o <= 1'b0;
-    end
-    else if (dp_stall_flag_i) begin // 这个信号是来自RS/ROB的满标志，表示下游资源无法接受新的指令了，因此需要保持上一次输出不变尝试继续写入
-        inst_valid_port0_o <= inst_valid_port0_o;
-        inst_valid_port1_o <= inst_valid_port1_o;
-    end
-    else if (rn_stall_flag_i) begin // 前级暂停，流水线填气泡
-        inst_valid_port0_o <= 1'b0;
-        inst_valid_port1_o <= 1'b0;
-    end
-    else begin
-        inst_valid_port0_o <= inst_valid_port0_i;
-        inst_valid_port1_o <= inst_valid_port1_i;
-    end
-end
-
-always @(posedge clk) begin
-    if (!dp_stall_flag_i) begin
-        branch_mask_inst0_o <= branch_mask_inst0_i;
-        branch_mask_inst1_o <= branch_mask_inst1_i;
-    end
-    else begin
-        branch_mask_inst0_o <= next_mask_inst0;
-        branch_mask_inst1_o <= next_mask_inst1;
-    end
-end
-
-// 数据通路
-always @(posedge clk) begin
-    if (!dp_stall_flag_i) begin
-        ras_snap_ptr_o <= ras_snap_ptr_i;
-        inst_addr_o <= inst_addr_i;
-        inst_type_port0_o <= inst_type_port0_i;
-        inst_type_port1_o <= inst_type_port1_i;
-        inst_subtype_port0_o <= inst_subtype_port0_i;
-        inst_subtype_port1_o <= inst_subtype_port1_i;
-        op1_src_port0_o <= op1_src_port0_i;
-        op1_src_port1_o <= op1_src_port1_i;
-        op2_src_port0_o <= op2_src_port0_i;
-        op2_src_port1_o <= op2_src_port1_i;
-        csr_addr_port0_o <= csr_addr_port0_i;
-        csr_addr_port1_o <= csr_addr_port1_i;
-        csr_wflag_port0_o <= csr_wflag_port0_i;
-        csr_wflag_port1_o <= csr_wflag_port1_i;
-        reg_wflag_port0_o <= reg_wflag_port0_i;
-        reg_wflag_port1_o <= reg_wflag_port1_i;
-        reg_waddr_port0_o <= reg_waddr_port0_i;
-        reg_waddr_port1_o <= reg_waddr_port1_i;
-        imm_port0_o <= imm_port0_i;
-        imm_port1_o <= imm_port1_i;
-        aux_addr_port0_o <= aux_addr_port0_i;
-        aux_addr_port1_o <= aux_addr_port1_i;
-        bpu_pre_flag_port0_o <= bpu_pre_flag_port0_i;
-        bpu_pre_flag_port1_o <= bpu_pre_flag_port1_i;
-        bpu_pre_addr_port0_o <= bpu_pre_addr_port0_i;
-        bpu_pre_addr_port1_o <= bpu_pre_addr_port1_i;
-        praddr1_inst0_o <= praddr1_inst0_i;
-        praddr2_inst0_o <= praddr2_inst0_i; 
-        praddr1_inst1_o <= praddr1_inst1_i; 
-        praddr2_inst1_o <= praddr2_inst1_i;
-        pwaddr_inst0_o <= pwaddr_inst0_i;
-        pwaddr_inst1_o <= pwaddr_inst1_i;
-        old_paddr_inst0_o <= old_paddr_inst0_i;
-        old_paddr_inst1_o <= old_paddr_inst1_i;
-        snap_id_inst0_o <= snap_id_inst0_i;
-        snap_id_inst1_o <= snap_id_inst1_i;
-        `ifdef use_f_extension
-        inst_f_subtype_port0_o <= inst_f_subtype_port0_i;
-        inst_f_subtype_port1_o <= inst_f_subtype_port1_i;
-        rd_is_float_port0_o <= rd_is_float_port0_i;
-        rd_is_float_port1_o <= rd_is_float_port1_i;
-        rs1_is_float_port0_o <= rs1_is_float_port0_i;
-        rs1_is_float_port1_o <= rs1_is_float_port1_i;
-        rs2_is_float_port0_o <= rs2_is_float_port0_i;
-        rs2_is_float_port1_o <= rs2_is_float_port1_i;
-        rs3_raddr_port0_o <= rs3_raddr_port0_i;
-        rs3_raddr_port1_o <= rs3_raddr_port1_i;
-        `endif
-    end
+    inst_valid_port0_o = inst_valid_port0_i;
+    inst_valid_port1_o = inst_valid_port1_i;
+    branch_mask_inst0_o = branch_mask_inst0_i;
+    branch_mask_inst1_o = branch_mask_inst1_i;
+    ras_snap_ptr_o = ras_snap_ptr_i;
+    inst_addr_o = inst_addr_i;
+    inst_type_port0_o = inst_type_port0_i;
+    inst_type_port1_o = inst_type_port1_i;
+    inst_subtype_port0_o = inst_subtype_port0_i;
+    inst_subtype_port1_o = inst_subtype_port1_i;
+    op1_src_port0_o = op1_src_port0_i;
+    op1_src_port1_o = op1_src_port1_i;
+    op2_src_port0_o = op2_src_port0_i;
+    op2_src_port1_o = op2_src_port1_i;
+    csr_addr_port0_o = csr_addr_port0_i;
+    csr_addr_port1_o = csr_addr_port1_i;
+    csr_wflag_port0_o = csr_wflag_port0_i;
+    csr_wflag_port1_o = csr_wflag_port1_i;
+    reg_wflag_port0_o = reg_wflag_port0_i;
+    reg_wflag_port1_o = reg_wflag_port1_i;
+    reg_waddr_port0_o = reg_waddr_port0_i;
+    reg_waddr_port1_o = reg_waddr_port1_i;
+    imm_port0_o = imm_port0_i;
+    imm_port1_o = imm_port1_i;
+    aux_addr_port0_o = aux_addr_port0_i;
+    aux_addr_port1_o = aux_addr_port1_i;
+    bpu_pre_flag_port0_o = bpu_pre_flag_port0_i;
+    bpu_pre_flag_port1_o = bpu_pre_flag_port1_i;
+    bpu_pre_addr_port0_o = bpu_pre_addr_port0_i;
+    bpu_pre_addr_port1_o = bpu_pre_addr_port1_i;
+    praddr1_inst0_o = praddr1_inst0_i;
+    praddr2_inst0_o = praddr2_inst0_i;
+    praddr1_inst1_o = praddr1_inst1_i;
+    praddr2_inst1_o = praddr2_inst1_i;
+    pwaddr_inst0_o = pwaddr_inst0_i;
+    pwaddr_inst1_o = pwaddr_inst1_i;
+    old_paddr_inst0_o = old_paddr_inst0_i;
+    old_paddr_inst1_o = old_paddr_inst1_i;
+    snap_id_inst0_o = snap_id_inst0_i;
+    snap_id_inst1_o = snap_id_inst1_i;
+    `ifdef use_f_extension
+    inst_f_subtype_port0_o = inst_f_subtype_port0_i;
+    inst_f_subtype_port1_o = inst_f_subtype_port1_i;
+    rd_is_float_port0_o = rd_is_float_port0_i;
+    rd_is_float_port1_o = rd_is_float_port1_i;
+    rs1_is_float_port0_o = rs1_is_float_port0_i;
+    rs1_is_float_port1_o = rs1_is_float_port1_i;
+    rs2_is_float_port0_o = rs2_is_float_port0_i;
+    rs2_is_float_port1_o = rs2_is_float_port1_i;
+    rs3_raddr_port0_o = rs3_raddr_port0_i;
+    rs3_raddr_port1_o = rs3_raddr_port1_i;
+    `endif
 end
 
 endmodule

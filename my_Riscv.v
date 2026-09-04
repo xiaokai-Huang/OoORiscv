@@ -76,6 +76,7 @@ wire rn_alloc_flag_inst1_o;             // Inst1是否分配物理寄存器
 wire [5:0] rn_pwaddr_inst0_o;           // 指令0物理寄存器写地址
 wire [5:0] rn_pwaddr_inst1_o;           // 指令1物理寄存器写地址
 wire rn_stall_o;                        // 重命名和RS/ROB暂停信号
+wire rn_stall_dp_o;
 wire [2:0] rn_dp_ras_snap_ptr_o;            // RAS快照指针
 wire [31:0] rn_dp_inst_addr_o;              // 指令地址
 wire [2:0] rn_dp_inst_type_port0_o;         // 指令类型
@@ -531,6 +532,7 @@ IDU u_IDU(
     .rn_pwaddr_inst1_o(rn_pwaddr_inst1_o),           // 指令1物理寄存器写地址
     // to pipeline
     .rn_stall_o(rn_stall_o),                        // 重命名和RS/ROB暂停信号
+    .rn_stall_dp_o(rn_stall_dp_o),
     // to Issue
     .rn_dp_ras_snap_ptr_o(rn_dp_ras_snap_ptr_o),            // RAS快照指针
     .rn_dp_inst_addr_o(rn_dp_inst_addr_o),              // 指令地址
@@ -632,6 +634,8 @@ Issue u_Issue(
     .rs3_raddr_port0_i(rn_dp_rs3_raddr_port0_o),
     .rs3_raddr_port1_i(rn_dp_rs3_raddr_port1_o),
     `endif
+    // from rename
+    .rn_stall_i(rn_stall_dp_o),
     // from ROB
     .rob_stall_i(rob_stall_o),                       // ROB满暂停标志
     `ifdef use_f_extension

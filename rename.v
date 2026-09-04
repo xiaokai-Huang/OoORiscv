@@ -52,6 +52,7 @@ module rename(
 
     // to pipeline
     output stall_o,                          // 重命名阶段暂停信号
+    output stall_dp_o,
 
     // to RS
     output reg [5:0] praddr1_inst0_o,        // 物理寄存器1地址
@@ -147,6 +148,7 @@ module rename(
                       (req_snaps == 2'd1) ? (active_snap_cnt >= 3'd4) : 1'b0;
 
     assign stall_o = lack_regs || lack_snaps || stall_flag_i;
+    assign stall_dp_o = lack_regs || lack_snaps;
 
     wire do_alloc = ~stall_o; // 有足够资源
 

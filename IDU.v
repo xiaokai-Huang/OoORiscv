@@ -53,6 +53,7 @@ module IDU(
 
     // to pipeline
     output rn_stall_o,                        // 重命名和RS/ROB暂停信号
+    output rn_stall_dp_o,
 
     // to Issue
     output [2:0] rn_dp_ras_snap_ptr_o,            // RAS快照指针
@@ -435,6 +436,7 @@ rename u_rename(
     .free_paddr_inst1_i(free_paddr_inst1_i),       // 释放的物理寄存器地址
     // to pipeline
     .stall_o(rn_stall_o),                          // 重命名阶段暂停信号
+    .stall_dp_o(rn_stall_dp_o),
     // to RS
     .praddr1_inst0_o(rn_praddr1_inst0_o),        // 物理寄存器1地址
     .praddr2_inst0_o(rn_praddr2_inst0_o),        // 物理寄存器2地址
