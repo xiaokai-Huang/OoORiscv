@@ -816,42 +816,82 @@ assign free_paddr_inst0_o = rob_inst0_old_pwaddr;
 assign waddr_commit1_o = rob_inst1_rd;
 assign paddr_commit1_o = rob_inst1_pwaddr;
 assign free_paddr_inst1_o = rob_inst1_old_pwaddr;
-// CSR指令多打一拍
+// CSR指令多打两拍
+reg [31:0] csr_reg_data_d0;
+reg [31:0] reg_data_d0;
 reg [31:0] csr_reg_wdata;
 reg [31:0] reg_wdata;
 reg [31:0] csr_reg_wdata_d1;
 reg [31:0] reg_wdata_d1;
-always @(posedge clk or negedge rst) begin
-    if (!rst) begin
-        csr_reg_wdata_d1 <= 32'b0;
-        reg_wdata_d1 <= 32'b0;
-    end
-    else begin
-        csr_reg_wdata_d1 <= csr_reg_wdata;
-        reg_wdata_d1 <= reg_wdata;
-    end
+always @(posedge clk) begin
+    csr_reg_data_d0 <= csr_rdata_i;
+    reg_data_d0 <= reg1_rdata_i;
+    csr_reg_wdata_d1 <= csr_reg_wdata;
+    reg_wdata_d1 <= reg_wdata;
 end
-reg csr_cnt;
+reg [1:0] csr_cnt;
 reg w_csr_reg;
-assign csr_reg_wflag_o = !int_w_disable_i && (csr_cnt == 1'b1) && rob_valid[rob_rd_ptr];
-assign reg_wflag_o = !int_w_disable_i && (csr_cnt == 1'b1) && rob_valid[rob_rd_ptr];
+assign csr_reg_wflag_o = !int_w_disable_i && (csr_cnt == 2'd2) && rob_valid[rob_rd_ptr];
+assign reg_wflag_o = !int_w_disable_i && (csr_cnt == 2'd2) && rob_valid[rob_rd_ptr];
 assign csr_reg_wdata_o = csr_reg_wdata_d1;
 assign reg_wdata_o = reg_wdata_d1;
 always @(posedge clk or negedge rst) begin
     if(!rst) begin
-        csr_cnt <= 1'b0;
+        csr_cnt <= 2'd0;
     end
-    else if (csr_cnt == 1'b1) begin
-        csr_cnt <= 1'b0;
+    else if (csr_cnt == 2'd2) begin
+        csr_cnt <= 2'd0;
     end
     else if (w_csr_reg) begin
-        csr_cnt <= 1'b1;
+        csr_cnt <= csr_cnt + 2'd1;
     end
     else begin
-        csr_cnt <= 1'b0;
+        csr_cnt <= 2'd0;
     end
 end
 // 组合逻辑
+always @(*) begin
+    csr_reg_wdata = 32'b0;
+    reg_wdata = 32'b0;
+
+    case (rob_inst0_subtype)
+        `CSR_RW: begin
+            if (rob_inst0_op2_src == `OP2_REG) begin
+                csr_reg_wdata = reg_data_d0;
+                reg_wdata = csr_reg_data_d0;
+            end
+            else begin
+                csr_reg_wdata = {27'h0, rob_inst0_csr_imm};
+                reg_wdata = csr_reg_data_d0;
+            end
+        end
+        `CSR_RS: begin
+            if (rob_inst0_op2_src == `OP2_REG) begin
+                csr_reg_wdata = csr_reg_data_d0 | reg_data_d0;
+                reg_wdata = csr_reg_data_d0;
+            end
+            else begin
+                csr_reg_wdata = csr_reg_data_d0 | {27'h0, rob_inst0_csr_imm};
+                reg_wdata = csr_reg_data_d0;
+            end
+        end
+        `CSR_RC: begin
+            if (rob_inst0_op2_src == `OP2_REG) begin
+                csr_reg_wdata = csr_reg_data_d0 & (~reg_data_d0);
+                reg_wdata = csr_reg_data_d0;
+            end
+            else begin
+                csr_reg_wdata = csr_reg_data_d0 & (~{27'h0, rob_inst0_csr_imm});
+                reg_wdata = csr_reg_data_d0;
+            end
+        end
+        default: begin
+            csr_reg_wdata = 32'b0;
+            reg_wdata = 32'b0;
+        end
+    endcase
+end
+
 always @(*) begin
     commit_inst0_o = 1'b0;
     commit_inst1_o = 1'b0;
@@ -865,9 +905,7 @@ always @(*) begin
     exception_cause_o = 32'b0;
     mret_flag_o = 1'b0;
     w_csr_reg = 1'b0;
-    csr_reg_wdata = 32'b0;
-    reg_wdata = 32'b0;
-    //B type
+    // B type
     free_snap_flag_inst0_o = 1'b0;
     free_snap_flag_inst1_o = 1'b0;
 
@@ -903,46 +941,20 @@ always @(*) begin
                     end
                     `CSR_RW: begin
                         w_csr_reg = 1'b1;
-                        commit_inst0_o = (csr_cnt == 1'b1);
-                        if (rob_inst0_op2_src == `OP2_REG) begin
-                            csr_reg_wdata = reg1_rdata_i;
-                            reg_wdata = csr_rdata_i;
-                        end
-                        else begin
-                            csr_reg_wdata = {27'h0, rob_inst0_csr_imm};
-                            reg_wdata = csr_rdata_i;
-                        end
+                        commit_inst0_o = (csr_cnt == 2'd2);
                     end
                     `CSR_RS: begin
                         w_csr_reg = 1'b1;
-                        commit_inst0_o = (csr_cnt == 1'b1);
-                        if (rob_inst0_op2_src == `OP2_REG) begin
-                            csr_reg_wdata = csr_rdata_i | reg1_rdata_i;
-                            reg_wdata = csr_rdata_i;
-                        end
-                        else begin
-                            csr_reg_wdata = csr_rdata_i | {27'h0, rob_inst0_csr_imm};
-                            reg_wdata = csr_rdata_i;
-                        end
+                        commit_inst0_o = (csr_cnt == 2'd2);
                     end
                     `CSR_RC: begin
                         w_csr_reg = 1'b1;
-                        commit_inst0_o = (csr_cnt == 1'b1);
-                        if (rob_inst0_op2_src == `OP2_REG) begin
-                            csr_reg_wdata = csr_rdata_i & (~reg1_rdata_i);
-                            reg_wdata = csr_rdata_i;
-                        end
-                        else begin
-                            csr_reg_wdata = csr_rdata_i & (~{27'h0, rob_inst0_csr_imm});
-                            reg_wdata = csr_rdata_i;
-                        end
+                        commit_inst0_o = (csr_cnt == 2'd2);
                     end
                     default: begin
                         exception_flag_o = 1'b0;
                         exception_cause_o = 32'b0;
                         mret_flag_o = 1'b0;
-                        csr_reg_wdata = 32'b0;
-                        reg_wdata = 32'b0;
                     end
                 endcase
             end

@@ -369,6 +369,21 @@ wire rob_commit_inst1_o;                 // 指令1提交使能
 wire [4:0] rob_waddr_commit1_o;              // 提交指令的目标逻辑寄存器
 wire [5:0] rob_paddr_commit1_o;              // 提交指令的目标物理寄存器(成为架构状态)
 wire [5:0] rob_free_paddr_inst1_o;           // 释放的物理寄存器地址
+reg  rob_reg_wflag_d0;
+reg  [5:0] rob_reg_waddr_d0;
+reg  [31:0] rob_reg_wdata_d0;
+always @(posedge clk or negedge rst) begin
+    if (!rst) begin
+        rob_reg_wflag_d0 <= 1'b0;
+        rob_reg_waddr_d0 <= 6'b0;
+        rob_reg_wdata_d0 <= 32'b0;
+    end
+    else begin
+        rob_reg_wflag_d0 <= rob_reg_wflag_o;
+        rob_reg_waddr_d0 <= rob_reg_waddr_o;
+        rob_reg_wdata_d0 <= rob_reg_wdata_o;
+    end
+end
 
 // Forward_unit模块输出信号
 wire alu0_rs1_forward_flag_o;           // ALU_0 rs1转发标志
@@ -1248,9 +1263,9 @@ regs u_regs(
 `endif
     // from commit
     .csr_raddr_i(rob_reg_raddr_o),             // CSR指令在提交阶段才读取执行结果，所以CSR寄存器的读地址由commit阶段提供
-    .csr_wflag_i(rob_reg_wflag_o),                   // CSR指令写回阶段写寄存器标志
-    .csr_waddr_i(rob_reg_waddr_o),             // CSR指令写回阶段写寄存器地址
-    .csr_wdata_i(rob_reg_wdata_o),            // CSR指令写回阶段写寄存器数据
+    .csr_wflag_i(rob_reg_wflag_d0),                   // CSR指令写回阶段写寄存器标志
+    .csr_waddr_i(rob_reg_waddr_d0),             // CSR指令写回阶段写寄存器地址
+    .csr_wdata_i(rob_reg_wdata_d0),            // CSR指令写回阶段写寄存器数据
     // from rename
     .alloc_flag_inst0_i(rn_alloc_flag_inst0_o),             // Inst0是否分配物理寄存器
     .alloc_paddr_inst0_i(rn_pwaddr_inst0_o),      // Inst0分配的物理寄存器地址

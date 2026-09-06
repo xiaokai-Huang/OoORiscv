@@ -67,13 +67,13 @@ module Branch (
     output branch_taken,                      // 实际跳转结果(1为跳转)
 
     // to regs
-    output [5:0] rf_raddr1_o,           // RF 阶段读寄存器1地址（同时传到转发模块）
-    output [5:0] rf_raddr2_o,           // RF 阶段读寄存器2地址（同时传到转发模块）
-    output rf_wflag_o,                  // RF 阶段写寄存器标志
-    output [5:0] rf_waddr_o,            // RF 阶段写寄存器地址(同时传到issue阶段)
-    output reg_wflag_o,                 // 写回阶段写寄存器标志
-    output [5:0] reg_waddr_o,           // 写回阶段写寄存器地址
-    output [31:0] reg_wdata_o,          // 写回阶段写寄存器数据
+    output [5:0] rf_raddr1_o,               // RF 阶段读寄存器1地址（同时传到转发模块）
+    output [5:0] rf_raddr2_o,               // RF 阶段读寄存器2地址（同时传到转发模块）
+    output rf_wflag_o,                      // RF 阶段写寄存器标志
+    output [5:0] rf_waddr_o,                // RF 阶段写寄存器地址(同时传到issue阶段)
+    output reg reg_wflag_o,                 // 写回阶段写寄存器标志
+    output reg [5:0] reg_waddr_o,           // 写回阶段写寄存器地址
+    output reg [31:0] reg_wdata_o,          // 写回阶段写寄存器数据
 
     // to ROB
     output complete_flag_o,             // 指令完成标志
@@ -235,9 +235,9 @@ br_rf_ex u_br_rf_ex(
     .br_ras_ptr_o(rf_ex_br_ras_ptr_o),           // branch RAS快照指针
     .br_mem_wr_ptr_o(rf_ex_br_mem_wr_ptr_o),        // branch mem队列写操作快照指针
     .br_sq_ptr_o(rf_ex_br_sq_ptr_o),            // branch store queue快照指针
-    .br_alu_wr_ptr_o(rf_ex_br_alu_wr_ptr_o),        // branch ALU队列写操作快照指针
-    .br_branch_wr_ptr_o(rf_ex_br_branch_wr_ptr_o),  // branch branch队列写操作快照指针
-    .br_mul_div_wr_ptr_o(rf_ex_br_mul_div_wr_ptr_o),// branch mul_div队列写操作快照指针
+    .br_alu_wr_ptr_o(rf_ex_br_alu_wr_ptr_o),            // branch ALU队列写操作快照指针
+    .br_branch_wr_ptr_o(rf_ex_br_branch_wr_ptr_o),      // branch branch队列写操作快照指针
+    .br_mul_div_wr_ptr_o(rf_ex_br_mul_div_wr_ptr_o),    // branch mul_div队列写操作快照指针
     .br_snap_id_o(rf_ex_br_snap_id_o),           // branch快照id
     .br_type_o(rf_ex_br_type_o),              // branch指令类型
     .br_subtype_o(rf_ex_br_subtype_o),           // branch指令子类型
@@ -249,6 +249,21 @@ br_rf_ex u_br_rf_ex(
 );
 
 // br_ex
+wire ex_reg_wflag_o;
+wire [5:0] ex_reg_waddr_o;
+wire [31:0] ex_reg_wdata_o;
+always @(posedge clk) begin
+    if (!rst) begin
+        reg_wflag_o <= 1'b0;
+        reg_waddr_o <= 6'b0;
+        reg_wdata_o <= 32'b0;
+    end
+    else begin
+        reg_wflag_o <= ex_reg_wflag_o;
+        reg_waddr_o <= ex_reg_waddr_o;
+        reg_wdata_o <= ex_reg_wdata_o;
+    end
+end
 br_ex u_br_ex(
     // from RF
     .br_inst_valid_i(rf_ex_br_inst_valid_o),              // branch指令有效标志
@@ -294,9 +309,9 @@ br_ex u_br_ex(
     .lhp_update_en(lhp_update_en),                     // 更新使能
     .branch_taken(branch_taken),                      // 实际跳转结果(1为跳转)
     // to regs
-    .reg_wflag_o(reg_wflag_o),                 // 写寄存器标志
-    .reg_waddr_o(reg_waddr_o),           // 写寄存器地址
-    .reg_wdata_o(reg_wdata_o),      // 写寄存器数据
+    .reg_wflag_o(ex_reg_wflag_o),                 // 写寄存器标志
+    .reg_waddr_o(ex_reg_waddr_o),           // 写寄存器地址
+    .reg_wdata_o(ex_reg_wdata_o),      // 写寄存器数据
     // to br_flush
     .br_inst_valid_o(ex_br_inst_valid_o),
     .commit_rob_id_o(ex_commit_rob_id_o)        // 提交ROB id
