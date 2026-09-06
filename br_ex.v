@@ -9,14 +9,14 @@ module br_ex (
     input [5:0] br_rob_id_i,            // branch ROB id
     input br_bpu_pre_flag_i,            // branch BPU预测标志
     input [31:0] br_bpu_pre_addr_i,     // branch BPU预测地址
-    input [3:0] br_mask_i,              // branch分支掩码
+    input [7:0] br_mask_i,              // branch分支掩码
     input [2:0] br_ras_ptr_i,           // branch RAS快照指针
     input [2:0] br_mem_wr_ptr_i,        // branch mem队列写操作快照指针
     input [2:0] br_sq_ptr_i,            // branch store queue快照指针
     input [2:0] br_alu_wr_ptr_i,        // branch ALU队列写操作快照指针
     input [2:0] br_branch_wr_ptr_i,     // branch branch队列写操作快照指针
     input [2:0] br_mul_div_wr_ptr_i,    // branch mul_div队列写操作快照指针
-    input [1:0] br_snap_id_i,           // branch快照id
+    input [2:0] br_snap_id_i,           // branch快照id
     input [2:0] br_type_i,              // branch指令类型
     input [3:0] br_subtype_i,           // branch指令子类型
     input [31:0] br_rs1_data_i,         // rs1数据
@@ -27,11 +27,11 @@ module br_ex (
 
     // from br_flush
     input jump_flag_i,                  // 跳转标志
-    input [1:0] kill_mask_id_i,         // 分支掩码id
+    input [2:0] kill_mask_id_i,         // 分支掩码id
 
     // to pipeline
     output reg jump_flag_o,                 // 跳转标志
-    output [1:0] kill_mask_id_o,            // 分支掩码id
+    output [2:0] kill_mask_id_o,            // 分支掩码id
 
     // to RAS
     output [2:0] ras_snap_ptr_o,              // RAS快照指针
@@ -63,7 +63,7 @@ module br_ex (
     output [5:0] commit_rob_id_o        // 提交ROB id
 );
 // 冲刷逻辑
-wire [3:0] kill_mask = jump_flag_i ? (4'b0001 << kill_mask_id_i) : 4'b0000;
+wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_0000;
 assign br_inst_valid_o = br_inst_valid_i && ((br_mask_i & kill_mask) == 0); // 如果指令的掩码位被kill_mask覆盖，则无效
 
 assign kill_mask_id_o = br_snap_id_i;

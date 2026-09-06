@@ -9,7 +9,7 @@ module LSU_Mem (
     // from ex
     input inst_valid_i,               // 指令有效标志
     input [5:0] rob_id_i,             // ROB id
-    input [3:0] mask_i,               // 分支掩码
+    input [7:0] mask_i,               // 分支掩码
     input [1:0] sq_id_i,              // SQ id
     input [3:0] subtype_i,            // 指令子类型
     input [31:0] rs2_data_i,          // rs2数据
@@ -26,16 +26,16 @@ module LSU_Mem (
 
     // from branch
     input jump_flag_i,                 // 跳转标志
-    input [1:0] kill_mask_id_i,        // 分支掩码id
+    input [2:0] kill_mask_id_i,        // 分支掩码id
 
     // from commit
     input commit_store_flag_i,             // 提交store指令标志
 
     // from commit
     input free_mask_inst0_i,                   // 指令0释放掩码标志
-    input [1:0] free_id_inst0_i,               // 指令0释放id
+    input [2:0] free_id_inst0_i,               // 指令0释放id
     input free_mask_inst1_i,                   // 指令1释放掩码标志
-    input [1:0] free_id_inst1_i,               // 指令1释放id
+    input [2:0] free_id_inst1_i,               // 指令1释放id
 
     // from peripheral
     input [31:0] perip_rdata,
@@ -84,13 +84,13 @@ localparam DRAM_ADDR_END   = 32'h8013_FFFF;
 wire access_dram = mem_addr_i[31] == 1'b1 && mem_addr_i[21] == 1'b0;
 assign mem_addr_o = mem_addr_i;
 // 冲刷逻辑
-wire [3:0] kill_mask = jump_flag_i ? (4'b0001 << kill_mask_id_i) : 4'b0000;
+wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_0000;
 assign inst_valid_o = inst_valid_i && ((mask_i & kill_mask) == 0); // 如果指令的掩码位被kill_mask覆盖，则无效
 assign subtype_o = subtype_i;
 assign flush_o = inst_valid_i && ((mask_i & kill_mask) != 0); // 当前指令被冲刷
 // Store Queue
 reg sq_valid[0:3];              // SQ有效位
-reg [3:0] sq_br_mask[0:3];      // SQ分支掩码
+reg [7:0] sq_br_mask[0:3];      // SQ分支掩码
 reg [3:0] sq_byte_mask[0:3];    // SQ字节掩码
 reg [1:0] sq_mem_mask[0:3];     // SQ存储掩码(00 = SB, 01 = SH, 10 = SW)
 reg [31:0] sq_mem_addr[0:3];    // SQ存储访存地址
@@ -99,7 +99,7 @@ integer i;
 reg sq_we;                      // SQ写使能
 reg [31:0] sq_w_data;           // SQ写数据
 reg [31:0] sq_w_addr;           // SQ写地址
-reg [3:0] sq_br_mask_wdata;     // SQ写分支掩码
+reg [7:0] sq_br_mask_wdata;     // SQ写分支掩码
 reg [3:0] sq_byte_mask_wdata;   // SQ写字节掩码
 reg [1:0] sq_mem_mask_wdata;    // SQ写存储掩码
 // Store指令提交读取SQ
@@ -113,7 +113,7 @@ always @(posedge clk or negedge rst) begin
         sq_rd_ptr <= 2'b0;
         for (i = 0; i < 4; i = i + 1) begin
             sq_valid[i] <= 1'b0;
-            sq_br_mask[i] <= 4'b0;
+            sq_br_mask[i] <= 8'b0;
             sq_byte_mask[i] <= 4'b0;
             sq_mem_mask[i] <= 2'b0;
             sq_mem_addr[i] <= 32'b0;

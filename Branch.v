@@ -12,14 +12,14 @@ module Branch (
     input [5:0] br_rob_id_i,            // branch ROB id
     input br_bpu_pre_flag_i,            // branch BPU预测标志
     input [31:0] br_bpu_pre_addr_i,     // branch BPU预测地址
-    input [3:0] br_mask_i,              // branch分支掩码
+    input [7:0] br_mask_i,              // branch分支掩码
     input [2:0] br_ras_ptr_i,           // branch RAS快照指针
     input [2:0] br_mem_wr_ptr_i,        // branch mem队列写操作快照指针
     input [2:0] br_sq_ptr_i,            // branch store queue快照指针
     input [2:0] br_alu_wr_ptr_i,        // branch ALU队列写操作快照指针
     input [2:0] br_branch_wr_ptr_i,     // branch branch队列写操作快照指针
     input [2:0] br_mul_div_wr_ptr_i,    // branch mul_div队列写操作快照指针
-    input [1:0] br_snap_id_i,           // branch快照id
+    input [2:0] br_snap_id_i,           // branch快照id
     input [2:0] br_type_i,              // branch指令类型
     input [3:0] br_subtype_i,           // branch指令子类型
     input [5:0] br_praddr1_i,           // branch物理寄存器1读地址
@@ -43,7 +43,7 @@ module Branch (
 
     // to pipeline
     output jump_flag_o,                 // 跳转标志
-    output [1:0] kill_mask_id_o,        // 分支掩码id
+    output [2:0] kill_mask_id_o,        // 分支掩码id
 
     // to RAS
     output [2:0] ras_snap_ptr_o,              // RAS快照指针
@@ -86,14 +86,14 @@ wire [15:0] rf_br_inst_addr_o;        // branch指令地址
 wire [5:0] rf_br_rob_id_o;            // branch ROB id
 wire rf_br_bpu_pre_flag_o;            // branch BPU预测标志
 wire [31:0] rf_br_bpu_pre_addr_o;     // branch BPU预测地址
-wire [3:0] rf_br_mask_o;              // branch分支掩码
+wire [7:0] rf_br_mask_o;              // branch分支掩码
 wire [2:0] rf_br_ras_ptr_o;           // branch RAS快照指针
 wire [2:0] rf_br_mem_wr_ptr_o;        // branch mem队列写操作快照指针
 wire [2:0] rf_br_sq_ptr_o;            // branch store queue快照指针
 wire [2:0] rf_br_alu_wr_ptr_o;        // branch ALU队列写操作快照指针
 wire [2:0] rf_br_branch_wr_ptr_o;     // branch branch队列写操作快照指针
 wire [2:0] rf_br_mul_div_wr_ptr_o;    // branch mul_div队列写操作快照指针
-wire [1:0] rf_br_snap_id_o;           // branch快照id
+wire [2:0] rf_br_snap_id_o;           // branch快照id
 wire [2:0] rf_br_type_o;              // branch指令类型
 wire [3:0] rf_br_subtype_o;           // branch指令子类型
 wire [31:0] rf_br_rs1_data_o;         // rs1数据
@@ -107,14 +107,14 @@ wire [15:0] rf_ex_br_inst_addr_o;        // branch指令地址
 wire [5:0] rf_ex_br_rob_id_o;            // branch ROB id
 wire rf_ex_br_bpu_pre_flag_o;            // branch BPU预测标志
 wire [31:0] rf_ex_br_bpu_pre_addr_o;     // branch BPU预测地址
-wire [3:0] rf_ex_br_mask_o;              // branch分支掩码
+wire [7:0] rf_ex_br_mask_o;              // branch分支掩码
 wire [2:0] rf_ex_br_ras_ptr_o;           // branch RAS快照指针
 wire [2:0] rf_ex_br_mem_wr_ptr_o;        // branch mem队列写操作快照指针
 wire [2:0] rf_ex_br_sq_ptr_o;            // branch store queue快照指针
 wire [2:0] rf_ex_br_alu_wr_ptr_o;        // branch ALU队列写操作快照指针
 wire [2:0] rf_ex_br_branch_wr_ptr_o;     // branch branch队列写操作快照指针
 wire [2:0] rf_ex_br_mul_div_wr_ptr_o;    // branch mul_div队列写操作快照指针
-wire [1:0] rf_ex_br_snap_id_o;           // branch快照id
+wire [2:0] rf_ex_br_snap_id_o;           // branch快照id
 wire [2:0] rf_ex_br_type_o;              // branch指令类型
 wire [3:0] rf_ex_br_subtype_o;           // branch指令子类型
 wire [31:0] rf_ex_br_rs1_data_o;         // rs1数据
@@ -127,7 +127,7 @@ wire [31:0] rf_ex_br_aux_addr_o;         // branch辅助地址
 wire ex_br_inst_valid_o;              // branch指令有效标志
 wire [5:0] ex_commit_rob_id_o;        // 提交ROB id
 wire ex_jump_flag_o;                  // 跳转标志
-wire [1:0] ex_kill_mask_id_o;         // 分支掩码id
+wire [2:0] ex_kill_mask_id_o;         // 分支掩码id
 wire [2:0] ex_ras_snap_ptr_o;         // RAS快照指针
 wire [2:0] ex_br_mem_wr_ptr_o;        // branch mem队列写操作快照指针
 wire [2:0] ex_br_sq_ptr_o;            // branch store queue快照指针

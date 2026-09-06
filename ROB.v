@@ -26,10 +26,10 @@ module ROB (
     input [5:0] praddr1_inst1_i,        // 指令1物理寄存器1读地址
     input [5:0] pwaddr_inst0_i,         // 指令0物理寄存器写地址
     input [5:0] pwaddr_inst1_i,         // 指令1物理寄存器写地址
-    input [3:0] branch_mask_inst0_i,    // 指令0分支掩码
-    input [3:0] branch_mask_inst1_i,    // 指令1分支掩码
-    input [1:0] snap_id_inst0_i,        // 指令0快照id
-    input [1:0] snap_id_inst1_i,        // 指令1快照id
+    input [7:0] branch_mask_inst0_i,    // 指令0分支掩码
+    input [7:0] branch_mask_inst1_i,    // 指令1分支掩码
+    input [2:0] snap_id_inst0_i,        // 指令0快照id
+    input [2:0] snap_id_inst1_i,        // 指令1快照id
     input [5:0] old_paddr_inst0_i,      // 指令0旧的物理寄存器映射
     input [5:0] old_paddr_inst1_i,      // 指令1旧的物理寄存器映射
 
@@ -55,7 +55,7 @@ module ROB (
 
     // from branch
     input jump_flag_i,                  // 跳转标志
-    input [1:0] kill_mask_id_i,         // 分支掩码id
+    input [2:0] kill_mask_id_i,         // 分支掩码id
 
     // from mem
     input stall_store,                 // store指令暂停标志
@@ -127,8 +127,8 @@ module ROB (
     output reg free_snap_flag_inst0_o,         // 指令0释放快照标志
     output reg free_snap_flag_inst1_o,         // 指令1释放快照标志
     // 释放 ID，用于清理内部 Mask
-    output [1:0] free_snap_id_inst0_o,     
-    output [1:0] free_snap_id_inst1_o,
+    output [2:0] free_snap_id_inst0_o,     
+    output [2:0] free_snap_id_inst1_o,
     output reg commit_inst0_o,                 // 指令0提交使能
     output [4:0] waddr_commit0_o,              // 提交指令的目标逻辑寄存器
     output [5:0] paddr_commit0_o,              // 提交指令的目标物理寄存器(成为架构状态)
@@ -179,8 +179,8 @@ end
 // ROB
 reg rob_valid[0:31];
 reg rob_complete[0:31];
-reg [1:0] rob_snap_id[0:31];
-reg [3:0] rob_br_mask[0:31];
+reg [2:0] rob_snap_id[0:31];
+reg [7:0] rob_br_mask[0:31];
 `ifdef use_f_extension
 reg rob_is_float[0:31];
 reg float_cnt;  // 0=无浮点, 1=有1条浮点在ROB中
@@ -502,7 +502,7 @@ wire stall = stall_i || stall_o
             `endif
             ;  // 内部写门控保留float_stall_o，阻止ROB分配
 // 冲刷逻辑
-wire [3:0] kill_mask = jump_flag_i ? (4'b0001 << kill_mask_id_i) : 4'b0000;
+wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_0000;
 reg prev_flush_flag;
 always @(posedge clk) prev_flush_flag <= jump_flag_i;
 reg [5:0] restore_free_cnt;
@@ -541,8 +541,8 @@ always @(posedge clk or negedge rst) begin
         for (i = 0; i < 32; i = i + 1) begin
             rob_valid[i] <= 1'b0;
             rob_complete[i] <= 1'b0;
-            rob_snap_id[i] <= 2'b0;
-            rob_br_mask[i] <= 4'b0;
+            rob_snap_id[i] <= 3'b0;
+            rob_br_mask[i] <= 8'b0;
             `ifdef use_f_extension
             rob_is_float[i] <= 1'b0;
             `endif
@@ -746,8 +746,8 @@ localparam TYPE_STORE = 2'b00,
 // ROB
 reg rob_valid[0:31];
 reg rob_complete[0:31];
-reg [1:0] rob_snap_id[0:31];
-reg [3:0] rob_br_mask[0:31];
+reg [2:0] rob_snap_id[0:31];
+reg [7:0] rob_br_mask[0:31];
 
 wire [63:0] rob_static_data_port0, rob_static_data_port1;
 reg inst0_idx, inst1_idx;
@@ -1081,7 +1081,7 @@ wire [1:0] rob_req = inst_valid_port0_i + inst_valid_port1_i;
 assign stall_o = (rob_free_cnt < rob_req);
 wire stall = stall_i || stall_o;
 // 冲刷逻辑
-wire [3:0] kill_mask = jump_flag_i ? (4'b0001 << kill_mask_id_i) : 4'b0000;
+wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_0000;
 reg prev_flush_flag;
 always @(posedge clk) prev_flush_flag <= jump_flag_i;
 reg [5:0] restore_free_cnt;
@@ -1114,8 +1114,8 @@ always @(posedge clk or negedge rst) begin
         for (i = 0; i < 32; i = i + 1) begin
             rob_valid[i] <= 1'b0;
             rob_complete[i] <= 1'b0;
-            rob_snap_id[i] <= 2'b0;
-            rob_br_mask[i] <= 4'b0;
+            rob_snap_id[i] <= 3'b0;
+            rob_br_mask[i] <= 8'b0;
         end
     end
     else if (int_flag_i) begin

@@ -10,7 +10,7 @@ module iss_mul (
     input int_flag_i,                 // 中断标志
     input issue_flag_i,               // 发射标志
     input [5:0] rob_id_i,             // ROB id
-    input [3:0] mask_i,               // 分支掩码
+    input [7:0] mask_i,               // 分支掩码
     input [3:0] subtype_i,            // 指令子类型
     input [5:0] praddr1_i,            // 物理寄存器1读地址
     input [5:0] praddr2_i,            // 物理寄存器2读地址
@@ -19,7 +19,7 @@ module iss_mul (
     // to ex
     output reg inst_valid_o,          // 指令有效标志
     output reg [5:0] rob_id_o,        // ROB id
-    output reg [3:0] mask_o,          // 分支掩码
+    output reg [7:0] mask_o,          // 分支掩码
     output reg [3:0] subtype_o,       // 指令子类型
     output reg [5:0] praddr1_o,       // 物理寄存器1读地址
     output reg [5:0] praddr2_o,       // 物理寄存器2读地址

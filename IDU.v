@@ -28,14 +28,14 @@ module IDU(
     // from ctrl
     input int_flag_i,                          // 中断标志
     input jump_flag_i,                         // 执行确认阶段跳转标志
-    input [1:0] restore_snap_id_i,             // 需要恢复的快照id
+    input [2:0] restore_snap_id_i,             // 需要恢复的快照id
     input stall_flag_i,                        // RS/ROB满暂停
 
     // from commit
     input free_snap_flag_inst0_i,
     input free_snap_flag_inst1_i,
-    input [1:0] free_snap_id_inst0_i,     
-    input [1:0] free_snap_id_inst1_i,
+    input [2:0] free_snap_id_inst0_i,     
+    input [2:0] free_snap_id_inst1_i,
     input commit_inst0_i,                 // 指令0提交使能
     input [4:0] waddr_commit0_i,          // 提交指令的目标逻辑寄存器
     input [5:0] paddr_commit0_i,          // 提交指令的目标物理寄存器(成为架构状态)
@@ -104,12 +104,12 @@ module IDU(
     output [5:0] rn_dp_praddr2_inst1_o,           // 指令1物理寄存器2读地址
     output [5:0] rn_dp_pwaddr_inst0_o,            // 指令0物理寄存器写地址
     output [5:0] rn_dp_pwaddr_inst1_o,            // 指令1物理寄存器写地址
-    output [3:0] rn_dp_branch_mask_inst0_o,       // 指令0分支掩码
-    output [3:0] rn_dp_branch_mask_inst1_o,       // 指令1分支掩码
+    output [7:0] rn_dp_branch_mask_inst0_o,       // 指令0分支掩码
+    output [7:0] rn_dp_branch_mask_inst1_o,       // 指令1分支掩码
     output [5:0] rn_dp_old_paddr_inst0_o,         // 指令0旧物理寄存器地址
     output [5:0] rn_dp_old_paddr_inst1_o,         // 指令1旧物理寄存器地址
-    output [1:0] rn_dp_snap_id_inst0_o,           // 指令0快照id
-    output [1:0] rn_dp_snap_id_inst1_o            // 指令1快照id
+    output [2:0] rn_dp_snap_id_inst0_o,           // 指令0快照id
+    output [2:0] rn_dp_snap_id_inst1_o            // 指令1快照id
 );
 
 // id
@@ -213,12 +213,12 @@ wire [5:0] rn_praddr1_inst0_o;          // 指令0物理寄存器1读地址
 wire [5:0] rn_praddr2_inst0_o;          // 指令0物理寄存器2读地址
 wire [5:0] rn_praddr1_inst1_o;          // 指令1物理寄存器1读地址
 wire [5:0] rn_praddr2_inst1_o;          // 指令1物理寄存器2读地址
-wire [3:0] rn_branch_mask_inst0_o;      // 指令0分支掩码
-wire [3:0] rn_branch_mask_inst1_o;      // 指令1分支掩码
+wire [7:0] rn_branch_mask_inst0_o;      // 指令0分支掩码
+wire [7:0] rn_branch_mask_inst1_o;      // 指令1分支掩码
 wire [5:0] rn_old_paddr_inst0_o;        // 指令0旧物理寄存器地址
 wire [5:0] rn_old_paddr_inst1_o;        // 指令1旧物理寄存器地址
-wire [1:0] rn_snap_id_inst0_o;          // 指令0快照id
-wire [1:0] rn_snap_id_inst1_o;          // 指令1快照id
+wire [2:0] rn_snap_id_inst0_o;          // 指令0快照id
+wire [2:0] rn_snap_id_inst1_o;          // 指令1快照id
 
 
 // 实例化

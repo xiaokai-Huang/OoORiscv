@@ -34,10 +34,10 @@ module Issue (
     input [5:0] praddr2_inst1_i,         // 指令1物理寄存器2读地址
     input [5:0] pwaddr_inst0_i,          // 指令0物理寄存器写地址
     input [5:0] pwaddr_inst1_i,          // 指令1物理寄存器写地址
-    input [3:0] branch_mask_inst0_i,     // 指令0分支掩码
-    input [3:0] branch_mask_inst1_i,     // 指令1分支掩码
-    input [1:0] snap_id_inst0_i,         // 指令0快照id
-    input [1:0] snap_id_inst1_i,         // 指令1快照id
+    input [7:0] branch_mask_inst0_i,     // 指令0分支掩码
+    input [7:0] branch_mask_inst1_i,     // 指令1分支掩码
+    input [2:0] snap_id_inst0_i,         // 指令0快照id
+    input [2:0] snap_id_inst1_i,         // 指令1快照id
 
     `ifdef use_f_extension
     input [4:0] inst_f_subtype_port0_i,  // F扩展指令子类型
@@ -64,16 +64,16 @@ module Issue (
     // from commit
     input [1:0] sq_commit_cnt_i,               // store queue提交数量
     input free_mask_inst0_i,                   // 指令0释放掩码标志
-    input [1:0] free_id_inst0_i,               // 指令0释放id
+    input [2:0] free_id_inst0_i,               // 指令0释放id
     input free_mask_inst1_i,                   // 指令1释放掩码标志
-    input [1:0] free_id_inst1_i,               // 指令1释放id
+    input [2:0] free_id_inst1_i,               // 指令1释放id
 
     // from clint
     input int_flag_i,                       // 中断标志
 
     // from ex
     input jump_flag_i,                      // 跳转标志
-    input [1:0] kill_mask_id_i,             // 杀死指令掩码
+    input [2:0] kill_mask_id_i,             // 杀死指令掩码
     input [2:0] restore_mem_wr_ptr_i,       // 恢复mem队列写指针
     input [2:0] restore_sq_ptr_i,           // 恢复store queue指针
     input [2:0] restore_alu_wr_ptr_i,       // 恢复ALU队列写指针
@@ -101,7 +101,7 @@ module Issue (
     // to ALU0
     output alu_inst_valid_inst0_o,       // ALU0指令有效标志
     output [5:0] alu_rob_id_inst0_o,     // ALU0 ROB id
-    output [3:0] alu_mask_inst0_o,       // ALU0分支掩码
+    output [7:0] alu_mask_inst0_o,       // ALU0分支掩码
     output [3:0] alu_subtype_inst0_o,    // ALU0指令子类型
     output [1:0] alu_op1_src_inst0_o,    // ALU0操作数1
     output [1:0] alu_op2_src_inst0_o,    // ALU0操作数2
@@ -113,7 +113,7 @@ module Issue (
     // to ALU1
     output alu_inst_valid_inst1_o,       // ALU1指令有效标志
     output [5:0] alu_rob_id_inst1_o,     // ALU1 ROB id
-    output [3:0] alu_mask_inst1_o,       // ALU1分支掩码
+    output [7:0] alu_mask_inst1_o,       // ALU1分支掩码
     output [3:0] alu_subtype_inst1_o,    // ALU1指令子类型
     output [1:0] alu_op1_src_inst1_o,    // ALU1操作数1
     output [1:0] alu_op2_src_inst1_o,    // ALU1操作数2
@@ -128,14 +128,14 @@ module Issue (
     output [5:0] br_rob_id_o,            // branch ROB id
     output br_bpu_pre_flag_o,            // branch BPU预测标志
     output [31:0] br_bpu_pre_addr_o,     // branch BPU预测地址
-    output [3:0] br_mask_o,              // branch分支掩码
+    output [7:0] br_mask_o,              // branch分支掩码
     output [2:0] br_ras_ptr_o,           // branch RAS快照指针
     output [2:0] br_mem_wr_ptr_o,        // branch mem队列写操作快照指针
     output [2:0] br_sq_ptr_o,            // branch store queue快照指针
     output [2:0] br_alu_wr_ptr_o,        // branch ALU队列写操作快照指针
     output [2:0] br_branch_wr_ptr_o,     // branch branch队列写操作快照指针
     output [2:0] br_mul_div_wr_ptr_o,    // branch mul_div队列写操作快照指针
-    output [1:0] br_snap_id_o,           // branch快照id
+    output [2:0] br_snap_id_o,           // branch快照id
     output [2:0] br_type_o,              // branch指令类型
     output [3:0] br_subtype_o,           // branch指令子类型
     output [1:0] br_op1_src_o,           // branch操作数1
@@ -149,7 +149,7 @@ module Issue (
     // to mem
     output mem_inst_valid_o,             // mem指令有效标志
     output [5:0] mem_rob_id_o,           // mem ROB id
-    output [3:0] mem_mask_o,             // mem分支掩码
+    output [7:0] mem_mask_o,             // mem分支掩码
     output [1:0] mem_sq_id_o,            // mem SQ id
     output [3:0] mem_subtype_o,          // mem指令子类型
     output [1:0] mem_op1_src_o,          // mem操作数1
@@ -163,7 +163,7 @@ module Issue (
     // to mul
     output mul_inst_valid_o,             // mul指令有效标志
     output [5:0] mul_rob_id_o,           // mul ROB id
-    output [3:0] mul_mask_o,             // mul分支掩码
+    output [7:0] mul_mask_o,             // mul分支掩码
     output [3:0] mul_subtype_o,          // mul指令子类型
     output [5:0] mul_praddr1_o,          // mul物理寄存器1读地址
     output [5:0] mul_praddr2_o,          // mul物理寄存器2读地址
@@ -171,7 +171,7 @@ module Issue (
     // to div
     output div_inst_valid_o,             // div指令有效标志
     output [5:0] div_rob_id_o,           // div ROB id
-    output [3:0] div_mask_o,             // div分支掩码
+    output [7:0] div_mask_o,             // div分支掩码
     output [3:0] div_subtype_o,          // div指令子类型
     output [5:0] div_praddr1_o,          // div物理寄存器1读地址
     output [5:0] div_praddr2_o,          // div物理寄存器2读地址
@@ -189,7 +189,7 @@ module Issue (
 `ifdef use_f_extension
 
 // 冲刷逻辑
-wire [3:0] kill_mask = jump_flag_i ? (4'b0001 << kill_mask_id_i) : 4'b0000;
+wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_0000;
 
 `ifdef use_f_extension
 wire is_float_port0 = inst_valid_port0_i && ((inst_type_port0_i == `TYPE_F_EXT) || ((inst_type_port0_i == `TYPE_MEM) && inst_subtype_port0_i[2] && inst_subtype_port0_i[1]));
@@ -209,7 +209,7 @@ wire inst1_valid = inst_valid_port1_i;
 // ALU发射队列
 reg alu_inst_valid[0:7];       // 指令有效标志
 reg [5:0] alu_rob_id[0:7];     // ROB id
-reg [3:0] alu_mask[0:7];       // 分支掩码
+reg [7:0] alu_mask[0:7];       // 分支掩码
 reg [3:0] alu_subtype[0:7];    // 指令子类型
 reg [1:0] alu_op1_src[0:7];    // 操作数1来源选择
 reg [1:0] alu_op2_src[0:7];    // 操作数2来源选择
@@ -333,7 +333,7 @@ always @(posedge clk) begin
         for (i = 0; i < 8; i = i + 1) begin
             alu_inst_valid[i] <= 1'b0;
             alu_rob_id[i] <= 6'b0;
-            alu_mask[i] <= 4'b0;
+            alu_mask[i] <= 8'b0;
             alu_subtype[i] <= 4'b0;
             alu_op1_src[i] <= 2'b0;
             alu_op2_src[i] <= 2'b0;
@@ -431,7 +431,7 @@ always @(posedge clk) begin
 end
 
 // 输出寄存器
-reg [3:0] alu0_mask_new, alu1_mask_new;
+reg [7:0] alu0_mask_new, alu1_mask_new;
 always @(*) begin
     alu0_mask_new = alu_mask[alu_issue_slot_inst0];
     alu1_mask_new = alu_mask[alu_issue_slot_inst1];
@@ -507,11 +507,11 @@ reg [15:0] branch_inst_addr[0:3];  // 指令地址
 reg [5:0] branch_rob_id[0:3];      // ROB id
 reg branch_pre_flag[0:3];          // 预测标志
 reg [31:0] branch_pre_addr[0:3];   // 预测地址
-reg [3:0] branch_mask[0:3];        // 分支掩码
+reg [7:0] branch_mask[0:3];        // 分支掩码
 reg [2:0] branch_ras_ptr[0:3];     // RAS快照指针
 reg [2:0] branch_mem_wr_ptr[0:3];  // mem队列写操作快照指针
 reg [2:0] branch_sq_ptr[0:3];      // store queue分配快照指针
-reg [1:0] branch_snap_id[0:3];     // 快照id
+reg [2:0] branch_snap_id[0:3];     // 快照id
 reg [2:0] branch_type[0:3];        // 指令类型
 reg [3:0] branch_subtype[0:3];     // 指令子类型
 reg [1:0] branch_op1_src[0:3];     // 操作数1来源选择
@@ -622,11 +622,11 @@ always @(posedge clk) begin
             branch_rob_id[i] <= 6'b0;
             branch_pre_flag[i] <= 1'b0;
             branch_pre_addr[i] <= 32'b0;
-            branch_mask[i] <= 4'b0;
+            branch_mask[i] <= 8'b0;
             branch_ras_ptr[i] <= 3'b0;
             branch_mem_wr_ptr[i] <= 3'b0;
             branch_sq_ptr[i] <= 3'b0;
-            branch_snap_id[i] <= 2'b0;
+            branch_snap_id[i] <= 3'b0;
             branch_type[i] <= 3'b0;
             branch_subtype[i] <= 4'b0;
             branch_op1_src[i] <= 2'b0;
@@ -751,7 +751,7 @@ always @(posedge clk) begin
 end
 
 // 输出寄存器
-reg [3:0] br_mask_new;
+reg [7:0] br_mask_new;
 always @(*) begin
     br_mask_new = branch_mask[br_issue_slot];
     if (free_mask_inst0_i) begin
@@ -812,7 +812,7 @@ iss_br u_iss_br (
 // mem发射队列
 reg mem_inst_valid[0:7];       // 指令有效标志
 reg [5:0] mem_rob_id[0:7];     // ROB id
-reg [3:0] mem_mask[0:7];       // 分支掩码
+reg [7:0] mem_mask[0:7];       // 分支掩码
 reg [1:0] mem_sq_id[0:7];      // store queue id
 reg [3:0] mem_subtype[0:7];    // 指令子类型
 reg [1:0] mem_op1_src[0:7];    // 操作数1来源选择
@@ -881,7 +881,7 @@ always @(posedge clk) begin
         for (i = 0; i < 8; i = i + 1) begin
             mem_inst_valid[i] <= 1'b0;
             mem_rob_id[i] <= 6'b0;
-            mem_mask[i] <= 4'b0;
+            mem_mask[i] <= 8'b0;
             mem_sq_id[i] <= 2'b0;
             mem_subtype[i] <= 4'b0;
             mem_op1_src[i] <= 2'b0;
@@ -1024,7 +1024,7 @@ always @(posedge clk) begin
 end
 
 // 输出寄存器
-reg [3:0] mem_mask_new;
+reg [7:0] mem_mask_new;
 always @(*) begin
     mem_mask_new = mem_mask[mem_rd_ptr];
     if (free_mask_inst0_i) begin
@@ -1081,7 +1081,7 @@ iss_mem u_iss_mem(
 // mul发射队列
 reg mul_inst_valid[0:3];       // 指令有效标志
 reg [5:0] mul_rob_id[0:3];     // ROB id
-reg [3:0] mul_mask[0:3];       // 分支掩码
+reg [7:0] mul_mask[0:3];       // 分支掩码
 reg [3:0] mul_subtype[0:3];    // 指令子类型
 reg [5:0] mul_praddr1[0:3];    // 物理寄存器1读地址
 reg [5:0] mul_praddr2[0:3];    // 物理寄存器2读地址
@@ -1183,7 +1183,7 @@ always @(posedge clk) begin
         for (i = 0; i < 4; i = i + 1) begin
             mul_inst_valid[i] <= 1'b0;
             mul_rob_id[i] <= 6'b0;
-            mul_mask[i] <= 4'b0;
+            mul_mask[i] <= 8'b0;
             mul_subtype[i] <= 4'b0;
             mul_praddr1[i] <= 6'b0;
             mul_praddr2[i] <= 6'b0;
@@ -1267,7 +1267,7 @@ always @(posedge clk) begin
 end
 
 // 输出寄存器
-reg [3:0] mul_mask_new;
+reg [7:0] mul_mask_new;
 always @(*) begin
     mul_mask_new = mul_mask[mul_issue_slot];
     if (free_mask_inst0_i) begin
@@ -1305,7 +1305,7 @@ iss_mul u_iss_mul(
 // div发射队列
 reg div_inst_valid[0:3];       // 指令有效标志
 reg [5:0] div_rob_id[0:3];     // ROB id
-reg [3:0] div_mask[0:3];       // 分支掩码
+reg [7:0] div_mask[0:3];       // 分支掩码
 reg [3:0] div_subtype[0:3];    // 指令子类型
 reg [5:0] div_praddr1[0:3];    // 物理寄存器1读地址
 reg [5:0] div_praddr2[0:3];    // 物理寄存器2读地址
@@ -1407,7 +1407,7 @@ always @(posedge clk) begin
         for (i = 0; i < 4; i = i + 1) begin
             div_inst_valid[i] <= 1'b0;
             div_rob_id[i] <= 6'b0;
-            div_mask[i] <= 4'b0;
+            div_mask[i] <= 8'b0;
             div_subtype[i] <= 4'b0;
             div_praddr1[i] <= 6'b0;
             div_praddr2[i] <= 6'b0;
@@ -1491,7 +1491,7 @@ always @(posedge clk) begin
 end
 
 // 输出寄存器
-reg [3:0] div_mask_new;
+reg [7:0] div_mask_new;
 always @(*) begin
     div_mask_new = div_mask[div_issue_slot];
     if (free_mask_inst0_i) begin
@@ -1581,12 +1581,12 @@ assign stall_o = rob_stall_i || alu_stall || branch_stall || mem_stall
 `else
 
 // 冲刷逻辑
-wire [3:0] kill_mask = jump_flag_i ? (4'b0001 << kill_mask_id_i) : 4'b0000;
+wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_0000;
 
 // ALU发射队列
 reg alu_inst_valid[0:7];       // 指令有效标志
 reg [5:0] alu_rob_id[0:7];     // ROB id
-reg [3:0] alu_mask[0:7];       // 分支掩码
+reg [7:0] alu_mask[0:7];       // 分支掩码
 reg [3:0] alu_subtype[0:7];    // 指令子类型
 reg [1:0] alu_op1_src[0:7];    // 操作数1来源选择
 reg [1:0] alu_op2_src[0:7];    // 操作数2来源选择
@@ -1647,7 +1647,7 @@ always @(posedge clk) begin
         for (i = 0; i < 8; i = i + 1) begin
             alu_inst_valid[i] <= 1'b0;
             alu_rob_id[i] <= 6'b0;
-            alu_mask[i] <= 4'b0;
+            alu_mask[i] <= 8'b0;
             alu_subtype[i] <= 4'b0;
             alu_op1_src[i] <= 2'b0;
             alu_op2_src[i] <= 2'b0;
@@ -1775,7 +1775,7 @@ always @(posedge clk) begin
 end
 
 // 输出寄存器
-reg [3:0] alu0_mask_new, alu1_mask_new;
+reg [7:0] alu0_mask_new, alu1_mask_new;
 always @(*) begin
     alu0_mask_new = alu_mask[alu_slot0];
     alu1_mask_new = alu_mask[alu_slot1];
@@ -1851,14 +1851,14 @@ reg [15:0] branch_inst_addr[0:3];  // 指令地址
 reg [5:0] branch_rob_id[0:3];      // ROB id
 reg branch_pre_flag[0:3];          // 预测标志
 reg [31:0] branch_pre_addr[0:3];   // 预测地址
-reg [3:0] branch_mask[0:3];        // 分支掩码
+reg [7:0] branch_mask[0:3];        // 分支掩码
 reg [2:0] branch_ras_ptr[0:3];     // RAS快照指针
 reg [2:0] branch_mem_wr_ptr[0:3];  // mem队列写操作快照指针
 reg [2:0] branch_sq_ptr[0:3];      // store queue分配快照指针
 reg [2:0] branch_alu_wr_ptr[0:3];  // ALU队列写操作快照指针
 reg [2:0] branch_branch_wr_ptr[0:3]; // branch队列写操作快照指针
 reg [2:0] branch_mul_div_wr_ptr[0:3]; // mul_div队列写操作快照指针
-reg [1:0] branch_snap_id[0:3];     // 快照id
+reg [2:0] branch_snap_id[0:3];     // 快照id
 reg [2:0] branch_type[0:3];        // 指令类型
 reg [3:0] branch_subtype[0:3];     // 指令子类型
 reg [1:0] branch_op1_src[0:3];     // 操作数1来源选择
@@ -1905,14 +1905,14 @@ always @(posedge clk) begin
             branch_rob_id[i] <= 6'b0;
             branch_pre_flag[i] <= 1'b0;
             branch_pre_addr[i] <= 32'b0;
-            branch_mask[i] <= 4'b0;
+            branch_mask[i] <= 8'b0;
             branch_ras_ptr[i] <= 3'b0;
             branch_mem_wr_ptr[i] <= 3'b0;
             branch_sq_ptr[i] <= 3'b0;
             branch_alu_wr_ptr[i] <= 3'b0;
             branch_branch_wr_ptr[i] <= 3'b0;
             branch_mul_div_wr_ptr[i] <= 3'b0;
-            branch_snap_id[i] <= 2'b0;
+            branch_snap_id[i] <= 3'b0;
             branch_type[i] <= 3'b0;
             branch_subtype[i] <= 4'b0;
             branch_op1_src[i] <= 2'b0;
@@ -2068,7 +2068,7 @@ always @(posedge clk) begin
 end
 
 // 输出寄存器
-reg [3:0] br_mask_new;
+reg [7:0] br_mask_new;
 always @(*) begin
     br_mask_new = branch_mask[branch_rd_ptr];
     if (free_mask_inst0_i) begin
@@ -2135,7 +2135,7 @@ iss_br u_iss_br (
 // mem发射队列
 reg mem_inst_valid[0:7];       // 指令有效标志
 reg [5:0] mem_rob_id[0:7];     // ROB id
-reg [3:0] mem_mask[0:7];       // 分支掩码
+reg [7:0] mem_mask[0:7];       // 分支掩码
 reg [1:0] mem_sq_id[0:7];      // store queue id
 reg [3:0] mem_subtype[0:7];    // 指令子类型
 reg [1:0] mem_op1_src[0:7];    // 操作数1来源选择
@@ -2228,7 +2228,7 @@ always @(posedge clk) begin
         for (i = 0; i < 8; i = i + 1) begin
             mem_inst_valid[i] <= 1'b0;
             mem_rob_id[i] <= 6'b0;
-            mem_mask[i] <= 4'b0;
+            mem_mask[i] <= 8'b0;
             mem_sq_id[i] <= 2'b0;
             mem_subtype[i] <= 4'b0;
             mem_op1_src[i] <= 2'b0;
@@ -2361,7 +2361,7 @@ always @(posedge clk) begin
 end
 
 // 输出寄存器
-reg [3:0] mem_mask_new;
+reg [7:0] mem_mask_new;
 always @(*) begin
     mem_mask_new = mem_mask[mem_rd_ptr];
     if (free_mask_inst0_i) begin
@@ -2609,7 +2609,7 @@ iss_mem u_iss_mem(
 reg mul_div_inst_valid[0:3];       // 指令有效标志
 reg is_div_or_mul[0:3];            // 标记是除法还是乘法(1表示除法，0表示乘法)
 reg [5:0] mul_div_rob_id[0:3];     // ROB id
-reg [3:0] mul_div_mask[0:3];       // 分支掩码
+reg [7:0] mul_div_mask[0:3];       // 分支掩码
 reg [3:0] mul_div_subtype[0:3];    // 指令子类型
 reg [5:0] mul_div_praddr1[0:3];    // 物理寄存器1读地址
 reg [5:0] mul_div_praddr2[0:3];    // 物理寄存器2读地址
@@ -2655,7 +2655,7 @@ always @(posedge clk) begin
             mul_div_inst_valid[i] <= 1'b0;
             is_div_or_mul[i] <= 1'b0;
             mul_div_rob_id[i] <= 6'b0;
-            mul_div_mask[i] <= 4'b0;
+            mul_div_mask[i] <= 8'b0;
             mul_div_subtype[i] <= 4'b0;
             mul_div_praddr1[i] <= 6'b0;
             mul_div_praddr2[i] <= 6'b0;
@@ -2764,7 +2764,7 @@ always @(posedge clk) begin
 end
 
 // 输出寄存器
-reg [3:0] div_mask_new;
+reg [7:0] div_mask_new;
 always @(*) begin
     div_mask_new = mul_div_mask[mul_div_rd_ptr];
     if (free_mask_inst0_i) begin
@@ -2806,7 +2806,7 @@ iss_div u_iss_div(
     .pwaddr_o(div_pwaddr_o)         // 物理寄存器写地址
 );
 
-reg [3:0] mul_mask_new;
+reg [7:0] mul_mask_new;
 always @(*) begin
     mul_mask_new = mul_div_mask[mul_div_rd_ptr];
     if (free_mask_inst0_i) begin

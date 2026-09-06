@@ -10,7 +10,7 @@ module iss_alu (
     input int_flag_i,                     // 中断标志
     input issue_flag_i,                   // 发射标志
     input [5:0] alu_rob_id_i,             // ROB id
-    input [3:0] alu_mask_i,               // 分支掩码
+    input [7:0] alu_mask_i,               // 分支掩码
     input [3:0] alu_subtype_i,            // 指令子类型
     input [1:0] alu_op1_src_i,            // 操作数1来源选择
     input [1:0] alu_op2_src_i,            // 操作数2来源选择
@@ -22,7 +22,7 @@ module iss_alu (
     // to ex
     output reg alu_inst_valid_o,          // 指令有效标志
     output reg [5:0] alu_rob_id_o,        // ROB id
-    output reg [3:0] alu_mask_o,          // 分支掩码
+    output reg [7:0] alu_mask_o,          // 分支掩码
     output reg [3:0] alu_subtype_o,       // 指令子类型
     output reg [1:0] alu_op1_src_o,       // 操作数1
     output reg [1:0] alu_op2_src_o,       // 操作数2

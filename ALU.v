@@ -9,7 +9,7 @@ module ALU (
     // from issue
     input inst_valid_i,                 // ALU指令有效标志
     input [5:0] rob_id_i,               // ALU ROB id
-    input [3:0] mask_i,                 // ALU分支掩码
+    input [7:0] mask_i,                 // ALU分支掩码
     input [3:0] subtype_i,              // ALU指令子类型
     input [1:0] op1_src_i,              // ALU操作数1
     input [1:0] op2_src_i,              // ALU操作数2
@@ -29,13 +29,13 @@ module ALU (
 
     // from branch
     input jump_flag_i,                  // 跳转标志
-    input [1:0] kill_mask_id_i,         // 分支掩码id
+    input [2:0] kill_mask_id_i,         // 分支掩码id
 
     // from commit
     input free_mask_inst0_i,                   // 指令0释放掩码标志
-    input [1:0] free_id_inst0_i,               // 指令0释放id
+    input [2:0] free_id_inst0_i,               // 指令0释放id
     input free_mask_inst1_i,                   // 指令1释放掩码标志
-    input [1:0] free_id_inst1_i,               // 指令1释放id
+    input [2:0] free_id_inst1_i,               // 指令1释放id
 
     // from regs
     input [31:0] reg_rdata1_i,          // 寄存器1读数据
@@ -62,7 +62,7 @@ module ALU (
 // ALU_RF
 wire rf_inst_valid_o;                 // ALU指令有效标志
 wire [5:0] rf_rob_id_o;               // ALU ROB id
-wire [3:0] rf_mask_o;                 // ALU分支掩码
+wire [7:0] rf_mask_o;                 // ALU分支掩码
 wire [3:0] rf_subtype_o;              // ALU指令子类型
 wire [1:0] rf_op1_src_o;              // ALU操作数1
 wire [1:0] rf_op2_src_o;              // ALU操作数2
@@ -73,7 +73,7 @@ wire [31:0] rf_imm_o;                 // ALU立即数
 // alu_rf_ex
 wire rf_ex_inst_valid_o;             // ALU指令有效标志
 wire [5:0] rf_ex_rob_id_o;           // ALU ROB id
-wire [3:0] rf_ex_mask_o;             // ALU分支掩码
+wire [7:0] rf_ex_mask_o;             // ALU分支掩码
 wire [3:0] rf_ex_subtype_o;          // ALU指令子类型
 wire [1:0] rf_ex_op1_src_o;          // ALU操作数1
 wire [1:0] rf_ex_op2_src_o;          // ALU操作数2

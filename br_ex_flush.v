@@ -10,7 +10,7 @@ module br_ex_flush (
     input br_inst_valid_i,              // branch指令有效标志
     input [5:0] commit_rob_id_i,        // 提交ROB id
     input jump_flag_i,                   // 跳转标志
-    input [1:0] kill_mask_id_i,         // 分支掩码id
+    input [2:0] kill_mask_id_i,         // 分支掩码id
     input [2:0] ras_snap_ptr_i,         // RAS快照指针
     input [2:0] br_mem_wr_ptr_i,        // branch mem队列写操作快照指针
     input [2:0] br_sq_ptr_i,            // branch store queue快照指针
@@ -26,7 +26,7 @@ module br_ex_flush (
     output reg br_inst_valid_o,              // branch指令有效标志
     output reg [5:0] commit_rob_id_o,        // 提交ROB id
     output reg jump_flag_o,                  // 跳转标志
-    output reg [1:0] kill_mask_id_o,         // 分支掩码id
+    output reg [2:0] kill_mask_id_o,         // 分支掩码id
     output reg [2:0] ras_snap_ptr_o,         // RAS快照指针
     output reg [2:0] br_mem_wr_ptr_o,        // branch mem队列写操作快照指针
     output reg [2:0] br_sq_ptr_o,            // branch store queue快照指针

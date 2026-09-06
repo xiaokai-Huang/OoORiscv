@@ -12,14 +12,14 @@ module br_rf_ex (
     input [5:0] br_rob_id_i,            // branch ROB id
     input br_bpu_pre_flag_i,            // branch BPU预测标志
     input [31:0] br_bpu_pre_addr_i,     // branch BPU预测地址
-    input [3:0] br_mask_i,              // branch分支掩码
+    input [7:0] br_mask_i,              // branch分支掩码
     input [2:0] br_ras_ptr_i,           // branch RAS快照指针
     input [2:0] br_mem_wr_ptr_i,        // branch mem队列写操作快照指针
     input [2:0] br_sq_ptr_i,            // branch store queue快照指针
     input [2:0] br_alu_wr_ptr_i,        // branch ALU队列写操作快照指针
     input [2:0] br_branch_wr_ptr_i,     // branch branch队列写操作快照指针
     input [2:0] br_mul_div_wr_ptr_i,    // branch mul_div队列写操作快照指针
-    input [1:0] br_snap_id_i,           // branch快照id
+    input [2:0] br_snap_id_i,           // branch快照id
     input [2:0] br_type_i,              // branch指令类型
     input [3:0] br_subtype_i,           // branch指令子类型
     input [31:0] br_rs1_data_i,         // rs1数据
@@ -37,14 +37,14 @@ module br_rf_ex (
     output reg [5:0] br_rob_id_o,            // branch ROB id
     output reg br_bpu_pre_flag_o,            // branch BPU预测标志
     output reg [31:0] br_bpu_pre_addr_o,     // branch BPU预测地址
-    output reg [3:0] br_mask_o,              // branch分支掩码
+    output reg [7:0] br_mask_o,              // branch分支掩码
     output reg [2:0] br_ras_ptr_o,           // branch RAS快照指针
     output reg [2:0] br_mem_wr_ptr_o,        // branch mem队列写操作快照指针
     output reg [2:0] br_sq_ptr_o,            // branch store queue快照指针
     output reg [2:0] br_alu_wr_ptr_o,        // branch ALU队列写操作快照指针
     output reg [2:0] br_branch_wr_ptr_o,     // branch branch队列写操作快照指针
     output reg [2:0] br_mul_div_wr_ptr_o,    // branch mul_div队列写操作快照指针
-    output reg [1:0] br_snap_id_o,           // branch快照id
+    output reg [2:0] br_snap_id_o,           // branch快照id
     output reg [2:0] br_type_o,              // branch指令类型
     output reg [3:0] br_subtype_o,           // branch指令子类型
     output reg [31:0] br_rs1_data_o,         // rs1数据

@@ -10,7 +10,7 @@ module LSU (
     // from issue
     input inst_valid_i,               // 指令有效标志
     input [5:0] rob_id_i,             // ROB id
-    input [3:0] mask_i,               // 分支掩码
+    input [7:0] mask_i,               // 分支掩码
     input [1:0] sq_id_i,              // SQ id
     input [3:0] subtype_i,            // 指令子类型
     input [5:0] praddr1_i,            // 物理寄存器1读地址
@@ -38,13 +38,13 @@ module LSU (
 
     // from branch
     input jump_flag_i,                 // 跳转标志
-    input [1:0] kill_mask_id_i,        // 分支掩码id
+    input [2:0] kill_mask_id_i,        // 分支掩码id
 
     // from commit
     input free_mask_inst0_i,                   // 指令0释放掩码标志
-    input [1:0] free_id_inst0_i,               // 指令0释放id
+    input [2:0] free_id_inst0_i,               // 指令0释放id
     input free_mask_inst1_i,                   // 指令1释放掩码标志
-    input [1:0] free_id_inst1_i,               // 指令1释放id
+    input [2:0] free_id_inst1_i,               // 指令1释放id
 
     // from commit
     input commit_store_flag_i,             // 提交store指令标志
@@ -100,7 +100,7 @@ module LSU (
 // rf
 wire rf_inst_valid_o;               // 指令有效标志
 wire [5:0] rf_rob_id_o;             // ROB id
-wire [3:0] rf_mask_o;               // 分支掩码
+wire [7:0] rf_mask_o;               // 分支掩码
 wire [1:0] rf_sq_id_o;              // SQ id
 wire [3:0] rf_subtype_o;            // 指令子类型
 wire [31:0] rf_rs1_data_o;          // rs1数据
@@ -155,7 +155,7 @@ LSU_RF u_LSU_RF(
 // rf_ex
 wire rf_ex_inst_valid_o;               // 指令有效标志
 wire [5:0] rf_ex_rob_id_o;             // ROB id
-wire [3:0] rf_ex_mask_o;               // 分支掩码
+wire [7:0] rf_ex_mask_o;               // 分支掩码
 wire [1:0] rf_ex_sq_id_o;              // SQ id
 wire [3:0] rf_ex_subtype_o;            // 指令子类型
 wire [31:0] rf_ex_rs1_data_o;          // rs1数据
@@ -198,7 +198,7 @@ lsu_rf_ex u_lsu_rf_ex(
 // ex
 wire ex_inst_valid_o;               // 指令有效标志
 wire [5:0] ex_rob_id_o;             // ROB id
-wire [3:0] ex_mask_o;               // 分支掩码
+wire [7:0] ex_mask_o;               // 分支掩码
 wire [1:0] ex_sq_id_o;              // SQ id
 wire [3:0] ex_subtype_o;            // 指令子类型
 wire [31:0] ex_rs2_data_o;          // rs2数据
@@ -247,7 +247,7 @@ LSU_EX u_LSU_EX(
 // ex_mem
 wire ex_mem_inst_valid_o;               // 指令有效标志
 wire [5:0] ex_mem_rob_id_o;             // ROB id
-wire [3:0] ex_mem_mask_o;               // 分支掩码
+wire [7:0] ex_mem_mask_o;               // 分支掩码
 wire [1:0] ex_mem_sq_id_o;              // SQ id
 wire [3:0] ex_mem_subtype_o;            // 指令子类型
 wire [31:0] ex_mem_rs2_data_o;          // rs2数据

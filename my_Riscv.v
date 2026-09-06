@@ -111,12 +111,12 @@ wire [5:0] rn_dp_praddr1_inst1_o;           // 指令1物理寄存器1读地址
 wire [5:0] rn_dp_praddr2_inst1_o;           // 指令1物理寄存器2读地址
 wire [5:0] rn_dp_pwaddr_inst0_o;            // 指令0物理寄存器写地址
 wire [5:0] rn_dp_pwaddr_inst1_o;            // 指令1物理寄存器写地址
-wire [3:0] rn_dp_branch_mask_inst0_o;       // 指令0分支掩码
-wire [3:0] rn_dp_branch_mask_inst1_o;       // 指令1分支掩码
+wire [7:0] rn_dp_branch_mask_inst0_o;       // 指令0分支掩码
+wire [7:0] rn_dp_branch_mask_inst1_o;       // 指令1分支掩码
 wire [5:0] rn_dp_old_paddr_inst0_o;         // 指令0旧物理寄存器地址
 wire [5:0] rn_dp_old_paddr_inst1_o;         // 指令1旧物理寄存器地址
-wire [1:0] rn_dp_snap_id_inst0_o;           // 指令0快照id
-wire [1:0] rn_dp_snap_id_inst1_o;           // 指令1快照id
+wire [2:0] rn_dp_snap_id_inst0_o;           // 指令0快照id
+wire [2:0] rn_dp_snap_id_inst1_o;           // 指令1快照id
 
 `ifdef use_f_extension
 wire [4:0] rn_dp_inst_f_subtype_port0_o;    // F扩展指令子类型
@@ -160,7 +160,7 @@ wire [31:0] fregs_store_rs2_rdata_o;     // 浮点store rs2数据
 // Issue模块输出信号
 wire iss_alu_inst_valid_inst0_o;       // ALU0指令有效标志
 wire [5:0] iss_alu_rob_id_inst0_o;     // ALU0 ROB id
-wire [3:0] iss_alu_mask_inst0_o;       // ALU0分支掩码
+wire [7:0] iss_alu_mask_inst0_o;       // ALU0分支掩码
 wire [3:0] iss_alu_subtype_inst0_o;    // ALU0指令子类型
 wire [1:0] iss_alu_op1_src_inst0_o;    // ALU0操作数1
 wire [1:0] iss_alu_op2_src_inst0_o;    // ALU0操作数2
@@ -170,7 +170,7 @@ wire [5:0] iss_alu_pwaddr_inst0_o;     // ALU0物理寄存器写地址
 wire [31:0] iss_alu_imm_inst0_o;       // ALU0立即数
 wire iss_alu_inst_valid_inst1_o;       // ALU1指令有效标志
 wire [5:0] iss_alu_rob_id_inst1_o;     // ALU1 ROB id
-wire [3:0] iss_alu_mask_inst1_o;       // ALU1分支掩码
+wire [7:0] iss_alu_mask_inst1_o;       // ALU1分支掩码
 wire [3:0] iss_alu_subtype_inst1_o;    // ALU1指令子类型
 wire [1:0] iss_alu_op1_src_inst1_o;    // ALU1操作数1
 wire [1:0] iss_alu_op2_src_inst1_o;    // ALU1操作数2
@@ -183,14 +183,14 @@ wire [15:0] iss_br_inst_addr_o;        // branch指令地址
 wire [5:0] iss_br_rob_id_o;            // branch ROB id
 wire iss_br_bpu_pre_flag_o;            // branch BPU预测标志
 wire [31:0] iss_br_bpu_pre_addr_o;     // branch BPU预测地址
-wire [3:0] iss_br_mask_o;              // branch分支掩码
+wire [7:0] iss_br_mask_o;              // branch分支掩码
 wire [2:0] iss_br_ras_ptr_o;           // branch RAS快照指针
 wire [2:0] iss_br_mem_wr_ptr_o;        // branch mem队列写操作快照指针
 wire [2:0] iss_br_sq_ptr_o;            // branch store queue快照指针
 wire [2:0] iss_br_alu_wr_ptr_o;        // branch ALU队列写操作快照指针
 wire [2:0] iss_br_branch_wr_ptr_o;     // branch branch队列写操作快照指针
 wire [2:0] iss_br_mul_div_wr_ptr_o;    // branch mul_div队列写操作快照指针
-wire [1:0] iss_br_snap_id_o;           // branch快照id
+wire [2:0] iss_br_snap_id_o;           // branch快照id
 wire [2:0] iss_br_type_o;              // branch指令类型
 wire [3:0] iss_br_subtype_o;           // branch指令子类型
 wire [1:0] iss_br_op1_src_o;           // branch操作数1
@@ -202,7 +202,7 @@ wire [31:0] iss_br_imm_o;              // branch立即数
 wire [31:0] iss_br_aux_addr_o;         // branch辅助地址
 wire iss_mem_inst_valid_o;             // mem指令有效标志
 wire [5:0] iss_mem_rob_id_o;           // mem ROB id
-wire [3:0] iss_mem_mask_o;             // mem分支掩码
+wire [7:0] iss_mem_mask_o;             // mem分支掩码
 wire [1:0] iss_mem_sq_id_o;            // mem SQ id
 wire [3:0] iss_mem_subtype_o;          // mem指令子类型
 wire [1:0] iss_mem_op1_src_o;          // mem操作数1
@@ -214,14 +214,14 @@ wire [31:0] iss_mem_imm_o;             // mem立即数
 `ifdef use_m_extension
 wire iss_mul_inst_valid_o;             // mul指令有效标志
 wire [5:0] iss_mul_rob_id_o;           // mul ROB id
-wire [3:0] iss_mul_mask_o;             // mul分支掩码
+wire [7:0] iss_mul_mask_o;             // mul分支掩码
 wire [3:0] iss_mul_subtype_o;          // mul指令子类型
 wire [5:0] iss_mul_praddr1_o;          // mul物理寄存器1读地址
 wire [5:0] iss_mul_praddr2_o;          // mul物理寄存器2读地址
 wire [5:0] iss_mul_pwaddr_o;           // mul物理寄存器写地址
 wire iss_div_inst_valid_o;             // div指令有效标志
 wire [5:0] iss_div_rob_id_o;           // div ROB id
-wire [3:0] iss_div_mask_o;             // div分支掩码
+wire [7:0] iss_div_mask_o;             // div分支掩码
 wire [3:0] iss_div_subtype_o;          // div指令子类型
 wire [5:0] iss_div_praddr1_o;          // div物理寄存器1读地址
 wire [5:0] iss_div_praddr2_o;          // div物理寄存器2读地址
@@ -258,7 +258,7 @@ wire [5:0] alu1_commit_rob_id_o;       // 提交ROB id
 
 // Branch模块输出信号
 wire br_jump_flag_o;                 // 跳转标志
-wire [1:0] br_kill_mask_id_o;        // 分支掩码id
+wire [2:0] br_kill_mask_id_o;        // 分支掩码id
 wire [2:0] br_ras_snap_ptr_o;        // RAS快照指针
 wire [2:0] br_mem_wr_ptr_o;          // branch mem队列写操作快照指针
 wire [2:0] br_sq_ptr_o;              // branch store queue快照指针
@@ -359,8 +359,8 @@ wire [5:0] rob_reg_waddr_o;                 // CSR指令写回阶段写寄存器
 wire [31:0] rob_reg_wdata_o;            // CSR指令写回阶段写寄存器数据
 wire rob_free_snap_flag_inst0_o;         // 指令0释放快照标志
 wire rob_free_snap_flag_inst1_o;         // 指令1释放快照标志
-wire [1:0] rob_free_snap_id_inst0_o;         // 指令0释放快照id
-wire [1:0] rob_free_snap_id_inst1_o;         // 指令1释放快照id
+wire [2:0] rob_free_snap_id_inst0_o;         // 指令0释放快照id
+wire [2:0] rob_free_snap_id_inst1_o;         // 指令1释放快照id
 wire rob_commit_inst0_o;                 // 指令0提交使能
 wire [4:0] rob_waddr_commit0_o;              // 提交指令的目标逻辑寄存器
 wire [5:0] rob_paddr_commit0_o;              // 提交指令的目标物理寄存器(成为架构状态)

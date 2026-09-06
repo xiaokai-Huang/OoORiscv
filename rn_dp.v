@@ -56,12 +56,12 @@ module rn_dp (
     input [5:0] praddr2_inst1_i,        // 指令1物理寄存器2读地址
     input [5:0] pwaddr_inst0_i,         // 指令0物理寄存器写地址
     input [5:0] pwaddr_inst1_i,         // 指令1物理寄存器写地址
-    input [3:0] branch_mask_inst0_i,    // 指令0分支掩码
-    input [3:0] branch_mask_inst1_i,    // 指令1分支掩码
+    input [7:0] branch_mask_inst0_i,    // 指令0分支掩码
+    input [7:0] branch_mask_inst1_i,    // 指令1分支掩码
     input [5:0] old_paddr_inst0_i,      // 指令0旧的物理寄存器映射
     input [5:0] old_paddr_inst1_i,      // 指令1旧的物理寄存器映射
-    input [1:0] snap_id_inst0_i,         // 指令0快照id
-    input [1:0] snap_id_inst1_i,         // 指令1快照id
+    input [2:0] snap_id_inst0_i,         // 指令0快照id
+    input [2:0] snap_id_inst1_i,         // 指令1快照id
     
     // from ctrl
     input int_flag_i,                          // 中断标志
@@ -71,9 +71,9 @@ module rn_dp (
 
     // from commit
     input free_mask_inst0_i,                   // 指令0释放掩码标志
-    input [1:0] free_id_inst0_i,               // 指令0释放id
+    input [2:0] free_id_inst0_i,               // 指令0释放id
     input free_mask_inst1_i,                   // 指令1释放掩码标志
-    input [1:0] free_id_inst1_i,               // 指令1释放id
+    input [2:0] free_id_inst1_i,               // 指令1释放id
 
     // to dispatch
     output reg [2:0] ras_snap_ptr_o,                 // RAS快照指针
@@ -110,12 +110,12 @@ module rn_dp (
     output reg [5:0] praddr2_inst1_o,                // 指令1物理寄存器2读地址
     output reg [5:0] pwaddr_inst0_o,                 // 指令0物理寄存器写地址
     output reg [5:0] pwaddr_inst1_o,                 // 指令1物理寄存器写地址
-    output reg [3:0] branch_mask_inst0_o,            // 指令0分支掩码
-    output reg [3:0] branch_mask_inst1_o,            // 指令1分支掩码
+    output reg [7:0] branch_mask_inst0_o,            // 指令0分支掩码
+    output reg [7:0] branch_mask_inst1_o,            // 指令1分支掩码
     output reg [5:0] old_paddr_inst0_o,              // 指令0旧的物理寄存器映射
     output reg [5:0] old_paddr_inst1_o,              // 指令1旧的物理寄存器映射
-    output reg [1:0] snap_id_inst0_o,                // 指令0快照id
-    output reg [1:0] snap_id_inst1_o                 // 指令1快照id
+    output reg [2:0] snap_id_inst0_o,                // 指令0快照id
+    output reg [2:0] snap_id_inst1_o                 // 指令1快照id
 
     `ifdef use_f_extension
     ,

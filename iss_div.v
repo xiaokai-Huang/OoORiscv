@@ -12,7 +12,7 @@ module iss_div (
     input div_stall_i,                // div暂停标志
     input issue_flag_i,               // 发射标志
     input [5:0] rob_id_i,             // ROB id
-    input [3:0] mask_i,               // 分支掩码
+    input [7:0] mask_i,               // 分支掩码
     input [3:0] subtype_i,            // 指令子类型
     input [5:0] praddr1_i,            // 物理寄存器1读地址
     input [5:0] praddr2_i,            // 物理寄存器2读地址
@@ -20,18 +20,18 @@ module iss_div (
 
     // from commit
     input free_mask_inst0_i,                   // 指令0释放掩码标志
-    input [1:0] free_id_inst0_i,               // 指令0释放id
+    input [2:0] free_id_inst0_i,               // 指令0释放id
     input free_mask_inst1_i,                   // 指令1释放掩码标志
-    input [1:0] free_id_inst1_i,               // 指令1释放id
+    input [2:0] free_id_inst1_i,               // 指令1释放id
 
     // from branch
     input jump_flag_i,                      // 跳转标志
-    input [1:0] kill_mask_id_i,             // 杀死指令掩码id
+    input [2:0] kill_mask_id_i,             // 杀死指令掩码id
 
     // to ex
     output reg inst_valid_o,          // 指令有效标志
     output reg [5:0] rob_id_o,        // ROB id
-    output reg [3:0] mask_o,          // 分支掩码
+    output reg [7:0] mask_o,          // 分支掩码
     output reg [3:0] subtype_o,       // 指令子类型
     output reg [5:0] praddr1_o,       // 物理寄存器1读地址
     output reg [5:0] praddr2_o,       // 物理寄存器2读地址
@@ -39,7 +39,7 @@ module iss_div (
 
 );
 
-reg [3:0] next_mask;
+reg [7:0] next_mask;
 always @(*) begin
     next_mask = mask_o;
     if (free_mask_inst0_i) begin
@@ -50,7 +50,7 @@ always @(*) begin
     end
 end
 
-wire [3:0] kill_mask = jump_flag_i ? (4'b0001 << kill_mask_id_i) : 4'b0000;
+wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_0000;
 wire next_valid = inst_valid_o && ((mask_o & kill_mask) == 0); // 如果指令的掩码位被kill_mask覆盖，则无效
 
 always @(posedge clk) begin

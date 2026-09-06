@@ -13,14 +13,14 @@ module iss_br (
     input [5:0] rob_id_i,             // ROB id
     input bpu_pre_flag_i,             // BPU预测标志
     input [31:0] bpu_pre_addr_i,      // BPU预测地址
-    input [3:0] mask_i,               // 分支掩码
+    input [7:0] mask_i,               // 分支掩码
     input [2:0] ras_ptr_i,            // RAS快照指针
     input [2:0] mem_wr_ptr_i,         // mem队列写操作快照指针
     input [2:0] sq_ptr_i,             // store queue快照指针
     input [2:0] alu_wr_ptr_i,         // ALU队列写操作快照指针
     input [2:0] branch_wr_ptr_i,      // branch队列写操作快照指针
     input [2:0] mul_div_wr_ptr_i,     // mul_div队列写操作快照指针
-    input [1:0] snap_id_i,            // 快照id
+    input [2:0] snap_id_i,            // 快照id
     input [2:0] type_i,               // 指令类型
     input [3:0] subtype_i,            // 指令子类型
     input [1:0] op1_src_i,            // 操作数1来源选择
@@ -37,14 +37,14 @@ module iss_br (
     output reg [5:0] rob_id_o,        // ROB id
     output reg bpu_pre_flag_o,        // BPU预测标志
     output reg [31:0] bpu_pre_addr_o, // BPU预测地址
-    output reg [3:0] mask_o,          // 分支掩码
+    output reg [7:0] mask_o,          // 分支掩码
     output reg [2:0] ras_ptr_o,       // RAS快照指针
     output reg [2:0] mem_wr_ptr_o,    // mem队列写操作快照指针
     output reg [2:0] sq_ptr_o,        // store queue快照指针
     output reg [2:0] alu_wr_ptr_o,    // ALU队列写操作快照指针
     output reg [2:0] branch_wr_ptr_o, // branch队列写操作快照指针
     output reg [2:0] mul_div_wr_ptr_o,// mul_div队列写操作快照指针
-    output reg [1:0] snap_id_o,       // 快照id
+    output reg [2:0] snap_id_o,       // 快照id
     output reg [2:0] type_o,          // 指令类型
     output reg [3:0] subtype_o,       // 指令子类型
     output reg [1:0] op1_src_o,       // 操作数1

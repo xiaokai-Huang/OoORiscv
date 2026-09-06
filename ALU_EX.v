@@ -6,7 +6,7 @@ module ALU_EX (
     // from RF
     input inst_valid_i,                 // ALU指令有效标志
     input [5:0] rob_id_i,               // ALU ROB id
-    input [3:0] mask_i,                 // ALU分支掩码
+    input [7:0] mask_i,                 // ALU分支掩码
     input [3:0] subtype_i,              // ALU指令子类型
     input [1:0] op1_src_i,              // ALU操作数1
     input [1:0] op2_src_i,              // ALU操作数2
@@ -17,7 +17,7 @@ module ALU_EX (
 
     // from branch
     input jump_flag_i,                  // 跳转标志
-    input [1:0] kill_mask_id_i,         // 分支掩码id
+    input [2:0] kill_mask_id_i,         // 分支掩码id
 
     // to wb
     output inst_valid_o,                 // ALU指令有效标志
@@ -28,7 +28,7 @@ module ALU_EX (
 );
 
 // 冲刷逻辑
-wire [3:0] kill_mask = jump_flag_i ? (4'b0001 << kill_mask_id_i) : 4'b0000;
+wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_0000;
 assign inst_valid_o = inst_valid_i && ((mask_i & kill_mask) == 0); // 如果指令的掩码位被kill_mask覆盖，则无效
 // 执行
 assign rob_id_o = rob_id_i;

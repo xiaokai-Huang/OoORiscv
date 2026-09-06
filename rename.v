@@ -10,7 +10,7 @@ module rename(
     // from ctrl
     input int_flag_i,                  // 中断信号
     input flush_i,                     // 流水线冲刷信号
-    input [1:0] restore_snap_id_i,     // 需要恢复的快照id
+    input [2:0] restore_snap_id_i,     // 需要恢复的快照id
     input alloc_snap_inst0_i,          // 为指令0分配快照标志
     input alloc_snap_inst1_i,          // 为指令1分配快照标志
 
@@ -37,8 +37,8 @@ module rename(
     input free_snap_flag_inst1_i,         // 指令1释放快照标志
 
     // 释放 ID，用于清理内部 Mask
-    input [1:0] free_snap_id_inst0_i,     
-    input [1:0] free_snap_id_inst1_i,
+    input [2:0] free_snap_id_inst0_i,     
+    input [2:0] free_snap_id_inst1_i,
     
     input commit_inst0_i,                 // 指令0提交使能
     input [4:0] waddr_commit0_i,          // 提交指令的目标逻辑寄存器
@@ -64,8 +64,8 @@ module rename(
     output reg [5:0] pwaddr_inst0_o,         // 分配的物理寄存器地址
     output reg [5:0] pwaddr_inst1_o,         // 分配的物理寄存器地址
 
-    output reg [3:0] branch_mask_inst0_o,    // 指令0携带的依赖掩码
-    output reg [3:0] branch_mask_inst1_o,    // 指令1携带的依赖掩码
+    output reg [7:0] branch_mask_inst0_o,    // 指令0携带的依赖掩码
+    output reg [7:0] branch_mask_inst1_o,    // 指令1携带的依赖掩码
 
     // To ROB - 旧的物理映射 (用于提交时释放)
     output reg [5:0] old_paddr_inst0_o,
@@ -76,8 +76,8 @@ module rename(
     output alloc_flag_inst1_o,             // Inst1是否分配物理寄存器
 
     // To Dispatch - 分配给当前分支指令的快照 ID (随指令流水线流动)
-    output reg [1:0] snap_id_inst0_o,
-    output reg [1:0] snap_id_inst1_o
+    output reg [2:0] snap_id_inst0_o,
+    output reg [2:0] snap_id_inst1_o
 
 );
 
@@ -95,21 +95,21 @@ module rename(
     // 资源计数器
     reg [5:0] free_cnt;           // 空闲物理寄存器数量
 
-    // 快照存储 (4组备份)
-    reg [5:0] rat_snapshots[0:3][0:31];
-    reg [5:0] head_snapshots[0:3];
+    // 快照存储 (8组备份)
+    reg [5:0] rat_snapshots[0:7][0:31];
+    reg [5:0] head_snapshots[0:7];
 
     // Mask 快照存储 (备份进入分支前的 Mask)
-    reg [3:0] mask_snapshots[0:3];
+    reg [7:0] mask_snapshots[0:7];
 
     // 当前全局 Mask
-    reg [3:0] current_mask;
+    reg [7:0] current_mask;
 
-    reg [1:0] next_alloc_ptr;   // 下一个可用快照 ID
-    reg [2:0] active_snap_cnt;  // 当前活跃（已分配）的快照数量
+    reg [2:0] next_alloc_ptr;   // 下一个可用快照 ID
+    reg [3:0] active_snap_cnt;  // 当前活跃（已分配）的快照数量
 
-    reg [1:0] next_snap_id_0;
-    reg [1:0] next_snap_id_1;
+    reg [2:0] next_snap_id_0;
+    reg [2:0] next_snap_id_1;
 
     // 计算快照需求
     wire [1:0] req_snaps = alloc_snap_inst0_i + alloc_snap_inst1_i;
@@ -144,8 +144,8 @@ module rename(
     wire lack_regs = (req_regs == 2'd2) ? (free_cnt == 6'd0 || free_cnt == 6'd1) : 
                      (req_regs == 2'd1) ? (free_cnt == 6'd0) : 1'b0;
 
-    wire lack_snaps = (req_snaps == 2'd2) ? (active_snap_cnt >= 3'd3) : 
-                      (req_snaps == 2'd1) ? (active_snap_cnt >= 3'd4) : 1'b0;
+    wire lack_snaps = (req_snaps == 2'd2) ? (active_snap_cnt >= 4'd7) : 
+                      (req_snaps == 2'd1) ? (active_snap_cnt >= 4'd8) : 1'b0;
 
     assign stall_o = lack_regs || lack_snaps || stall_flag_i;
     assign stall_dp_o = lack_regs || lack_snaps;
@@ -197,7 +197,7 @@ module rename(
 
         // Inst1 Mask: 继承中间环境
         if (alloc_snap_inst0_i)
-            branch_mask_inst1_o = current_mask | (4'b1 << next_snap_id_0);
+            branch_mask_inst1_o = current_mask | (8'b1 << next_snap_id_0);
         else
             branch_mask_inst1_o = current_mask;
         if (free_snap_flag_inst0_i) branch_mask_inst1_o[free_snap_id_inst0_i] = 1'b0; // 释放快照时，强制清除对应位
@@ -231,20 +231,20 @@ module rename(
         end
     end
     // 时序逻辑更新
-    wire [1:0] rollback_dist = next_alloc_ptr - restore_snap_id_i - 1'b1; // 计算回滚步数 (在环上的距离)
+    wire [2:0] rollback_dist = next_alloc_ptr - restore_snap_id_i - 1'b1; // 计算回滚步数 (在环上的距离)
     // 计算本周期释放了几个快照 (Commit阶段)
-    wire [1:0] total_release_snaps = (free_snap_flag_inst0_i ? 1'b1 : 1'b0) + 
+    wire [2:0] total_release_snaps = (free_snap_flag_inst0_i ? 1'b1 : 1'b0) + 
                                      (free_snap_flag_inst1_i ? 1'b1 : 1'b0);
     
     // 掩码更新临时变量
-    reg [3:0] mask_alloc_update;
-    reg [3:0] mask_final_update;
+    reg [7:0] mask_alloc_update;
+    reg [7:0] mask_final_update;
     always @(*) begin
         mask_alloc_update = current_mask;
         // 分配
         if (do_alloc) begin
             if (alloc_snap_inst1_i)
-                mask_alloc_update = branch_mask_inst1_o | (4'b1 << next_snap_id_1);
+                mask_alloc_update = branch_mask_inst1_o | (8'b1 << next_snap_id_1);
             else if (alloc_snap_inst0_i)
                 mask_alloc_update = branch_mask_inst1_o;
             else
@@ -257,12 +257,12 @@ module rename(
     end
     
     // 冲刷恢复mask
-    reg [3:0] younger_mask; // 晚辈掩码
+    reg [7:0] younger_mask; // 晚辈掩码
     integer j;
     always @(*) begin
-        younger_mask = 4'b0;
-        // 遍历所有 4 个槽位
-        for (j = 0; j < 4; j = j + 1) begin
+        younger_mask = 8'b0;
+        // 遍历所有 8 个槽位
+        for (j = 0; j < 8; j = j + 1) begin
             // 判断 j 是否属于 (restore_id, next_alloc_ptr) 这一段环形区间（开区间）
             if (next_alloc_ptr > restore_snap_id_i) begin
                 // 正常情况：区间在 [restore+1, next-1]
@@ -276,7 +276,7 @@ module rename(
             end
         end
     end
-    reg [3:0] mask_restored;
+    reg [7:0] mask_restored;
     always @(*) begin
         // 先计算基本的恢复值
         mask_restored = (mask_snapshots[restore_snap_id_i] & current_mask) & (~younger_mask);
@@ -294,16 +294,16 @@ module rename(
                 RAT[i] <= i[5:0];    
                 committed_RAT[i] <= i[5:0];
                 // 初始化 Free List (p32-p63 空闲)
-                free_list[i] <= i[5:0] + 6'd32;    
+                free_list[i] <= i[5:0] + 6'd32;
             end
             head_ptr <= 6'd0;     // 初始化分配指针
             tail_ptr <= 6'd0;     // 初始化回收指针
             free_cnt <= 6'd32;    // 初始32个空闲物理寄存器
             
             // 快照复位
-            next_alloc_ptr <= 2'd0;
-            active_snap_cnt <= 3'd0;
-            current_mask <= 4'd0;
+            next_alloc_ptr <= 3'd0;
+            active_snap_cnt <= 4'd0;
+            current_mask <= 8'd0;
         end
         else if (int_flag_i) begin
             // 中断恢复 (最高优先级)
@@ -315,9 +315,9 @@ module rename(
             free_cnt <= 6'd32;    // 回到满状态(32个真正空闲)
 
             // 释放所有快照
-            next_alloc_ptr <= 2'd0;
-            active_snap_cnt <= 3'd0;
-            current_mask <= 4'd0;
+            next_alloc_ptr <= 3'd0;
+            active_snap_cnt <= 4'd0;
+            current_mask <= 8'd0;
         end
         else if (flush_i) begin
             // 分支预测错误恢复
@@ -378,7 +378,7 @@ module rename(
 
                 // 更新下一个分配指针
                 if (alloc_snap_inst0_i && alloc_snap_inst1_i)
-                    next_alloc_ptr <= next_alloc_ptr + 2'd2;
+                    next_alloc_ptr <= next_alloc_ptr + 3'd2;
                 else if (alloc_snap_inst0_i || alloc_snap_inst1_i)
                     next_alloc_ptr <= next_alloc_ptr + 1'b1;
             end
@@ -387,7 +387,7 @@ module rename(
             current_mask <= mask_final_update;
 
             // 更新活跃快照计数器
-            active_snap_cnt <= active_snap_cnt - {1'b0, total_release_snaps} + (do_alloc ? {1'b0, req_snaps} : 3'd0);
+            active_snap_cnt <= active_snap_cnt - {1'b0, total_release_snaps} + (do_alloc ? {2'b0, req_snaps} : 4'd0);
 
 
             // 提交/回收逻辑

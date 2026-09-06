@@ -9,7 +9,7 @@ module alu_rf_ex (
     // from RF
     input inst_valid_i,                 // ALU指令有效标志
     input [5:0] rob_id_i,               // ALU ROB id
-    input [3:0] mask_i,                 // ALU分支掩码
+    input [7:0] mask_i,                 // ALU分支掩码
     input [3:0] subtype_i,              // ALU指令子类型
     input [1:0] op1_src_i,              // ALU操作数1
     input [1:0] op2_src_i,              // ALU操作数2
@@ -24,7 +24,7 @@ module alu_rf_ex (
     // to ex
     output reg inst_valid_o,             // ALU指令有效标志
     output reg [5:0] rob_id_o,           // ALU ROB id
-    output reg [3:0] mask_o,             // ALU分支掩码
+    output reg [7:0] mask_o,             // ALU分支掩码
     output reg [3:0] subtype_o,          // ALU指令子类型
     output reg [1:0] op1_src_o,          // ALU操作数1
     output reg [1:0] op2_src_o,          // ALU操作数2
