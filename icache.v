@@ -19,17 +19,17 @@ module icache (
 );
 
 // 地址映射
-wire [6:0] tag;              // 标签
-assign tag = pc[15:9];
+wire [5:0] tag;              // 标签
+assign tag = pc[15:10];
 
-wire [3:0] index;            // 索引
-assign index = pc[8:5];
+wire [4:0] index;            // 索引
+assign index = pc[9:5];
 
-wire [1:0] offset;                 // 偏移
+wire [1:0] offset;           // 偏移
 assign offset = pc[4:3];
 
 wire [255:0] icache_rdata[0:1];
-wire [6:0]   icache_tag_rdata[0:1];
+wire [5:0]   icache_tag_rdata[0:1];
 wire         icache_valid_rdata[0:1];
 
 wire icache_way0_we, icache_way1_we;
@@ -84,11 +84,11 @@ always @(*) begin
     end
 end
 
-reg lru_way[0:15];
+reg lru_way[0:31];
 integer i;
 always @(posedge clk or negedge rst) begin
     if(!rst) begin
-        for(i = 0; i < 16; i = i + 1) begin
+        for(i = 0; i < 32; i = i + 1) begin
             lru_way[i] <= 1'b0;
         end
     end
