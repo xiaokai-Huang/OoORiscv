@@ -15,8 +15,14 @@ module ALU (
     input [1:0] op2_src_i,              // ALU操作数2
     input [5:0] praddr1_i,              // ALU物理寄存器1读地址
     input [5:0] praddr2_i,              // ALU物理寄存器2读地址
+    input rs1_dep_mem_rf_i,             // rs1依赖访存结果
+    input rs2_dep_mem_rf_i,             // rs2依赖访存结果
     input [5:0] pwaddr_i,               // ALU物理寄存器写地址
     input [31:0] imm_i,                 // ALU立即数
+
+    // from LSU
+    input mem_stall_i,                  // 访存暂停标志
+    input [31:0] load_reg_wdata_i,      // load阶段写寄存器数据
 
     // from forward_unit
     input rs1_forward_flag_i,           // rs1转发标志
@@ -69,6 +75,7 @@ wire [1:0] rf_op2_src_o;              // ALU操作数2
 wire [31:0] rf_reg_rdata1_o;          // 寄存器1读数据
 wire [31:0] rf_reg_rdata2_o;          // 寄存器2读数据
 wire [31:0] rf_imm_o;                 // ALU立即数
+wire rf_reg_wflag;
 
 // alu_rf_ex
 wire rf_ex_inst_valid_o;             // ALU指令有效标志
@@ -126,7 +133,7 @@ ALU_RF u_ALU_RF(
     // to regs
     .praddr1_o(rf_raddr1_o),             // 读寄存器1地址
     .praddr2_o(rf_raddr2_o),             // 读寄存器2地址
-    .rf_wflag_o(rf_wflag_o),             // RF 阶段写寄存器标志
+    .rf_wflag_o(rf_reg_wflag),             // RF 阶段写寄存器标志
     .rf_waddr_o(rf_waddr_o),             // RF 阶段写寄存器地址(同时传到issue阶段和ex)
     // to ex
     .inst_valid_o(rf_inst_valid_o),                 // ALU指令有效标志
@@ -140,10 +147,17 @@ ALU_RF u_ALU_RF(
     .imm_o(rf_imm_o)                  // ALU立即数
 );
 
+// 依赖访存结果的暂停与数据旁路
+wire stall_rf = inst_valid_i && (rs1_dep_mem_rf_i || rs2_dep_mem_rf_i) && mem_stall_i;
+wire [31:0] final_rs1_data = rs1_dep_mem_rf_i ? load_reg_wdata_i : rf_reg_rdata1_o;
+wire [31:0] final_rs2_data = rs2_dep_mem_rf_i ? load_reg_wdata_i : rf_reg_rdata2_o;
+assign rf_wflag_o = rf_reg_wflag && !stall_rf;
+
 // alu_rf_ex
 alu_rf_ex u_alu_rf_ex(
     .clk(clk),
     .rst(rst),
+    .stall_i(stall_rf),
     // from RF
     .inst_valid_i(rf_inst_valid_o),                 // ALU指令有效标志
     .rob_id_i(rf_rob_id_o),               // ALU ROB id
@@ -151,8 +165,8 @@ alu_rf_ex u_alu_rf_ex(
     .subtype_i(rf_subtype_o),              // ALU指令子类型
     .op1_src_i(rf_op1_src_o),              // ALU操作数1
     .op2_src_i(rf_op2_src_o),              // ALU操作数2
-    .reg_rdata1_i(rf_reg_rdata1_o),          // 寄存器1读数据
-    .reg_rdata2_i(rf_reg_rdata2_o),          // 寄存器2读数据
+    .reg_rdata1_i(final_rs1_data),          // 寄存器1读数据
+    .reg_rdata2_i(final_rs2_data),          // 寄存器2读数据
     .pwaddr_i(rf_waddr_o),               // ALU物理寄存器写地址
     .imm_i(rf_imm_o),                 // ALU立即数
     // from clint

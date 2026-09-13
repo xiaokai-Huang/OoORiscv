@@ -5,6 +5,7 @@
 module alu_rf_ex (
     input clk,
     input rst,
+    input stall_i,
 
     // from RF
     input inst_valid_i,                 // ALU指令有效标志
@@ -41,6 +42,10 @@ always @(posedge clk) begin
     end
     else if (int_flag_i) begin
         inst_valid_o <= 1'b0; // 中断发生时清空流水线
+        pwaddr_o <= 6'b0;
+    end
+    else if (stall_i) begin
+        inst_valid_o <= 1'b0;
         pwaddr_o <= 6'b0;
     end
     else begin

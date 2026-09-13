@@ -178,6 +178,10 @@ wire [5:0] iss_alu_praddr1_inst1_o;    // ALU1物理寄存器1读地址
 wire [5:0] iss_alu_praddr2_inst1_o;    // ALU1物理寄存器2读地址
 wire [5:0] iss_alu_pwaddr_inst1_o;     // ALU1物理寄存器写地址
 wire [31:0] iss_alu_imm_inst1_o;       // ALU1立即数
+wire iss_alu_rs1_dep_mem_rf_inst0_o;    // ALU0 rs1依赖访存结果
+wire iss_alu_rs2_dep_mem_rf_inst0_o;    // ALU0 rs2依赖访存结果
+wire iss_alu_rs1_dep_mem_rf_inst1_o;    // ALU1 rs1依赖访存结果
+wire iss_alu_rs2_dep_mem_rf_inst1_o;    // ALU1 rs2依赖访存结果
 wire iss_br_inst_valid_o;              // branch指令有效标志
 wire [15:0] iss_br_inst_addr_o;        // branch指令地址
 wire [5:0] iss_br_rob_id_o;            // branch ROB id
@@ -200,7 +204,11 @@ wire [5:0] iss_br_praddr2_o;           // branch物理寄存器2读地址
 wire [5:0] iss_br_pwaddr_o;            // branch物理寄存器写地址
 wire [31:0] iss_br_imm_o;              // branch立即数
 wire [31:0] iss_br_aux_addr_o;         // branch辅助地址
+wire iss_br_rs1_dep_mem_rf_o;           // branch rs1依赖访存结果
+wire iss_br_rs2_dep_mem_rf_o;           // branch rs2依赖访存结果
 wire iss_mem_inst_valid_o;             // mem指令有效标志
+wire iss_mem_rs1_dep_rf_o;             // mem rs1依赖访存结果
+wire iss_mem_rs2_dep_rf_o;             // mem rs2依赖访存结果
 wire [5:0] iss_mem_rob_id_o;           // mem ROB id
 wire [7:0] iss_mem_mask_o;             // mem分支掩码
 wire [1:0] iss_mem_sq_id_o;            // mem SQ id
@@ -218,6 +226,8 @@ wire [7:0] iss_mul_mask_o;             // mul分支掩码
 wire [3:0] iss_mul_subtype_o;          // mul指令子类型
 wire [5:0] iss_mul_praddr1_o;          // mul物理寄存器1读地址
 wire [5:0] iss_mul_praddr2_o;          // mul物理寄存器2读地址
+wire iss_mul_rs1_dep_mem_rf_o;         // rs1依赖访存结果
+wire iss_mul_rs2_dep_mem_rf_o;         // rs2依赖访存结果
 wire [5:0] iss_mul_pwaddr_o;           // mul物理寄存器写地址
 wire iss_div_inst_valid_o;             // div指令有效标志
 wire [5:0] iss_div_rob_id_o;           // div ROB id
@@ -719,6 +729,10 @@ Issue u_Issue(
     .alu_praddr2_inst1_o(iss_alu_praddr2_inst1_o),    // ALU1物理寄存器2读地址
     .alu_pwaddr_inst1_o(iss_alu_pwaddr_inst1_o),     // ALU1物理寄存器写地址
     .alu_imm_inst1_o(iss_alu_imm_inst1_o),       // ALU1立即数
+    .alu_rs1_dep_mem_rf_inst0_o(iss_alu_rs1_dep_mem_rf_inst0_o),   // ALU0 rs1依赖访存结果
+    .alu_rs2_dep_mem_rf_inst0_o(iss_alu_rs2_dep_mem_rf_inst0_o),   // ALU0 rs2依赖访存结果
+    .alu_rs1_dep_mem_rf_inst1_o(iss_alu_rs1_dep_mem_rf_inst1_o),   // ALU1 rs1依赖访存结果
+    .alu_rs2_dep_mem_rf_inst1_o(iss_alu_rs2_dep_mem_rf_inst1_o),   // ALU1 rs2依赖访存结果
     // to branch
     .br_inst_valid_o(iss_br_inst_valid_o),              // branch指令有效标志
     .br_inst_addr_o(iss_br_inst_addr_o),                // branch指令地址
@@ -742,8 +756,12 @@ Issue u_Issue(
     .br_pwaddr_o(iss_br_pwaddr_o),            // branch物理寄存器写地址
     .br_imm_o(iss_br_imm_o),              // branch立即数
     .br_aux_addr_o(iss_br_aux_addr_o),         // branch辅助地址
+    .br_rs1_dep_mem_rf_o(iss_br_rs1_dep_mem_rf_o),          // branch rs1依赖访存结果
+    .br_rs2_dep_mem_rf_o(iss_br_rs2_dep_mem_rf_o),          // branch rs2依赖访存结果
     // to mem
     .mem_inst_valid_o(iss_mem_inst_valid_o),             // mem指令有效标志
+    .mem_rs1_dep_rf_o(iss_mem_rs1_dep_rf_o),             // mem rs1依赖访存结果
+    .mem_rs2_dep_rf_o(iss_mem_rs2_dep_rf_o),             // mem rs2依赖访存结果
     .mem_rob_id_o(iss_mem_rob_id_o),                       // mem ROB id
     .mem_mask_o(iss_mem_mask_o),             // mem分支掩码
     .mem_sq_id_o(iss_mem_sq_id_o),            // mem SQ id
@@ -762,6 +780,8 @@ Issue u_Issue(
     .mul_subtype_o(iss_mul_subtype_o),          // mul指令子类型
     .mul_praddr1_o(iss_mul_praddr1_o),          // mul物理寄存器1读地址
     .mul_praddr2_o(iss_mul_praddr2_o),          // mul物理寄存器2读地址
+    .mul_rs1_dep_mem_rf_o(iss_mul_rs1_dep_mem_rf_o),         // rs1依赖访存结果
+    .mul_rs2_dep_mem_rf_o(iss_mul_rs2_dep_mem_rf_o),         // rs2依赖访存结果
     .mul_pwaddr_o(iss_mul_pwaddr_o),           // mul物理寄存器写地址
     // to div
     .div_inst_valid_o(iss_div_inst_valid_o),             // div指令有效标志
@@ -791,8 +811,13 @@ ALU u_ALU_0(
     .op2_src_i(iss_alu_op2_src_inst0_o),              // ALU操作数2
     .praddr1_i(iss_alu_praddr1_inst0_o),              // ALU物理寄存器1读地址
     .praddr2_i(iss_alu_praddr2_inst0_o),              // ALU物理寄存器2读地址
+    .rs1_dep_mem_rf_i(iss_alu_rs1_dep_mem_rf_inst0_o),         // rs1依赖访存结果
+    .rs2_dep_mem_rf_i(iss_alu_rs2_dep_mem_rf_inst0_o),         // rs2依赖访存结果
     .pwaddr_i(iss_alu_pwaddr_inst0_o),               // ALU物理寄存器写地址
     .imm_i(iss_alu_imm_inst0_o),                 // ALU立即数
+    // from LSU
+    .mem_stall_i(lsu_stall_o),
+    .load_reg_wdata_i(lsu_mem_reg_wdata_o),          // load阶段写寄存器数据
     // from forward_unit
     .rs1_forward_flag_i(alu0_rs1_forward_flag_o),           // rs1转发标志
     .rs1_forward_data_i(alu0_rs1_forward_data_o),    // rs1转发数据
@@ -840,8 +865,13 @@ ALU u_ALU_1(
     .op2_src_i(iss_alu_op2_src_inst1_o),              // ALU操作数2
     .praddr1_i(iss_alu_praddr1_inst1_o),              // ALU物理寄存器1读地址
     .praddr2_i(iss_alu_praddr2_inst1_o),              // ALU物理寄存器2读地址
+    .rs1_dep_mem_rf_i(iss_alu_rs1_dep_mem_rf_inst1_o),         // rs1依赖访存结果
+    .rs2_dep_mem_rf_i(iss_alu_rs2_dep_mem_rf_inst1_o),         // rs2依赖访存结果
     .pwaddr_i(iss_alu_pwaddr_inst1_o),               // ALU物理寄存器写地址
     .imm_i(iss_alu_imm_inst1_o),                 // ALU立即数
+    // from LSU
+    .mem_stall_i(lsu_stall_o),
+    .load_reg_wdata_i(lsu_mem_reg_wdata_o),          // load阶段写寄存器数据
     // from forward_unit
     .rs1_forward_flag_i(alu1_rs1_forward_flag_o),           // rs1转发标志
     .rs1_forward_data_i(alu1_rs1_forward_data_o),    // rs1转发数据
@@ -898,9 +928,14 @@ Branch u_Branch(
     .br_subtype_i(iss_br_subtype_o),           // branch指令子类型
     .br_praddr1_i(iss_br_praddr1_o),           // branch物理寄存器1读地址
     .br_praddr2_i(iss_br_praddr2_o),           // branch物理寄存器2读地址
+    .rs1_dep_mem_rf_i(iss_br_rs1_dep_mem_rf_o),         // rs1依赖访存结果
+    .rs2_dep_mem_rf_i(iss_br_rs2_dep_mem_rf_o),         // rs2依赖访存结果
     .br_pwaddr_i(iss_br_pwaddr_o),            // branch物理寄存器写地址
     .br_imm_i(iss_br_imm_o),              // branch立即数
     .br_aux_addr_i(iss_br_aux_addr_o),         // branch辅助地址
+    // from LSU
+    .mem_stall_i(lsu_stall_o),
+    .load_reg_wdata_i(lsu_mem_reg_wdata_o),          // load阶段写寄存器数据
     // from forward_unit
     .rs1_forward_flag_i(branch_rs1_forward_flag_o),           // rs1转发标志
     .rs1_forward_data_i(branch_rs1_forward_data_o),    // rs1转发数据
@@ -970,6 +1005,8 @@ LSU u_LSU(
     .rst(rst),
     // from issue
     .inst_valid_i(iss_mem_inst_valid_o),               // 指令有效标志
+    .rs1_dep_rf_i(iss_mem_rs1_dep_rf_o),             // rs1依赖访存结果
+    .rs2_dep_rf_i(iss_mem_rs2_dep_rf_o),             // rs2依赖访存结果
     .rob_id_i(iss_mem_rob_id_o),             // ROB id
     .mask_i(iss_mem_mask_o),               // 分支掩码
     .sq_id_i(iss_mem_sq_id_o),              // SQ id
@@ -1052,7 +1089,12 @@ MUL u_MUL(
     .subtype_i(iss_mul_subtype_o),            // 指令子类型
     .praddr1_i(iss_mul_praddr1_o),            // 物理寄存器1读地址
     .praddr2_i(iss_mul_praddr2_o),            // 物理寄存器2读地址
+    .rs1_dep_mem_rf_i(iss_mul_rs1_dep_mem_rf_o),         // rs1依赖访存结果
+    .rs2_dep_mem_rf_i(iss_mul_rs2_dep_mem_rf_o),         // rs2依赖访存结果
     .pwaddr_i(iss_mul_pwaddr_o),             // 物理寄存器写地址
+    // from LSU
+    .mem_stall_i(lsu_stall_o),
+    .load_reg_wdata_i(lsu_mem_reg_wdata_o),          // load阶段写寄存器数据
     // from forward_unit
     .rs1_forward_flag_i(mul_rs1_forward_flag_o),           // rs1转发标志
     .rs1_forward_data_i(mul_rs1_forward_data_o),    // rs1转发数据

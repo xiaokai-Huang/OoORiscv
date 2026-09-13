@@ -11,6 +11,8 @@ module iss_mem (
     input flush_flag_i,               // 冲刷标志
     input mem_stall_i,                // 访存暂停标志
     input issue_flag_i,               // 发射标志
+    input rs1_dep_rf_i,               // rs1依赖访存结果
+    input rs2_dep_rf_i,               // rs2依赖访存结果
     input [5:0] rob_id_i,             // ROB id
     input [7:0] mask_i,               // 分支掩码
     input [1:0] sq_id_i,              // SQ id
@@ -34,6 +36,8 @@ module iss_mem (
 
     // to ex
     output reg inst_valid_o,          // 指令有效标志
+    output reg rs1_dep_rf_o,          // rs1依赖访存结果
+    output reg rs2_dep_rf_o,          // rs2依赖访存结果
     output reg [5:0] rob_id_o,        // ROB id
     output reg [7:0] mask_o,          // 分支掩码
     output reg [1:0] sq_id_o,         // SQ id
@@ -108,6 +112,8 @@ always @(posedge clk) begin
         op2_src_o <= op2_src_i;
         praddr1_o <= praddr1_i;
         praddr2_o <= praddr2_i;
+        rs1_dep_rf_o <= rs1_dep_rf_i;
+        rs2_dep_rf_o <= rs2_dep_rf_i;
         imm_o <= imm_i;
     end
 end

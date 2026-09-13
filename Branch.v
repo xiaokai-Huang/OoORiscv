@@ -24,9 +24,15 @@ module Branch (
     input [3:0] br_subtype_i,           // branch指令子类型
     input [5:0] br_praddr1_i,           // branch物理寄存器1读地址
     input [5:0] br_praddr2_i,           // branch物理寄存器2读地址
+    input rs1_dep_mem_rf_i,             // rs1依赖访存结果
+    input rs2_dep_mem_rf_i,             // rs2依赖访存结果
     input [5:0] br_pwaddr_i,            // branch物理寄存器写地址
     input [31:0] br_imm_i,              // branch立即数
     input [31:0] br_aux_addr_i,         // branch辅助地址
+
+    // from LSU
+    input mem_stall_i,                  // 访存暂停标志
+    input [31:0] load_reg_wdata_i,      // load阶段写寄存器数据
 
     // from forward_unit
     input rs1_forward_flag_i,           // rs1转发标志
@@ -100,6 +106,7 @@ wire [31:0] rf_br_rs1_data_o;         // rs1数据
 wire [31:0] rf_br_rs2_data_o;         // rs2数据
 wire [31:0] rf_br_imm_o;              // branch立即数
 wire [31:0] rf_br_aux_addr_o;         // branch辅助地址
+wire rf_reg_wflag;
 
 // br_rf_ex
 wire rf_ex_br_inst_valid_o;              // branch指令有效标志
@@ -174,7 +181,7 @@ br_rf u_br_rf(
     // to regs
     .rf_raddr1_o(rf_raddr1_o),           // RF 阶段读寄存器1地址（同时传到转发模块）
     .rf_raddr2_o(rf_raddr2_o),           // RF 阶段读寄存器2地址（同时传到转发模块）
-    .rf_wflag_o(rf_wflag_o),                  // RF 阶段写寄存器标志
+    .rf_wflag_o(rf_reg_wflag),                  // RF 阶段写寄存器标志
     .rf_waddr_o(rf_waddr_o),            // RF 阶段写寄存器地址(同时传到issue阶段和ex阶段)
     // to ex
     .br_inst_valid_o(rf_br_inst_valid_o),              // branch指令有效标志
@@ -198,10 +205,17 @@ br_rf u_br_rf(
     .br_aux_addr_o(rf_br_aux_addr_o)          // branch辅助地址
 );
 
+// 依赖访存结果的暂停与数据旁路
+wire stall_rf = br_inst_valid_i && (rs1_dep_mem_rf_i || rs2_dep_mem_rf_i) && mem_stall_i;
+wire [31:0] final_rs1_data = rs1_dep_mem_rf_i ? load_reg_wdata_i : rf_br_rs1_data_o;
+wire [31:0] final_rs2_data = rs2_dep_mem_rf_i ? load_reg_wdata_i : rf_br_rs2_data_o;
+assign rf_wflag_o = rf_reg_wflag && !stall_rf;
+
 // br_rf_ex
 br_rf_ex u_br_rf_ex(
     .clk(clk),
     .rst(rst),
+    .stall_i(stall_rf),
     // from RF
     .br_inst_valid_i(rf_br_inst_valid_o),              // branch指令有效标志
     .br_inst_addr_i(rf_br_inst_addr_o),        // branch指令地址
@@ -218,8 +232,8 @@ br_rf_ex u_br_rf_ex(
     .br_snap_id_i(rf_br_snap_id_o),           // branch快照id
     .br_type_i(rf_br_type_o),              // branch指令类型
     .br_subtype_i(rf_br_subtype_o),           // branch指令子类型
-    .br_rs1_data_i(rf_br_rs1_data_o),         // rs1数据
-    .br_rs2_data_i(rf_br_rs2_data_o),         // rs2数据
+    .br_rs1_data_i(final_rs1_data),         // rs1数据
+    .br_rs2_data_i(final_rs2_data),         // rs2数据
     .br_waddr_i(rf_waddr_o),             // RF 阶段写寄存器地址(同时传到issue阶段和ex阶段)
     .br_imm_i(rf_br_imm_o),              // branch立即数
     .br_aux_addr_i(rf_br_aux_addr_o),         // branch辅助地址

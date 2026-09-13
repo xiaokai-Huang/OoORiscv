@@ -5,6 +5,7 @@
 module br_rf_ex (
     input clk,
     input rst,
+    input stall_i,
 
     // from RF
     input br_inst_valid_i,              // branch指令有效标志
@@ -59,6 +60,9 @@ always @(posedge clk) begin
         br_inst_valid_o <= 1'b0;
     end
     else if (int_flag_i) begin
+        br_inst_valid_o <= 1'b0;
+    end
+    else if (stall_i) begin
         br_inst_valid_o <= 1'b0;
     end
     else begin

@@ -121,6 +121,10 @@ module Issue (
     output [5:0] alu_praddr2_inst1_o,    // ALU1物理寄存器2读地址
     output [5:0] alu_pwaddr_inst1_o,     // ALU1物理寄存器写地址
     output [31:0] alu_imm_inst1_o,       // ALU1立即数
+    output alu_rs1_dep_mem_rf_inst0_o,   // ALU0 rs1依赖访存结果
+    output alu_rs2_dep_mem_rf_inst0_o,   // ALU0 rs2依赖访存结果
+    output alu_rs1_dep_mem_rf_inst1_o,   // ALU1 rs1依赖访存结果
+    output alu_rs2_dep_mem_rf_inst1_o,   // ALU1 rs2依赖访存结果
 
     // to branch
     output br_inst_valid_o,              // branch指令有效标志
@@ -145,9 +149,13 @@ module Issue (
     output [5:0] br_pwaddr_o,            // branch物理寄存器写地址
     output [31:0] br_imm_o,              // branch立即数
     output [31:0] br_aux_addr_o,         // branch辅助地址
+    output br_rs1_dep_mem_rf_o,          // branch rs1依赖访存结果
+    output br_rs2_dep_mem_rf_o,          // branch rs2依赖访存结果
 
     // to mem
     output mem_inst_valid_o,             // mem指令有效标志
+    output mem_rs1_dep_rf_o,             // mem rs1依赖访存结果
+    output mem_rs2_dep_rf_o,             // mem rs2依赖访存结果
     output [5:0] mem_rob_id_o,           // mem ROB id
     output [7:0] mem_mask_o,             // mem分支掩码
     output [1:0] mem_sq_id_o,            // mem SQ id
@@ -167,6 +175,8 @@ module Issue (
     output [3:0] mul_subtype_o,          // mul指令子类型
     output [5:0] mul_praddr1_o,          // mul物理寄存器1读地址
     output [5:0] mul_praddr2_o,          // mul物理寄存器2读地址
+    output mul_rs1_dep_mem_rf_o,         // rs1依赖访存结果
+    output mul_rs2_dep_mem_rf_o,         // rs2依赖访存结果
     output [5:0] mul_pwaddr_o,           // mul物理寄存器写地址
     // to div
     output div_inst_valid_o,             // div指令有效标志
@@ -1577,6 +1587,14 @@ assign stall_o = rob_stall_i || alu_stall || branch_stall || mem_stall
 
 
 
+// 浮点版本下，依赖访存结果的唤醒/暂停逻辑未启用，直接置0
+assign alu_rs1_dep_mem_rf_inst0_o = 1'b0;
+assign alu_rs2_dep_mem_rf_inst0_o = 1'b0;
+assign alu_rs1_dep_mem_rf_inst1_o = 1'b0;
+assign alu_rs2_dep_mem_rf_inst1_o = 1'b0;
+assign br_rs1_dep_mem_rf_o = 1'b0;
+assign br_rs2_dep_mem_rf_o = 1'b0;
+
 // 无浮点版本
 `else
 
@@ -1612,31 +1630,44 @@ reg alu_issue_flag_inst0, alu_issue_flag_inst1;
 wire [2:0] alu_slot0 = alu_rd_ptr;                     // 队头
 wire [2:0] alu_slot1 = (alu_rd_ptr + 3'd1) & 3'b111;   // 队头第二条
 // 检查操作数是否就绪（只看队头两条）
+wire stall_alu_iss_inst0 = alu_inst_valid_inst0_o && (alu_rs1_dep_mem_rf_inst0_o || alu_rs2_dep_mem_rf_inst0_o) && mem_stall_i;
+wire stall_alu_iss_inst1 = alu_inst_valid_inst1_o && (alu_rs1_dep_mem_rf_inst1_o || alu_rs2_dep_mem_rf_inst1_o) && mem_stall_i;
+wire [5:0] alu0_rf_wake_up_addr = stall_alu_iss_inst0 ? 6'b0 : alu0_rf_pwaddr_i;
+wire [5:0] alu1_rf_wake_up_addr = stall_alu_iss_inst1 ? 6'b0 : alu1_rf_pwaddr_i;
+
 wire alu_op1_ready0 = (alu_op1_src[alu_slot0] != `OP1_REG) || ready_flag_i[alu_praddr1[alu_slot0]] || 
-                      (alu_praddr1[alu_slot0] == alu0_rf_pwaddr_i) || (alu_praddr1[alu_slot0] == alu1_rf_pwaddr_i) ||
-                      (alu_praddr1[alu_slot0] == mem_pwaddr_i);
+                      (alu_praddr1[alu_slot0] == alu0_rf_wake_up_addr) || (alu_praddr1[alu_slot0] == alu1_rf_wake_up_addr) ||
+                      (alu_praddr1[alu_slot0] == mem_pwaddr_i) || (alu_praddr1[alu_slot0] == mem_pwaddr_o);
 wire alu_op2_ready0 = (alu_op2_src[alu_slot0] != `OP2_REG) || ready_flag_i[alu_praddr2[alu_slot0]] || 
-                      (alu_praddr2[alu_slot0] == alu0_rf_pwaddr_i) || (alu_praddr2[alu_slot0] == alu1_rf_pwaddr_i) ||
-                      (alu_praddr2[alu_slot0] == mem_pwaddr_i);
+                      (alu_praddr2[alu_slot0] == alu0_rf_wake_up_addr) || (alu_praddr2[alu_slot0] == alu1_rf_wake_up_addr) ||
+                      (alu_praddr2[alu_slot0] == mem_pwaddr_i) || (alu_praddr2[alu_slot0] == mem_pwaddr_o);
 wire alu_op1_ready1 = (alu_op1_src[alu_slot1] != `OP1_REG) || ready_flag_i[alu_praddr1[alu_slot1]] || 
-                      (alu_praddr1[alu_slot1] == alu0_rf_pwaddr_i) || (alu_praddr1[alu_slot1] == alu1_rf_pwaddr_i) ||
-                      (alu_praddr1[alu_slot1] == mem_pwaddr_i);
+                      (alu_praddr1[alu_slot1] == alu0_rf_wake_up_addr) || (alu_praddr1[alu_slot1] == alu1_rf_wake_up_addr) ||
+                      (alu_praddr1[alu_slot1] == mem_pwaddr_i) || (alu_praddr1[alu_slot1] == mem_pwaddr_o);
 wire alu_op2_ready1 = (alu_op2_src[alu_slot1] != `OP2_REG) || ready_flag_i[alu_praddr2[alu_slot1]] || 
-                      (alu_praddr2[alu_slot1] == alu0_rf_pwaddr_i) || (alu_praddr2[alu_slot1] == alu1_rf_pwaddr_i) ||
-                      (alu_praddr2[alu_slot1] == mem_pwaddr_i);
+                      (alu_praddr2[alu_slot1] == alu0_rf_wake_up_addr) || (alu_praddr2[alu_slot1] == alu1_rf_wake_up_addr) ||
+                      (alu_praddr2[alu_slot1] == mem_pwaddr_i) || (alu_praddr2[alu_slot1] == mem_pwaddr_o);
 wire alu_dep_mem0 = ((alu_praddr1[alu_slot0] == mem_pwaddr_i) || (alu_praddr2[alu_slot0] == mem_pwaddr_i)) 
                     && (mem_pwaddr_i != 6'b0);
+wire alu_dep_rf0 = ((alu_praddr1[alu_slot0] == mem_pwaddr_o) || (alu_praddr2[alu_slot0] == mem_pwaddr_o)) 
+                    && (mem_pwaddr_o != 6'b0);
 wire alu_dep_mem1 = ((alu_praddr1[alu_slot1] == mem_pwaddr_i) || (alu_praddr2[alu_slot1] == mem_pwaddr_i)) 
                     && (mem_pwaddr_i != 6'b0);
+wire alu_dep_rf1 = ((alu_praddr1[alu_slot1] == mem_pwaddr_o) || (alu_praddr2[alu_slot1] == mem_pwaddr_o)) 
+                    && (mem_pwaddr_o != 6'b0);
+wire alu_rs1_dep_mem_rf0 = (alu_praddr1[alu_slot0] == mem_pwaddr_o) && (mem_pwaddr_o != 6'b0);
+wire alu_rs2_dep_mem_rf0 = (alu_praddr2[alu_slot0] == mem_pwaddr_o) && (mem_pwaddr_o != 6'b0);
+wire alu_rs1_dep_mem_rf1 = (alu_praddr1[alu_slot1] == mem_pwaddr_o) && (mem_pwaddr_o != 6'b0);
+wire alu_rs2_dep_mem_rf1 = (alu_praddr2[alu_slot1] == mem_pwaddr_o) && (mem_pwaddr_o != 6'b0);
 // 选择发射指令：第一条能发射，第二条才能发射
 always @(*) begin
     alu_issue_flag_inst0 = 1'b0;
     alu_issue_flag_inst1 = 1'b0;
     if (alu_inst_valid[alu_slot0] && alu_op1_ready0 && alu_op2_ready0 && ((alu_mask[alu_slot0] & kill_mask) == 0) && 
-        (!mem_stall_i || !alu_dep_mem0)) begin
+        (!mem_stall_i || !alu_dep_mem0) && (!mem_stall_i || !alu_dep_rf0) && !stall_alu_iss_inst0) begin
         alu_issue_flag_inst0 = 1'b1; // 队头可以发射
         if (alu_inst_valid[alu_slot1] && alu_op1_ready1 && alu_op2_ready1 && ((alu_mask[alu_slot1] & kill_mask) == 0) &&
-            (!mem_stall_i || !alu_dep_mem1)) begin
+            (!mem_stall_i || !alu_dep_mem1) && (!mem_stall_i || !alu_dep_rf1) && !stall_alu_iss_inst1) begin
             alu_issue_flag_inst1 = 1'b1; // 队头第二条连续发射
         end
     end
@@ -1794,6 +1825,7 @@ iss_alu u_iss_alu_inst0 (
     // from issue
     .int_flag_i(int_flag_i),                     // 中断标志
     .issue_flag_i(alu_issue_flag_inst0),                   // 发射标志
+    .stall_i(stall_alu_iss_inst0),               // 暂停标志
     .alu_rob_id_i(alu_rob_id[alu_slot0]),                   // ROB id
     .alu_mask_i(alu0_mask_new),                                        // 分支掩码
     .alu_subtype_i(alu_subtype[alu_slot0]),                 // 指令子类型
@@ -1801,8 +1833,18 @@ iss_alu u_iss_alu_inst0 (
     .alu_op2_src_i(alu_op2_src[alu_slot0]),                 // 操作数2来源选择
     .alu_praddr1_i(alu_praddr1[alu_slot0]),                 // 物理寄存器1读地址
     .alu_praddr2_i(alu_praddr2[alu_slot0]),                 // 物理寄存器2读地址
+    .alu_rs1_dep_mem_rf_i(alu_rs1_dep_mem_rf0),             // rs1依赖访存结果
+    .alu_rs2_dep_mem_rf_i(alu_rs2_dep_mem_rf0),             // rs2依赖访存结果
     .alu_pwaddr_i(alu_pwaddr[alu_slot0]),                   // 物理寄存器写地址
     .alu_imm_i(alu_imm[alu_slot0]),                           // 立即数
+    // from commit
+    .free_mask_inst0_i(free_mask_inst0_i),                   // 指令0释放掩码标志
+    .free_id_inst0_i(free_id_inst0_i),               // 指令0释放id
+    .free_mask_inst1_i(free_mask_inst1_i),                   // 指令1释放掩码标志
+    .free_id_inst1_i(free_id_inst1_i),               // 指令1释放id
+    // from branch
+    .jump_flag_i(jump_flag_i),                      // 跳转标志
+    .kill_mask_id_i(kill_mask_id_i),             // 杀死指令掩码id
     // to ex
     .alu_inst_valid_o(alu_inst_valid_inst0_o),          // 指令有效标志
     .alu_rob_id_o(alu_rob_id_inst0_o),                   // ROB id
@@ -1812,6 +1854,8 @@ iss_alu u_iss_alu_inst0 (
     .alu_op2_src_o(alu_op2_src_inst0_o),                 // 操作数2
     .alu_praddr1_o(alu_praddr1_inst0_o),                 // 物理寄存器1读地址
     .alu_praddr2_o(alu_praddr2_inst0_o),                 // 物理寄存器2读地址
+    .alu_rs1_dep_mem_rf_o(alu_rs1_dep_mem_rf_inst0_o),   // rs1依赖访存结果
+    .alu_rs2_dep_mem_rf_o(alu_rs2_dep_mem_rf_inst0_o),   // rs2依赖访存结果
     .alu_pwaddr_o(alu_pwaddr_inst0_o),                   // 物理寄存器写地址
     .alu_imm_o(alu_imm_inst0_o)                           // 立即数
 );
@@ -1821,6 +1865,7 @@ iss_alu u_iss_alu_inst1 (
     // from issue
     .int_flag_i(int_flag_i),                     // 中断标志
     .issue_flag_i(alu_issue_flag_inst1),                   // 发射标志
+    .stall_i(stall_alu_iss_inst1),               // 暂停标志
     .alu_rob_id_i(alu_rob_id[alu_slot1]),                   // ROB id
     .alu_mask_i(alu1_mask_new),                                        // 分支掩码
     .alu_subtype_i(alu_subtype[alu_slot1]),                 // 指令子类型
@@ -1828,8 +1873,18 @@ iss_alu u_iss_alu_inst1 (
     .alu_op2_src_i(alu_op2_src[alu_slot1]),                 // 操作数2来源选择
     .alu_praddr1_i(alu_praddr1[alu_slot1]),                 // 物理寄存器1读地址
     .alu_praddr2_i(alu_praddr2[alu_slot1]),                 // 物理寄存器2读地址
+    .alu_rs1_dep_mem_rf_i(alu_rs1_dep_mem_rf1),             // rs1依赖访存结果
+    .alu_rs2_dep_mem_rf_i(alu_rs2_dep_mem_rf1),             // rs2依赖访存结果
     .alu_pwaddr_i(alu_pwaddr[alu_slot1]),                   // 物理寄存器写地址
     .alu_imm_i(alu_imm[alu_slot1]),                           // 立即数
+    // from commit
+    .free_mask_inst0_i(free_mask_inst0_i),                   // 指令0释放掩码标志
+    .free_id_inst0_i(free_id_inst0_i),               // 指令0释放id
+    .free_mask_inst1_i(free_mask_inst1_i),                   // 指令1释放掩码标志
+    .free_id_inst1_i(free_id_inst1_i),               // 指令1释放id
+    // from branch
+    .jump_flag_i(jump_flag_i),                      // 跳转标志
+    .kill_mask_id_i(kill_mask_id_i),             // 杀死指令掩码id
     // to ex
     .alu_inst_valid_o(alu_inst_valid_inst1_o),          // 指令有效标志
     .alu_rob_id_o(alu_rob_id_inst1_o),                   // ROB id
@@ -1839,6 +1894,8 @@ iss_alu u_iss_alu_inst1 (
     .alu_op2_src_o(alu_op2_src_inst1_o),                 // 操作数2
     .alu_praddr1_o(alu_praddr1_inst1_o),                 // 物理寄存器1读地址
     .alu_praddr2_o(alu_praddr2_inst1_o),                 // 物理寄存器2读地址
+    .alu_rs1_dep_mem_rf_o(alu_rs1_dep_mem_rf_inst1_o),   // rs1依赖访存结果
+    .alu_rs2_dep_mem_rf_o(alu_rs2_dep_mem_rf_inst1_o),   // rs2依赖访存结果
     .alu_pwaddr_o(alu_pwaddr_inst1_o),                   // 物理寄存器写地址
     .alu_imm_o(alu_imm_inst1_o)                           // 立即数
 );
@@ -1882,17 +1939,22 @@ wire branch_stall = (branch_req + branch_count > 3'd4);
 // 发射逻辑
 reg br_issue_flag;
 wire br_op1_ready = (branch_op1_src[branch_rd_ptr] != `OP1_REG) || ready_flag_i[branch_praddr1[branch_rd_ptr]] || 
-                    (branch_praddr1[branch_rd_ptr] == alu0_rf_pwaddr_i) || (branch_praddr1[branch_rd_ptr] == alu1_rf_pwaddr_i) ||
-                    (branch_praddr1[branch_rd_ptr] == mem_pwaddr_i);
+                    (branch_praddr1[branch_rd_ptr] == alu0_rf_wake_up_addr) || (branch_praddr1[branch_rd_ptr] == alu1_rf_wake_up_addr) ||
+                    (branch_praddr1[branch_rd_ptr] == mem_pwaddr_i) || (branch_praddr1[branch_rd_ptr] == mem_pwaddr_o);
 wire br_op2_ready = (branch_op2_src[branch_rd_ptr] != `OP2_REG) || ready_flag_i[branch_praddr2[branch_rd_ptr]] || 
-                    (branch_praddr2[branch_rd_ptr] == alu0_rf_pwaddr_i) || (branch_praddr2[branch_rd_ptr] == alu1_rf_pwaddr_i) ||
-                    (branch_praddr2[branch_rd_ptr] == mem_pwaddr_i);
+                    (branch_praddr2[branch_rd_ptr] == alu0_rf_wake_up_addr) || (branch_praddr2[branch_rd_ptr] == alu1_rf_wake_up_addr) ||
+                    (branch_praddr2[branch_rd_ptr] == mem_pwaddr_i) || (branch_praddr2[branch_rd_ptr] == mem_pwaddr_o);
 wire br_dep_mem = ((branch_praddr1[branch_rd_ptr] == mem_pwaddr_i) || (branch_praddr2[branch_rd_ptr] == mem_pwaddr_i)) 
                   && (mem_pwaddr_i != 6'b0);
+wire br_dep_rf = ((branch_praddr1[branch_rd_ptr] == mem_pwaddr_o) || (branch_praddr2[branch_rd_ptr] == mem_pwaddr_o)) 
+                  && (mem_pwaddr_o != 6'b0);
+wire br_rs1_dep_mem_rf = (branch_praddr1[branch_rd_ptr] == mem_pwaddr_o) && (mem_pwaddr_o != 6'b0);
+wire br_rs2_dep_mem_rf = (branch_praddr2[branch_rd_ptr] == mem_pwaddr_o) && (mem_pwaddr_o != 6'b0);
+wire stall_br_iss = br_inst_valid_o && (br_rs1_dep_mem_rf_o || br_rs2_dep_mem_rf_o) && mem_stall_i;
 always @(*) begin
     br_issue_flag = 1'b0;
     if (branch_inst_valid[branch_rd_ptr] && br_op1_ready && br_op2_ready && ((branch_mask[branch_rd_ptr] & kill_mask) == 0) && 
-        (!mem_stall_i || !br_dep_mem)) begin
+        (!mem_stall_i || !br_dep_mem) && (!mem_stall_i || !br_dep_rf) && !stall_br_iss) begin
         br_issue_flag = 1'b1; // 当前队头指令就绪，未被冲刷杀死且访存没有因为miss暂停，可以发射
     end
 end
@@ -2084,6 +2146,7 @@ iss_br u_iss_br (
     // from issue
     .int_flag_i(int_flag_i),                 // 中断标志
     .issue_flag_i(br_issue_flag),               // 发射标志
+    .stall_i(stall_br_iss),                    // 暂停标志
     .bpu_pre_flag_i(branch_pre_flag[branch_rd_ptr]),           // 预测标志
     .bpu_pre_addr_i(branch_pre_addr[branch_rd_ptr]),           // 预测地址
     .inst_addr_i(branch_inst_addr[branch_rd_ptr]),               // 指令地址
@@ -2102,9 +2165,19 @@ iss_br u_iss_br (
     .op2_src_i(branch_op2_src[branch_rd_ptr]),            // 操作数2来源选择
     .praddr1_i(branch_praddr1[branch_rd_ptr]),            // 物理寄存器1读地址
     .praddr2_i(branch_praddr2[branch_rd_ptr]),            // 物理寄存器2读地址
+    .rs1_dep_mem_rf_i(br_rs1_dep_mem_rf),        // rs1依赖访存结果
+    .rs2_dep_mem_rf_i(br_rs2_dep_mem_rf),        // rs2依赖访存结果
     .pwaddr_i(branch_pwaddr[branch_rd_ptr]),              // 物理寄存器写地址
     .imm_i(branch_imm[branch_rd_ptr]),               // 立即数
     .aux_addr_i(branch_aux_addr[branch_rd_ptr]),          // 辅助地址
+    // from commit
+    .free_mask_inst0_i(free_mask_inst0_i),                   // 指令0释放掩码标志
+    .free_id_inst0_i(free_id_inst0_i),               // 指令0释放id
+    .free_mask_inst1_i(free_mask_inst1_i),                   // 指令1释放掩码标志
+    .free_id_inst1_i(free_id_inst1_i),               // 指令1释放id
+    // from branch
+    .jump_flag_i(jump_flag_i),                      // 跳转标志
+    .kill_mask_id_i(kill_mask_id_i),             // 杀死指令掩码id
     // to ex
     .inst_valid_o(br_inst_valid_o),          // 指令有效标志
     .inst_addr_o(br_inst_addr_o),          // 指令地址
@@ -2125,6 +2198,8 @@ iss_br u_iss_br (
     .op2_src_o(br_op2_src_o),       // 操作数2
     .praddr1_o(br_praddr1_o),       // 物理寄存器1读地址
     .praddr2_o(br_praddr2_o),       // 物理寄存器2读地址
+    .rs1_dep_mem_rf_o(br_rs1_dep_mem_rf_o),      // rs1依赖访存结果
+    .rs2_dep_mem_rf_o(br_rs2_dep_mem_rf_o),      // rs2依赖访存结果
     .pwaddr_o(br_pwaddr_o),         // 物理寄存器写地址
     .imm_o(br_imm_o),               // 立即数
     .aux_addr_o(br_aux_addr_o)      // 辅助地址
@@ -2144,6 +2219,7 @@ reg [5:0] mem_praddr1[0:7];    // 物理寄存器1读地址
 reg [5:0] mem_praddr2[0:7];    // 物理寄存器2读地址
 reg [5:0] mem_pwaddr[0:7];     // 物理寄存器写地址
 reg [31:0] mem_imm[0:7];       // 立即数
+reg mem_imm_is_zero[0:7];      // 立即数是否为0
 // 指针管理 (Ring Buffer)
 reg [2:0] mem_wr_ptr;      // 写指针 (Dispatch 阶段入队)
 reg [2:0] mem_rd_ptr;      // 读指针 (Issue 阶段出队)
@@ -2165,11 +2241,13 @@ wire mem_stall = (mem_req + mem_count > 4'd8) || (sq_count + store_req > 3'd4);
 // 发射逻辑
 reg mem_issue_flag;
 wire mem_op1_ready = (mem_op1_src[mem_rd_ptr] != `OP1_REG) || ready_flag_i[mem_praddr1[mem_rd_ptr]] || 
-                     (mem_praddr1[mem_rd_ptr] == alu0_rf_pwaddr_i) || (mem_praddr1[mem_rd_ptr] == alu1_rf_pwaddr_i) ||
-                     (mem_praddr1[mem_rd_ptr] == mem_pwaddr_i);
+                     (mem_praddr1[mem_rd_ptr] == alu0_rf_wake_up_addr) || (mem_praddr1[mem_rd_ptr] == alu1_rf_wake_up_addr) ||
+                     (mem_praddr1[mem_rd_ptr] == mem_pwaddr_i) || (mem_praddr1[mem_rd_ptr] == mem_pwaddr_o);
 wire mem_op2_ready = (mem_op2_src[mem_rd_ptr] != `OP2_REG) || ready_flag_i[mem_praddr2[mem_rd_ptr]] || 
-                     (mem_praddr2[mem_rd_ptr] == alu0_rf_pwaddr_i) || (mem_praddr2[mem_rd_ptr] == alu1_rf_pwaddr_i) ||
-                     (mem_praddr2[mem_rd_ptr] == mem_pwaddr_i);
+                     (mem_praddr2[mem_rd_ptr] == alu0_rf_wake_up_addr) || (mem_praddr2[mem_rd_ptr] == alu1_rf_wake_up_addr) ||
+                     (mem_praddr2[mem_rd_ptr] == mem_pwaddr_i) || (mem_praddr2[mem_rd_ptr] == mem_pwaddr_o);
+wire mem_rs1_dep_rf = (mem_praddr1[mem_rd_ptr] == mem_pwaddr_o) && (mem_pwaddr_o != 6'b0);
+wire mem_rs2_dep_rf = (mem_praddr2[mem_rd_ptr] == mem_pwaddr_o) && (mem_pwaddr_o != 6'b0);
 always @(*) begin
     mem_issue_flag = 1'b0;
     if (mem_inst_valid[mem_rd_ptr] && mem_op1_ready && mem_op2_ready && ((mem_mask[mem_rd_ptr] & kill_mask) == 0) && !mem_stall_i) begin
@@ -2237,6 +2315,7 @@ always @(posedge clk) begin
             mem_praddr2[i] <= 6'b0;
             mem_pwaddr[i] <= 6'b0;
             mem_imm[i] <= 32'b0;
+            mem_imm_is_zero[i] <= 1'b0;
         end
         mem_wr_ptr <= 3'b0;
         mem_rd_ptr <= 3'b0;
@@ -2318,6 +2397,7 @@ always @(posedge clk) begin
                 mem_praddr2[mem_wr_ptr] <= praddr2_inst0_i;
                 mem_pwaddr[mem_wr_ptr] <= pwaddr_inst0_i;
                 mem_imm[mem_wr_ptr] <= imm_port0_i;
+                mem_imm_is_zero[mem_wr_ptr] <= (imm_port0_i == 0);
                 if (mem_need_slot1) begin // 指令0和指令1都需要
                     mem_inst_valid[(mem_wr_ptr + 3'd1) & 3'b111] <= 1'b1; // 3位指针溢出自动回绕到0
                     mem_rob_id[(mem_wr_ptr + 3'd1) & 3'b111] <= rob_id_inst1_i;
@@ -2330,6 +2410,7 @@ always @(posedge clk) begin
                     mem_praddr2[(mem_wr_ptr + 3'd1) & 3'b111] <= praddr2_inst1_i;
                     mem_pwaddr[(mem_wr_ptr + 3'd1) & 3'b111] <= pwaddr_inst1_i;
                     mem_imm[(mem_wr_ptr + 3'd1) & 3'b111] <= imm_port1_i;
+                    mem_imm_is_zero[(mem_wr_ptr + 3'd1) & 3'b111] <= (imm_port1_i == 0);
                 end
             end
             else if (mem_need_slot1) begin // 指令0不需要但指令1需要
@@ -2344,6 +2425,7 @@ always @(posedge clk) begin
                 mem_praddr2[mem_wr_ptr] <= praddr2_inst1_i;
                 mem_pwaddr[mem_wr_ptr] <= pwaddr_inst1_i;
                 mem_imm[mem_wr_ptr] <= imm_port1_i;
+                mem_imm_is_zero[mem_wr_ptr] <= (imm_port1_i == 0);
             end
         end
         // 提交释放掩码
@@ -2379,6 +2461,8 @@ iss_mem u_iss_mem(
     .flush_flag_i(mem_flush_i),               // 冲刷标志
     .mem_stall_i(mem_stall_i),               // 访存暂停标志
     .issue_flag_i(mem_issue_flag),               // 发射标志
+    .rs1_dep_rf_i(mem_rs1_dep_rf),            // rs1依赖访存结果
+    .rs2_dep_rf_i(mem_rs2_dep_rf),            // rs2依赖访存结果
     .rob_id_i(mem_rob_id[mem_rd_ptr]),                   // ROB id
     .mask_i(mem_mask_new),               // 分支掩码
     .sq_id_i(mem_sq_id[mem_rd_ptr]),              // SQ id
@@ -2399,6 +2483,8 @@ iss_mem u_iss_mem(
     .kill_mask_id_i(kill_mask_id_i),             // 杀死指令掩码id
     // to ex
     .inst_valid_o(mem_inst_valid_o),          // 指令有效标志
+    .rs1_dep_rf_o(mem_rs1_dep_rf_o),      // rs1依赖访存结果
+    .rs2_dep_rf_o(mem_rs2_dep_rf_o),      // rs2依赖访存结果
     .rob_id_o(mem_rob_id_o),               // ROB id
     .mask_o(mem_mask_o),          // 分支掩码
     .sq_id_o(mem_sq_id_o),         // SQ id
@@ -2629,22 +2715,29 @@ wire mul_div_stall = (mul_div_req + mul_div_count > 3'd4);
 reg div_issue_flag;
 reg mul_issue_flag;
 // 检查操作数是否就绪（只看队头）
-wire mul_div_op1_ready = ready_flag_i[mul_div_praddr1[mul_div_rd_ptr]] || (mul_div_praddr1[mul_div_rd_ptr] == alu0_rf_pwaddr_i) ||
-                         (mul_div_praddr1[mul_div_rd_ptr] == alu1_rf_pwaddr_i) || (mul_div_praddr1[mul_div_rd_ptr] == mem_pwaddr_i);
-wire mul_div_op2_ready = ready_flag_i[mul_div_praddr2[mul_div_rd_ptr]] || (mul_div_praddr2[mul_div_rd_ptr] == alu0_rf_pwaddr_i) ||
-                         (mul_div_praddr2[mul_div_rd_ptr] == alu1_rf_pwaddr_i) || (mul_div_praddr2[mul_div_rd_ptr] == mem_pwaddr_i);
+wire mul_div_op1_ready = ready_flag_i[mul_div_praddr1[mul_div_rd_ptr]] || (mul_div_praddr1[mul_div_rd_ptr] == alu0_rf_wake_up_addr) ||
+                         (mul_div_praddr1[mul_div_rd_ptr] == alu1_rf_wake_up_addr) || (mul_div_praddr1[mul_div_rd_ptr] == mem_pwaddr_i) ||
+                         (mul_div_praddr1[mul_div_rd_ptr] == mem_pwaddr_o);
+wire mul_div_op2_ready = ready_flag_i[mul_div_praddr2[mul_div_rd_ptr]] || (mul_div_praddr2[mul_div_rd_ptr] == alu0_rf_wake_up_addr) ||
+                         (mul_div_praddr2[mul_div_rd_ptr] == alu1_rf_wake_up_addr) || (mul_div_praddr2[mul_div_rd_ptr] == mem_pwaddr_i) ||
+                         (mul_div_praddr2[mul_div_rd_ptr] == mem_pwaddr_o);
 wire mul_div_dep_mem = ((mul_div_praddr1[mul_div_rd_ptr] == mem_pwaddr_i) || (mul_div_praddr2[mul_div_rd_ptr] == mem_pwaddr_i)) 
                        && (mem_pwaddr_i != 6'b0);
+wire mul_div_dep_rf = ((mul_div_praddr1[mul_div_rd_ptr] == mem_pwaddr_o) || (mul_div_praddr2[mul_div_rd_ptr] == mem_pwaddr_o)) 
+                       && (mem_pwaddr_o != 6'b0);
+wire rs1_dep_mem_rf = ((mul_div_praddr1[mul_div_rd_ptr] == mem_pwaddr_o) && (mem_pwaddr_o != 6'b0));
+wire rs2_dep_mem_rf = ((mul_div_praddr2[mul_div_rd_ptr] == mem_pwaddr_o) && (mem_pwaddr_o != 6'b0));
+wire stall_mul_iss = mul_inst_valid_o && (mul_rs1_dep_mem_rf_o || mul_rs2_dep_mem_rf_o) && mem_stall_i;
 always @(*) begin
     div_issue_flag = 1'b0;
     mul_issue_flag = 1'b0;
     if (mul_div_inst_valid[mul_div_rd_ptr] && mul_div_op1_ready && mul_div_op2_ready && 
         ((mul_div_mask[mul_div_rd_ptr] & kill_mask) == 0) && (!mem_stall_i || !mul_div_dep_mem)) begin
         if (is_div_or_mul[mul_div_rd_ptr]) begin // 除法
-            if (!div_stall_i) div_issue_flag = 1'b1;
+            if (!div_stall_i && !(rs1_dep_mem_rf || rs2_dep_mem_rf)) div_issue_flag = 1'b1;
         end
         else begin // 乘法
-            mul_issue_flag = 1'b1;
+            if (!stall_mul_iss && (!mem_stall_i || !mul_div_dep_rf)) mul_issue_flag = 1'b1;
         end
     end
 end
@@ -2822,12 +2915,23 @@ iss_mul u_iss_mul(
     // from issue
     .int_flag_i(int_flag_i),                 // 中断标志
     .issue_flag_i(mul_issue_flag),               // 发射标志
+    .stall_i(stall_mul_iss),
     .rob_id_i(mul_div_rob_id[mul_div_rd_ptr]),                   // ROB id
     .mask_i(mul_mask_new),               // 分支掩码
     .subtype_i(mul_div_subtype[mul_div_rd_ptr]),            // 指令子类型
     .praddr1_i(mul_div_praddr1[mul_div_rd_ptr]),            // 物理寄存器1读地址
     .praddr2_i(mul_div_praddr2[mul_div_rd_ptr]),            // 物理寄存器2读地址
+    .rs1_dep_mem_rf_i(rs1_dep_mem_rf),        // rs1依赖访存结果
+    .rs2_dep_mem_rf_i(rs2_dep_mem_rf),        // rs2依赖访存结果
     .pwaddr_i(mul_div_pwaddr[mul_div_rd_ptr]),             // 物理寄存器写地址
+    // from commit
+    .free_mask_inst0_i(free_mask_inst0_i),                   // 指令0释放掩码标志
+    .free_id_inst0_i(free_id_inst0_i),               // 指令0释放id
+    .free_mask_inst1_i(free_mask_inst1_i),                   // 指令1释放掩码标志
+    .free_id_inst1_i(free_id_inst1_i),               // 指令1释放id
+    // from branch
+    .jump_flag_i(jump_flag_i),                      // 跳转标志
+    .kill_mask_id_i(kill_mask_id_i),             // 杀死指令掩码id
     // to ex
     .inst_valid_o(mul_inst_valid_o),          // 指令有效标志
     .rob_id_o(mul_rob_id_o),               // ROB id
@@ -2835,6 +2939,8 @@ iss_mul u_iss_mul(
     .subtype_o(mul_subtype_o),       // 指令子类型
     .praddr1_o(mul_praddr1_o),       // 物理寄存器1读地址
     .praddr2_o(mul_praddr2_o),       // 物理寄存器2读地址
+    .rs1_dep_mem_rf_o(mul_rs1_dep_mem_rf_o),        // rs1依赖访存结果
+    .rs2_dep_mem_rf_o(mul_rs2_dep_mem_rf_o),        // rs2依赖访存结果
     .pwaddr_o(mul_pwaddr_o)         // 物理寄存器写地址
 );
 `endif // m ext end

@@ -9,6 +9,8 @@ module LSU (
 
     // from issue
     input inst_valid_i,               // 指令有效标志
+    input rs1_dep_rf_i,               // rs1依赖访存结果
+    input rs2_dep_rf_i,               // rs2依赖访存结果
     input [5:0] rob_id_i,             // ROB id
     input [7:0] mask_i,               // 分支掩码
     input [1:0] sq_id_i,              // SQ id
@@ -243,6 +245,8 @@ LSU_EX u_LSU_EX(
     .pwaddr_o(ex_pwaddr_o),             // 物理寄存器写地址
     .mem_addr_o(ex_mem_addr_o)           // 访存地址
 );
+wire [31:0] final_mem_addr = rs1_dep_rf_i ? (mem_reg_wdata_o + imm_i) : ex_mem_addr_o;
+wire [31:0] final_rs2_data = rs2_dep_rf_i ? mem_reg_wdata_o : ex_rs2_data_o;
 
 // ex_mem
 wire ex_mem_inst_valid_o;               // 指令有效标志
@@ -266,12 +270,12 @@ lsu_ex_mem u_lsu_ex_mem(
     .mask_i(ex_mask_o),               // 分支掩码
     .sq_id_i(ex_sq_id_o),              // SQ id
     .subtype_i(ex_subtype_o),            // 指令子类型
-    .rs2_data_i(ex_rs2_data_o),          // rs2数据
+    .rs2_data_i(final_rs2_data),          // rs2数据
     `ifdef use_f_extension
     .float_rs2_data_i(ex_float_rs2_data_o),
     `endif
     .pwaddr_i(ex_pwaddr_o),             // 物理寄存器写地址
-    .mem_addr_i(ex_mem_addr_o),          // 访存地址
+    .mem_addr_i(final_mem_addr),          // 访存地址
     // from clint
     .int_flag_i(int_flag_i),                   // 中断标志
     // from mem

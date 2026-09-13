@@ -14,7 +14,13 @@ module MUL (
     input [3:0] subtype_i,            // 指令子类型
     input [5:0] praddr1_i,            // 物理寄存器1读地址
     input [5:0] praddr2_i,            // 物理寄存器2读地址
+    input rs1_dep_mem_rf_i,           // rs1依赖访存结果
+    input rs2_dep_mem_rf_i,           // rs2依赖访存结果
     input [5:0] pwaddr_i,             // 物理寄存器写地址
+
+    // from LSU
+    input mem_stall_i,                // 访存暂停标志
+    input [31:0] load_reg_wdata_i,    // load阶段写寄存器数据
 
     // from forward_unit
     input rs1_forward_flag_i,           // rs1转发标志
@@ -54,6 +60,7 @@ wire [3:0] rf_subtype_o;            // 指令子类型
 wire [31:0] rf_rs1_data_o;          // rs1数据
 wire [31:0] rf_rs2_data_o;          // rs2数据
 wire [5:0] rf_pwaddr_o;             // 物理寄存器写地址
+wire stall_rf = inst_valid_i && (rs1_dep_mem_rf_i || rs2_dep_mem_rf_i) && mem_stall_i;
 
 MUL_RF u_MUL_RF (
     // from issue
@@ -86,6 +93,8 @@ MUL_RF u_MUL_RF (
     .rs2_data_o(rf_rs2_data_o),          // rs2数据
     .pwaddr_o(rf_pwaddr_o)              // 物理寄存器写地址
 );
+wire [31:0] final_rs1_data = rs1_dep_mem_rf_i ? load_reg_wdata_i : rf_rs1_data_o;
+wire [31:0] final_rs2_data = rs2_dep_mem_rf_i ? load_reg_wdata_i : rf_rs2_data_o;
 
 // mul_rf_ex
 wire rf_ex_inst_valid_o;               // 指令有效标志
@@ -98,12 +107,13 @@ wire [5:0] rf_ex_pwaddr_o;             // 物理寄存器写地址
 mul_rf_ex u_mul_rf_ex(
     .clk(clk),
     .rst(rst),
+    .stall_i(stall_rf),
     // from rf
     .inst_valid_i(rf_inst_valid_o),               // 指令有效标志
     .rob_id_i(rf_rob_id_o),             // ROB id
     .subtype_i(rf_subtype_o),            // 指令子类型
-    .rs1_data_i(rf_rs1_data_o),          // rs1数据
-    .rs2_data_i(rf_rs2_data_o),          // rs2数据
+    .rs1_data_i(final_rs1_data),          // rs1数据
+    .rs2_data_i(final_rs2_data),          // rs2数据
     .pwaddr_i(rf_pwaddr_o),             // 物理寄存器写地址
     // from clint
     .int_flag_i(int_flag_i),                   // 中断标志

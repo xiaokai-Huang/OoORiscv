@@ -5,6 +5,7 @@
 module mul_rf_ex (
     input clk,
     input rst,
+    input stall_i,
 
     // from rf
     input inst_valid_i,               // 指令有效标志
@@ -31,6 +32,9 @@ always @(posedge clk) begin
         inst_valid_o <= 1'b0;
     end
     else if (int_flag_i) begin
+        inst_valid_o <= 1'b0;
+    end
+    else if (stall_i) begin
         inst_valid_o <= 1'b0;
     end
     else begin
