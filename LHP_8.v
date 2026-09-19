@@ -51,39 +51,40 @@ BHT_BANK u_BHT_BANK_1(
     .dpo(BHT_rdata[1])
 );
 
-wire [7:0] PHT_raddr_odd = {if_pc[10:8] ^ if_pc[7:5], if_pc[12:11] ^ if_pc[4:3], 3'b0} ^ {BHT_rdata[1]};     // 奇
-wire [7:0] PHT_raddr_even = {if_pc[10:8] ^ if_pc[7:5], if_pc[12:11] ^ if_pc[4:3], 3'b0} ^ {BHT_rdata[0]};    // 偶
+wire [8:0] PHT_raddr_odd = {if_pc[12:10] ^ if_pc[9:7], if_pc[14:13] ^ if_pc[6:5], if_pc[4:3], 2'b00} ^ {if_pc[15], BHT_rdata[1]};     // 奇
+wire [8:0] PHT_raddr_even = {if_pc[12:10] ^ if_pc[9:7], if_pc[14:13] ^ if_pc[6:5], if_pc[4:3], 2'b00} ^ {if_pc[15], BHT_rdata[0]};    // 偶
 
-wire [7:0] PHT_waddr_odd = {ex_pc[10:8] ^ ex_pc[7:5], ex_pc[12:11] ^ ex_pc[4:3], 3'b0} ^ {lhr[1]};         // 奇
-wire [7:0] PHT_waddr_even = {ex_pc[10:8] ^ ex_pc[7:5], ex_pc[12:11] ^ ex_pc[4:3], 3'b0} ^ {lhr[0]};    // 偶
+
+wire [8:0] PHT_waddr_odd = {ex_pc[12:10] ^ ex_pc[9:7], ex_pc[14:13] ^ ex_pc[6:5], ex_pc[4:3], 2'b00} ^ {ex_pc[15], lhr[1]};         // 奇
+wire [8:0] PHT_waddr_even = {ex_pc[12:10] ^ ex_pc[9:7], ex_pc[14:13] ^ ex_pc[6:5], ex_pc[4:3], 2'b00} ^ {ex_pc[15], lhr[0]};    // 偶
 
 reg [1:0] PHT_wdata_odd, PHT_wdata_even;
-wire [1:0] PHT_rdata_odd[0:3];
-wire [1:0] PHT_rdata_even[0:3];
-wire [1:0] ex_PHT_rdata_odd[0:3];
-wire [1:0] ex_PHT_rdata_even[0:3];
+wire [1:0] PHT_rdata_odd[0:7];
+wire [1:0] PHT_rdata_even[0:7];
+wire [1:0] ex_PHT_rdata_odd[0:7];
+wire [1:0] ex_PHT_rdata_even[0:7];
 
 generate
     genvar i,j;
-    for (i = 0; i < 4; i = i + 1) begin:PHT_BANK_odd
+    for (i = 0; i < 8; i = i + 1) begin:PHT_BANK_odd
         PHT_BANK u_PHT_64_odd(
             .a(PHT_waddr_odd[5:0]),
             .d(PHT_wdata_odd),
             .dpra(PHT_raddr_odd[5:0]),
             .clk(clk),
-            .we(update_en && (ex_pc[2] == 1'b1) && PHT_waddr_odd[7:6] == i),   
+            .we(update_en && (ex_pc[2] == 1'b1) && PHT_waddr_odd[8:6] == i),   
             .spo(ex_PHT_rdata_odd[i]),
             .dpo(PHT_rdata_odd[i])
         );
     end
 
-    for (j = 0; j < 4; j = j + 1) begin:PHT_BANK_even
+    for (j = 0; j < 8; j = j + 1) begin:PHT_BANK_even
         PHT_BANK u_PHT_64_even(
             .a(PHT_waddr_even[5:0]),
             .d(PHT_wdata_even),
             .dpra(PHT_raddr_even[5:0]),
             .clk(clk),
-            .we(update_en && (ex_pc[2] == 1'b0) && PHT_waddr_even[7:6] == j),    
+            .we(update_en && (ex_pc[2] == 1'b0) && PHT_waddr_even[8:6] == j),    
             .spo(ex_PHT_rdata_even[j]),
             .dpo(PHT_rdata_even[j])
         );
@@ -91,34 +92,34 @@ generate
 endgenerate
 
 // 取指阶段预测
-assign prediction_port0 = PHT_rdata_even[PHT_raddr_even[7:6]][1];
-assign prediction_port1 = PHT_rdata_odd[PHT_raddr_odd[7:6]][1];
+assign prediction_port0 = PHT_rdata_even[PHT_raddr_even[8:6]][1];
+assign prediction_port1 = PHT_rdata_odd[PHT_raddr_odd[8:6]][1];
 
 
 // 更新PHT
 always @(*) begin
     PHT_wdata_odd = 2'b0;
-    if(branch_taken && ex_PHT_rdata_odd[PHT_waddr_odd[7:6]] != 2'b11) begin
-        PHT_wdata_odd = ex_PHT_rdata_odd[PHT_waddr_odd[7:6]] + 1;
+    if(branch_taken && ex_PHT_rdata_odd[PHT_waddr_odd[8:6]] != 2'b11) begin
+        PHT_wdata_odd = ex_PHT_rdata_odd[PHT_waddr_odd[8:6]] + 1;
     end
-    else if(!branch_taken && ex_PHT_rdata_odd[PHT_waddr_odd[7:6]] != 2'b00) begin
-        PHT_wdata_odd = ex_PHT_rdata_odd[PHT_waddr_odd[7:6]] - 1;
+    else if(!branch_taken && ex_PHT_rdata_odd[PHT_waddr_odd[8:6]] != 2'b00) begin
+        PHT_wdata_odd = ex_PHT_rdata_odd[PHT_waddr_odd[8:6]] - 1;
     end
     else begin
-        PHT_wdata_odd = ex_PHT_rdata_odd[PHT_waddr_odd[7:6]];
+        PHT_wdata_odd = ex_PHT_rdata_odd[PHT_waddr_odd[8:6]];
     end
 end
 
 always @(*) begin
     PHT_wdata_even = 2'b0;
-    if(branch_taken && ex_PHT_rdata_even[PHT_waddr_even[7:6]] != 2'b11) begin
-        PHT_wdata_even = ex_PHT_rdata_even[PHT_waddr_even[7:6]] + 1;
+    if(branch_taken && ex_PHT_rdata_even[PHT_waddr_even[8:6]] != 2'b11) begin
+        PHT_wdata_even = ex_PHT_rdata_even[PHT_waddr_even[8:6]] + 1;
     end
-    else if(!branch_taken && ex_PHT_rdata_even[PHT_waddr_even[7:6]] != 2'b00) begin
-        PHT_wdata_even = ex_PHT_rdata_even[PHT_waddr_even[7:6]] - 1;
+    else if(!branch_taken && ex_PHT_rdata_even[PHT_waddr_even[8:6]] != 2'b00) begin
+        PHT_wdata_even = ex_PHT_rdata_even[PHT_waddr_even[8:6]] - 1;
     end
     else begin
-        PHT_wdata_even = ex_PHT_rdata_even[PHT_waddr_even[7:6]];
+        PHT_wdata_even = ex_PHT_rdata_even[PHT_waddr_even[8:6]];
     end
 end
 

@@ -38,24 +38,29 @@ module BPU (
 
 );
 
-// BTB
+// BTB（二路组相联，奇偶各两路）
+wire [41:0] btb_p0_way0, btb_p0_way1, btb_p1_way0, btb_p1_way1;   // 偶/奇 的 way0/way1 输出
+// 各路标签匹配
+wire btb_hit_p0_way0, btb_hit_p0_way1, btb_hit_p1_way0, btb_hit_p1_way1;
+assign btb_hit_p0_way0 = (if_pc[15:8] == btb_p0_way0[39:32]) && btb_p0_way0[41] && (if_pc[2] == 1'b0);   // PC地址8字节对齐时第一条指令才有效
+assign btb_hit_p0_way1 = (if_pc[15:8] == btb_p0_way1[39:32]) && btb_p0_way1[41] && (if_pc[2] == 1'b0);
+assign btb_hit_p1_way0 = (if_pc[15:8] == btb_p1_way0[39:32]) && btb_p1_way0[41];                          // 第二条指令始终有效
+assign btb_hit_p1_way1 = (if_pc[15:8] == btb_p1_way1[39:32]) && btb_p1_way1[41];
+// 任一路匹配就用那一路的结果预测
 wire [41:0] btb_rdata[0:1];
+assign btb_rdata[0] = btb_hit_p0_way0 ? btb_p0_way0 : btb_p0_way1;
+assign btb_rdata[1] = btb_hit_p1_way0 ? btb_p1_way0 : btb_p1_way1;
+// 标签匹配（任一路命中即可）
+wire btb_tag_hit[0:1];
+assign btb_tag_hit[0] = btb_hit_p0_way0 | btb_hit_p0_way1;
+assign btb_tag_hit[1] = btb_hit_p1_way0 | btb_hit_p1_way1;
+// 命中路的信息
 wire [31:0] pre_addr[0:1];    // 预测地址
 assign pre_addr[0] = btb_rdata[0][31:0];
 assign pre_addr[1] = btb_rdata[1][31:0];
-wire [7:0] btb_pc_tag[0:1];   // 标签
-assign btb_pc_tag[0] = btb_rdata[0][39:32];
-assign btb_pc_tag[1] = btb_rdata[1][39:32];
 wire btb_is_branch[0:1];      // 是否为分支指令
 assign btb_is_branch[0] = btb_rdata[0][40];
 assign btb_is_branch[1] = btb_rdata[1][40];
-wire btb_valid[0:1];          // 是否有效
-assign btb_valid[0] = btb_rdata[0][41];
-assign btb_valid[1] = btb_rdata[1][41];
-// 标签匹配
-wire btb_tag_hit[0:1];
-assign btb_tag_hit[0] = (if_pc[15:8] == btb_pc_tag[0]) && btb_valid[0] && (if_pc[2] == 1'b0);    // PC地址8字节对齐时第一条指令才有效
-assign btb_tag_hit[1] = (if_pc[15:8] == btb_pc_tag[1]) && btb_valid[1];                          // 第二条指令始终有效
 // LHP
 wire prediction_port0;        // 偶指令预测结果
 wire prediction_port1;        // 奇指令预测结果
@@ -130,8 +135,15 @@ BTB_64_plus u_BTB(
     .jump_target(jump_target),         // 实际跳转目标地址
     .ex_pc(ex_pc),                     // 执行阶段的pc
     .is_branch(is_branch),                  // 是否为分支指令
-    .pre_port0(btb_rdata[0]),     
-    .pre_port1(btb_rdata[1])
+    // 取指命中信息（回送给BTB用于LRU更新）
+    .hit_even_way0(btb_hit_p0_way0),
+    .hit_even_way1(btb_hit_p0_way1),
+    .hit_odd_way0(btb_hit_p1_way0),
+    .hit_odd_way1(btb_hit_p1_way1),
+    .pre_port0_way0(btb_p0_way0),     
+    .pre_port0_way1(btb_p0_way1),
+    .pre_port1_way0(btb_p1_way0),
+    .pre_port1_way1(btb_p1_way1)
 );
 
 // LHP_8

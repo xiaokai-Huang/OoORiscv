@@ -3,7 +3,7 @@
 
 `timescale 1ns / 1ps
 
-// `define DEBUG
+`define DEBUG
 `define use_m_extension
 // `define use_f_extension
 

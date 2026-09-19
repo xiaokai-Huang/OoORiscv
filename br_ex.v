@@ -3,6 +3,9 @@
 `timescale 1ns / 1ps
 
 module br_ex (
+    input clk,
+    input rst,
+
     // from RF
     input br_inst_valid_i,              // branch指令有效标志
     input [15:0] br_inst_addr_i,        // branch指令地址
@@ -57,6 +60,11 @@ module br_ex (
     output reg_wflag_o,                 // 写寄存器标志
     output [5:0] reg_waddr_o,           // 写寄存器地址
     output reg [31:0] reg_wdata_o,      // 写寄存器数据
+
+    `ifdef DEBUG
+    output [31:0] branch_hit_cnt,
+    output [31:0] branch_miss_cnt,
+    `endif
 
     // to flush
     output br_inst_valid_o,
@@ -154,6 +162,27 @@ always @(*) begin
         reg_wdata_o = 32'h0;
     end
 end
+
+`ifdef DEBUG
+reg [31:0] branch_hit_cnt_r;
+reg [31:0] branch_miss_cnt_r;
+always @(posedge clk or negedge rst) begin
+    if (!rst) begin
+        branch_hit_cnt_r <= 32'h0;
+        branch_miss_cnt_r <= 32'h0;
+    end
+    else begin
+        if (br_inst_valid_o && is_branch && branch_taken == br_bpu_pre_flag_i) begin
+            branch_hit_cnt_r <= branch_hit_cnt_r + 1;
+        end
+        if (br_inst_valid_o && is_branch && branch_taken != br_bpu_pre_flag_i) begin
+            branch_miss_cnt_r <= branch_miss_cnt_r + 1;
+        end
+    end
+end
+assign branch_hit_cnt = branch_hit_cnt_r;
+assign branch_miss_cnt = branch_miss_cnt_r;
+`endif
 
 
 

@@ -24,7 +24,8 @@ module my_Riscv(
     input uart_int_flag
 
     `ifdef DEBUG
-    ,output [31:0] ex_branch_hit_cnt,
+    ,
+    output [31:0] ex_branch_hit_cnt,
     output [31:0] ex_branch_miss_cnt
     `endif
 
@@ -974,6 +975,10 @@ Branch u_Branch(
     .reg_wflag_o(br_reg_wflag_o),                 // 写回阶段写寄存器标志
     .reg_waddr_o(br_reg_waddr_o),           // 写回阶段写寄存器地址
     .reg_wdata_o(br_reg_wdata_o),          // 写回阶段写寄存器数据
+`ifdef DEBUG
+    .branch_hit_cnt(ex_branch_hit_cnt),
+    .branch_miss_cnt(ex_branch_miss_cnt),
+`endif
     // to ROB
     .complete_flag_o(br_complete_flag_o),             // 指令完成标志
     .commit_rob_id_o(br_commit_rob_id_o)        // 提交ROB id

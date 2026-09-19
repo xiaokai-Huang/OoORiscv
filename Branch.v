@@ -81,6 +81,11 @@ module Branch (
     output reg [5:0] reg_waddr_o,           // 写回阶段写寄存器地址
     output reg [31:0] reg_wdata_o,          // 写回阶段写寄存器数据
 
+    `ifdef DEBUG
+    output [31:0] branch_hit_cnt,
+    output [31:0] branch_miss_cnt,
+    `endif
+
     // to ROB
     output complete_flag_o,             // 指令完成标志
     output [5:0] commit_rob_id_o        // 提交ROB id
@@ -279,6 +284,8 @@ always @(posedge clk) begin
     end
 end
 br_ex u_br_ex(
+    .clk(clk),
+    .rst(rst),
     // from RF
     .br_inst_valid_i(rf_ex_br_inst_valid_o),              // branch指令有效标志
     .br_inst_addr_i(rf_ex_br_inst_addr_o),        // branch指令地址
@@ -326,6 +333,10 @@ br_ex u_br_ex(
     .reg_wflag_o(ex_reg_wflag_o),                 // 写寄存器标志
     .reg_waddr_o(ex_reg_waddr_o),           // 写寄存器地址
     .reg_wdata_o(ex_reg_wdata_o),      // 写寄存器数据
+`ifdef DEBUG
+    .branch_hit_cnt(branch_hit_cnt),
+    .branch_miss_cnt(branch_miss_cnt),
+`endif
     // to br_flush
     .br_inst_valid_o(ex_br_inst_valid_o),
     .commit_rob_id_o(ex_commit_rob_id_o)        // 提交ROB id

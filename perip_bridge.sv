@@ -45,7 +45,8 @@ module perip_bridge(
     output logic         tx
 
     `ifdef DEBUG
-    ,input  logic [31:0] branch_hit_cnt,
+    ,
+    input  logic [31:0] branch_hit_cnt,
     input  logic [31:0] branch_miss_cnt
     `endif
 

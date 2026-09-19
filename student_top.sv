@@ -77,7 +77,8 @@ module student_top#(
         .uart_int_flag      (uart_int_flag)
 
         `ifdef DEBUG
-        ,.ex_branch_hit_cnt(branch_hit_cnt),
+        ,
+        .ex_branch_hit_cnt(branch_hit_cnt),
         .ex_branch_miss_cnt(branch_miss_cnt)
         `endif
     );
@@ -119,7 +120,8 @@ module student_top#(
         .tx                 (tx)
 
         `ifdef DEBUG
-        ,.branch_hit_cnt(branch_hit_cnt),
+        ,
+        .branch_hit_cnt(branch_hit_cnt),
         .branch_miss_cnt(branch_miss_cnt)
         `endif
     );
