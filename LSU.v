@@ -103,7 +103,9 @@ wire [5:0] rf_rob_id_o;             // ROB id
 wire [7:0] rf_mask_o;               // 分支掩码
 wire [1:0] rf_sq_id_o;              // SQ id
 wire [3:0] rf_subtype_o;            // 指令子类型
-wire [31:0] rf_rs1_data_o;          // rs1数据
+wire [31:0] rf_rs1_data_o;          // rs1数据（寄存器读出的原始数据）
+wire rf_rs1_forward_flag_o;         // rs1转发标志（透传到EX）
+wire [31:0] rf_rs1_forward_data_o;  // rs1转发数据（透传到EX）
 wire [31:0] rf_rs2_data_o;          // rs2数据
 `ifdef use_f_extension
 wire [31:0] rf_float_rs2_data_o;    // 浮点rs2数据
@@ -144,6 +146,8 @@ LSU_RF u_LSU_RF(
     .sq_id_o(rf_sq_id_o),              // SQ id
     .subtype_o(rf_subtype_o),            // 指令子类型
     .rs1_data_o(rf_rs1_data_o),          // rs1数据
+    .rs1_forward_flag_o(rf_rs1_forward_flag_o),           // rs1转发标志
+    .rs1_forward_data_o(rf_rs1_forward_data_o),    // rs1转发数据
     .rs2_data_o(rf_rs2_data_o),          // rs2数据
     `ifdef use_f_extension
     .float_rs2_data_o(rf_float_rs2_data_o),
@@ -159,6 +163,8 @@ wire [7:0] rf_ex_mask_o;               // 分支掩码
 wire [1:0] rf_ex_sq_id_o;              // SQ id
 wire [3:0] rf_ex_subtype_o;            // 指令子类型
 wire [31:0] rf_ex_rs1_data_o;          // rs1数据
+wire rf_ex_rs1_forward_flag_o;         // rs1转发标志
+wire [31:0] rf_ex_rs1_forward_data_o;  // rs1转发数据
 wire [31:0] rf_ex_rs2_data_o;          // rs2数据
 `ifdef use_f_extension
 wire [31:0] rf_ex_float_rs2_data_o;    // 浮点rs2数据
@@ -174,6 +180,8 @@ lsu_rf_ex u_lsu_rf_ex(
     .sq_id_i(rf_sq_id_o),              // SQ id
     .subtype_i(rf_subtype_o),            // 指令子类型
     .rs1_data_i(rf_rs1_data_o),          // rs1数据
+    .rs1_forward_flag_i(rf_rs1_forward_flag_o),           // rs1转发标志
+    .rs1_forward_data_i(rf_rs1_forward_data_o),    // rs1转发数据
     .rs2_data_i(rf_rs2_data_o),          // rs2数据
     `ifdef use_f_extension
     .float_rs2_data_i(rf_float_rs2_data_o),
@@ -187,6 +195,8 @@ lsu_rf_ex u_lsu_rf_ex(
     .sq_id_o(rf_ex_sq_id_o),              // SQ id
     .subtype_o(rf_ex_subtype_o),            // 指令子类型
     .rs1_data_o(rf_ex_rs1_data_o),          // rs1数据
+    .rs1_forward_flag_o(rf_ex_rs1_forward_flag_o),           // rs1转发标志
+    .rs1_forward_data_o(rf_ex_rs1_forward_data_o),    // rs1转发数据
     .rs2_data_o(rf_ex_rs2_data_o),          // rs2数据
     `ifdef use_f_extension
     .float_rs2_data_o(rf_ex_float_rs2_data_o),
@@ -216,6 +226,8 @@ LSU_EX u_LSU_EX(
     .sq_id_i(rf_ex_sq_id_o),              // SQ id
     .subtype_i(rf_ex_subtype_o),            // 指令子类型
     .rs1_data_i(rf_ex_rs1_data_o),          // rs1数据
+    .rs1_forward_flag_i(rf_ex_rs1_forward_flag_o),           // rs1转发标志
+    .rs1_forward_data_i(rf_ex_rs1_forward_data_o),    // rs1转发数据
     .rs2_data_i(rf_ex_rs2_data_o),          // rs2数据
     `ifdef use_f_extension
     .float_rs2_data_i(rf_ex_float_rs2_data_o),

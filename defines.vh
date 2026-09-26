@@ -180,10 +180,6 @@
             rdata = branch_wdata_i; \
         else if (mem_wflag_i && (mem_waddr_i == raddr)) \
             rdata = mem_wdata_i; \
-        else if (mul_wflag_i && (mul_waddr_i == raddr)) \
-            rdata = mul_wdata_i; \
-        else if (div_wflag_i && (div_waddr_i == raddr)) \
-            rdata = div_wdata_i; \
         else \
             rdata = regs[raddr];
 `else

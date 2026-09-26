@@ -132,8 +132,8 @@ wire [5:0] wb_dst     = dst_pipe[2];
 wire       wb_inv     = inv_pipe[2];
 
 // 输出
-assign ex_wflag_o = vld_pipe[0];    // 执行阶段写寄存器标志
-assign ex_waddr_o = dst_pipe[0];    // 执行阶段写寄存器地址
+assign ex_wflag_o = vld_pipe[1];    // 执行阶段写寄存器标志
+assign ex_waddr_o = dst_pipe[1];    // 执行阶段写寄存器地址
 assign complete_flag_o = wb_valid;  // 指令完成标志
 assign commit_rob_id_o = wb_rob;    // 提交ROB id
 assign reg_wflag_o = wb_valid;      // 写回阶段写寄存器标志

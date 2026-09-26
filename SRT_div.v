@@ -156,7 +156,7 @@ module SRT_div (
         endcase
     end
 
-    assign ready_for_wakeup = (state == RUN) && (cnt == 5'd15);
+    assign ready_for_wakeup = (state == FIX);
 
     // =========================================================
     // 输出逻辑

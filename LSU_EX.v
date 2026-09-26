@@ -9,7 +9,9 @@ module LSU_EX (
     input [7:0] mask_i,               // 分支掩码
     input [1:0] sq_id_i,              // SQ id
     input [3:0] subtype_i,            // 指令子类型
-    input [31:0] rs1_data_i,          // rs1数据
+    input [31:0] rs1_data_i,          // rs1数据（寄存器读出的原始数据）
+    input rs1_forward_flag_i,         // rs1转发标志
+    input [31:0] rs1_forward_data_i,  // rs1转发数据
     input [31:0] rs2_data_i,          // rs2数据
 
     `ifdef use_f_extension
@@ -55,7 +57,11 @@ assign rs2_data_o = rs2_data_i;
 assign float_rs2_data_o = float_rs2_data_i;
 `endif
 assign pwaddr_o = pwaddr_i;
-assign mem_addr_o = rs1_data_i + imm_i;
+
+// 访存地址
+wire [31:0] mem_addr_reg = rs1_data_i + imm_i;          // 寄存器读数据 + 立即数
+wire [31:0] mem_addr_fwd = rs1_forward_data_i + imm_i;  // 转发数据 + 立即数
+assign mem_addr_o = rs1_forward_flag_i ? mem_addr_fwd : mem_addr_reg;
 
 always @(*) begin
     mask_o = mask_i;

@@ -64,23 +64,17 @@ wire rf_inst_valid_o;                 // ALU指令有效标志
 wire [5:0] rf_rob_id_o;               // ALU ROB id
 wire [7:0] rf_mask_o;                 // ALU分支掩码
 wire [3:0] rf_subtype_o;              // ALU指令子类型
-wire [1:0] rf_op1_src_o;              // ALU操作数1
-wire [1:0] rf_op2_src_o;              // ALU操作数2
-wire [31:0] rf_reg_rdata1_o;          // 寄存器1读数据
-wire [31:0] rf_reg_rdata2_o;          // 寄存器2读数据
-wire [31:0] rf_imm_o;                 // ALU立即数
+wire [31:0] rf_op1_o;                 // ALU操作数1
+wire [31:0] rf_op2_o;                 // ALU操作数2
 
 // alu_rf_ex
 wire rf_ex_inst_valid_o;             // ALU指令有效标志
 wire [5:0] rf_ex_rob_id_o;           // ALU ROB id
 wire [7:0] rf_ex_mask_o;             // ALU分支掩码
 wire [3:0] rf_ex_subtype_o;          // ALU指令子类型
-wire [1:0] rf_ex_op1_src_o;          // ALU操作数1
-wire [1:0] rf_ex_op2_src_o;          // ALU操作数2
-wire [31:0] rf_ex_reg_rdata1_o;      // 寄存器1读数据
-wire [31:0] rf_ex_reg_rdata2_o;      // 寄存器2读数据
+wire [31:0] rf_ex_op1_o;             // ALU操作数1
+wire [31:0] rf_ex_op2_o;             // ALU操作数2
 wire [5:0] rf_ex_pwaddr_o;           // 物理寄存器写地址
-wire [31:0] rf_ex_imm_o;             // ALU立即数
 
 // ALU_EX
 wire ex_inst_valid_o;                 // ALU指令有效标志
@@ -101,7 +95,6 @@ ALU_RF u_ALU_RF(
     .rob_id_i(rob_id_i),               // ALU ROB id
     .mask_i(mask_i),                 // ALU分支掩码
     .subtype_i(subtype_i),              // ALU指令子类型
-    .op1_src_i(op1_src_i),              // ALU操作数1
     .op2_src_i(op2_src_i),              // ALU操作数2
     .praddr1_i(praddr1_i),              // ALU物理寄存器1读地址
     .praddr2_i(praddr2_i),              // ALU物理寄存器2读地址
@@ -133,11 +126,8 @@ ALU_RF u_ALU_RF(
     .rob_id_o(rf_rob_id_o),               // ALU ROB id
     .mask_o(rf_mask_o),                 // ALU分支掩码
     .subtype_o(rf_subtype_o),              // ALU指令子类型
-    .op1_src_o(rf_op1_src_o),              // ALU操作数1
-    .op2_src_o(rf_op2_src_o),              // ALU操作数2
-    .reg_rdata1_o(rf_reg_rdata1_o),          // 寄存器1读数据
-    .reg_rdata2_o(rf_reg_rdata2_o),          // 寄存器2读数据
-    .imm_o(rf_imm_o)                  // ALU立即数
+    .op1_o(rf_op1_o),              // ALU操作数1
+    .op2_o(rf_op2_o)               // ALU操作数2
 );
 
 // alu_rf_ex
@@ -149,12 +139,9 @@ alu_rf_ex u_alu_rf_ex(
     .rob_id_i(rf_rob_id_o),               // ALU ROB id
     .mask_i(rf_mask_o),                 // ALU分支掩码
     .subtype_i(rf_subtype_o),              // ALU指令子类型
-    .op1_src_i(rf_op1_src_o),              // ALU操作数1
-    .op2_src_i(rf_op2_src_o),              // ALU操作数2
-    .reg_rdata1_i(rf_reg_rdata1_o),          // 寄存器1读数据
-    .reg_rdata2_i(rf_reg_rdata2_o),          // 寄存器2读数据
+    .op1_i(rf_op1_o),              // ALU操作数1
+    .op2_i(rf_op2_o),              // ALU操作数2
     .pwaddr_i(rf_waddr_o),               // ALU物理寄存器写地址
-    .imm_i(rf_imm_o),                 // ALU立即数
     // from clint
     .int_flag_i(int_flag_i),                   // 中断标志
     // to ex
@@ -162,12 +149,9 @@ alu_rf_ex u_alu_rf_ex(
     .rob_id_o(rf_ex_rob_id_o),           // ALU ROB id
     .mask_o(rf_ex_mask_o),             // ALU分支掩码
     .subtype_o(rf_ex_subtype_o),          // ALU指令子类型
-    .op1_src_o(rf_ex_op1_src_o),          // ALU操作数1
-    .op2_src_o(rf_ex_op2_src_o),          // ALU操作数2
-    .reg_rdata1_o(rf_ex_reg_rdata1_o),      // 寄存器1读数据
-    .reg_rdata2_o(rf_ex_reg_rdata2_o),      // 寄存器2读数据
-    .pwaddr_o(rf_ex_pwaddr_o),           // 物理寄存器写地址
-    .imm_o(rf_ex_imm_o)              // ALU立即数
+    .op1_o(rf_ex_op1_o),          // ALU操作数1
+    .op2_o(rf_ex_op2_o),          // ALU操作数2
+    .pwaddr_o(rf_ex_pwaddr_o)           // 物理寄存器写地址
 );
 
 // ALU_EX
@@ -177,12 +161,9 @@ ALU_EX u_ALU_EX(
     .rob_id_i(rf_ex_rob_id_o),               // ALU ROB id
     .mask_i(rf_ex_mask_o),                 // ALU分支掩码
     .subtype_i(rf_ex_subtype_o),              // ALU指令子类型
-    .op1_src_i(rf_ex_op1_src_o),              // ALU操作数1
-    .op2_src_i(rf_ex_op2_src_o),              // ALU操作数2
-    .reg_rdata1_i(rf_ex_reg_rdata1_o),          // 寄存器1读数据
-    .reg_rdata2_i(rf_ex_reg_rdata2_o),          // 寄存器2读数据
+    .op1_i(rf_ex_op1_o),              // ALU操作数1
+    .op2_i(rf_ex_op2_o),              // ALU操作数2
     .pwaddr_i(rf_ex_pwaddr_o),               // ALU物理寄存器写地址
-    .imm_i(rf_ex_imm_o),                 // ALU立即数
     // from branch
     .jump_flag_i(jump_flag_i),                  // 跳转标志
     .kill_mask_id_i(kill_mask_id_i),         // 分支掩码id

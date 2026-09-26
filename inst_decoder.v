@@ -470,7 +470,7 @@ always@(*) begin
             reg_waddr_o = rd;
             reg_wflag_o = 1'b1;
             aux_addr_o = inst_addr_i + imm_i;
-            if (inst_addr_i + imm_i == pre_addr_i) begin
+            if (pre_addr_i[31]) begin
                 jal_flush_o = 1'b0;           // 预测成功无需冲刷
                 jal_addr_o = 32'b0;
             end

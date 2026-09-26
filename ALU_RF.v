@@ -9,8 +9,7 @@ module ALU_RF (
     input [5:0] rob_id_i,               // ALU ROB id
     input [7:0] mask_i,                 // ALU分支掩码
     input [3:0] subtype_i,              // ALU指令子类型
-    input [1:0] op1_src_i,              // ALU操作数1
-    input [1:0] op2_src_i,              // ALU操作数2
+    input [1:0] op2_src_i,              // ALU操作数2来源选择（寄存器/立即数）
     input [5:0] praddr1_i,              // ALU物理寄存器1读地址
     input [5:0] praddr2_i,              // ALU物理寄存器2读地址
     input [5:0] pwaddr_i,               // ALU物理寄存器写地址
@@ -47,11 +46,8 @@ module ALU_RF (
     output [5:0] rob_id_o,               // ALU ROB id
     output reg [7:0] mask_o,             // ALU分支掩码
     output [3:0] subtype_o,              // ALU指令子类型
-    output [1:0] op1_src_o,              // ALU操作数1
-    output [1:0] op2_src_o,              // ALU操作数2
-    output [31:0] reg_rdata1_o,          // 寄存器1读数据
-    output [31:0] reg_rdata2_o,          // 寄存器2读数据
-    output [31:0] imm_o                  // ALU立即数
+    output [31:0] op1_o,                 // ALU操作数1（rs1，已含转发）
+    output [31:0] op2_o                  // ALU操作数2（rs2 或 立即数，已含转发）
 );
 
 // 读寄存器文件
@@ -66,11 +62,10 @@ assign inst_valid_o = inst_valid_i && ((mask_i & kill_mask) == 0); // 如果指�
 // 输出到执行阶段
 assign rob_id_o = rob_id_i;
 assign subtype_o = subtype_i;
-assign op1_src_o = op1_src_i;
-assign op2_src_o = op2_src_i;
-assign reg_rdata1_o = rs1_forward_flag_i ? rs1_forward_data_i : reg_rdata1_i; // 转发优先于寄存器文件
-assign reg_rdata2_o = rs2_forward_flag_i ? rs2_forward_data_i : reg_rdata2_i;
-assign imm_o = imm_i;
+// 操作数选择
+assign op1_o = rs1_forward_flag_i ? rs1_forward_data_i : reg_rdata1_i; // 转发优先于寄存器文件
+assign op2_o = (op2_src_i == `OP2_REG) ?
+               (rs2_forward_flag_i ? rs2_forward_data_i : reg_rdata2_i) : imm_i;
 
 always @(*) begin
     mask_o = mask_i;
