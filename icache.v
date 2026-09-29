@@ -86,7 +86,7 @@ end
 
 reg lru_way[0:15];
 integer i;
-always @(posedge clk or negedge rst) begin
+always @(posedge clk) begin          // 同步复位
     if(!rst) begin
         for(i = 0; i < 16; i = i + 1) begin
             lru_way[i] <= 1'b0;
@@ -120,7 +120,7 @@ always @(posedge clk) begin
     old_pc <= pc;
 end
 
-always @(posedge clk or negedge rst) begin
+always @(posedge clk) begin          // 同步复位
     if(!rst) begin
         miss_cnt <= 2'b0;
     end

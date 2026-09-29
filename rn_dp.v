@@ -69,12 +69,6 @@ module rn_dp (
     input dp_stall_flag_i,                     // RS/ROB满暂停
     input rn_stall_flag_i,                     // 重命名阶段暂停
 
-    // from commit
-    input free_mask_inst0_i,                   // 指令0释放掩码标志
-    input [2:0] free_id_inst0_i,               // 指令0释放id
-    input free_mask_inst1_i,                   // 指令1释放掩码标志
-    input [2:0] free_id_inst1_i,               // 指令1释放id
-
     // to dispatch
     output reg [2:0] ras_snap_ptr_o,                 // RAS快照指针
     output reg [31:0] inst_addr_o,                   // 指令地址

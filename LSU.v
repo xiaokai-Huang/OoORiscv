@@ -19,8 +19,9 @@ module LSU (
     input [31:0] imm_i,               // 立即数
 
     // from forward_unit
-    input rs1_forward_flag_i,           // rs1转发标志
-    input [31:0] rs1_forward_data_i,    // rs1转发数据
+    input [1:0] rs1_fwd_sel_i,          // mem rs1转发选择：01=ALU0, 10=ALU1, 00=不转发
+    input [31:0] alu0_exe_wdata_i,      // ALU0 执行阶段结果
+    input [31:0] alu1_exe_wdata_i,      // ALU1 执行阶段结果
     input rs2_forward_flag_i,           // rs2转发标志
     input [31:0] rs2_forward_data_i,    // rs2转发数据
 
@@ -40,11 +41,9 @@ module LSU (
     input jump_flag_i,                 // 跳转标志
     input [2:0] kill_mask_id_i,        // 分支掩码id
 
-    // from commit
-    input free_mask_inst0_i,                   // 指令0释放掩码标志
-    input [2:0] free_id_inst0_i,               // 指令0释放id
-    input free_mask_inst1_i,                   // 指令1释放掩码标志
-    input [2:0] free_id_inst1_i,               // 指令1释放id
+    // from branch
+    input free_mask_inst0_i,                   // 释放掩码标志
+    input [2:0] free_id_inst0_i,               // 释放id
 
     // from commit
     input commit_store_flag_i,             // 提交store指令标志
@@ -104,8 +103,6 @@ wire [7:0] rf_mask_o;               // 分支掩码
 wire [1:0] rf_sq_id_o;              // SQ id
 wire [3:0] rf_subtype_o;            // 指令子类型
 wire [31:0] rf_rs1_data_o;          // rs1数据（寄存器读出的原始数据）
-wire rf_rs1_forward_flag_o;         // rs1转发标志（透传到EX）
-wire [31:0] rf_rs1_forward_data_o;  // rs1转发数据（透传到EX）
 wire [31:0] rf_rs2_data_o;          // rs2数据
 `ifdef use_f_extension
 wire [31:0] rf_float_rs2_data_o;    // 浮点rs2数据
@@ -125,8 +122,6 @@ LSU_RF u_LSU_RF(
     .pwaddr_i(pwaddr_i),              // 物理寄存器写地址
     .imm_i(imm_i),                    // 立即数
     // from forward_unit
-    .rs1_forward_flag_i(rs1_forward_flag_i),           // rs1转发标志
-    .rs1_forward_data_i(rs1_forward_data_i),    // rs1转发数据
     .rs2_forward_flag_i(rs2_forward_flag_i),           // rs2转发标志
     .rs2_forward_data_i(rs2_forward_data_i),    // rs2转发数据
     // from regs
@@ -146,8 +141,6 @@ LSU_RF u_LSU_RF(
     .sq_id_o(rf_sq_id_o),              // SQ id
     .subtype_o(rf_subtype_o),            // 指令子类型
     .rs1_data_o(rf_rs1_data_o),          // rs1数据
-    .rs1_forward_flag_o(rf_rs1_forward_flag_o),           // rs1转发标志
-    .rs1_forward_data_o(rf_rs1_forward_data_o),    // rs1转发数据
     .rs2_data_o(rf_rs2_data_o),          // rs2数据
     `ifdef use_f_extension
     .float_rs2_data_o(rf_float_rs2_data_o),
@@ -163,8 +156,6 @@ wire [7:0] rf_ex_mask_o;               // 分支掩码
 wire [1:0] rf_ex_sq_id_o;              // SQ id
 wire [3:0] rf_ex_subtype_o;            // 指令子类型
 wire [31:0] rf_ex_rs1_data_o;          // rs1数据
-wire rf_ex_rs1_forward_flag_o;         // rs1转发标志
-wire [31:0] rf_ex_rs1_forward_data_o;  // rs1转发数据
 wire [31:0] rf_ex_rs2_data_o;          // rs2数据
 `ifdef use_f_extension
 wire [31:0] rf_ex_float_rs2_data_o;    // 浮点rs2数据
@@ -180,8 +171,6 @@ lsu_rf_ex u_lsu_rf_ex(
     .sq_id_i(rf_sq_id_o),              // SQ id
     .subtype_i(rf_subtype_o),            // 指令子类型
     .rs1_data_i(rf_rs1_data_o),          // rs1数据
-    .rs1_forward_flag_i(rf_rs1_forward_flag_o),           // rs1转发标志
-    .rs1_forward_data_i(rf_rs1_forward_data_o),    // rs1转发数据
     .rs2_data_i(rf_rs2_data_o),          // rs2数据
     `ifdef use_f_extension
     .float_rs2_data_i(rf_float_rs2_data_o),
@@ -195,8 +184,6 @@ lsu_rf_ex u_lsu_rf_ex(
     .sq_id_o(rf_ex_sq_id_o),              // SQ id
     .subtype_o(rf_ex_subtype_o),            // 指令子类型
     .rs1_data_o(rf_ex_rs1_data_o),          // rs1数据
-    .rs1_forward_flag_o(rf_ex_rs1_forward_flag_o),           // rs1转发标志
-    .rs1_forward_data_o(rf_ex_rs1_forward_data_o),    // rs1转发数据
     .rs2_data_o(rf_ex_rs2_data_o),          // rs2数据
     `ifdef use_f_extension
     .float_rs2_data_o(rf_ex_float_rs2_data_o),
@@ -226,8 +213,9 @@ LSU_EX u_LSU_EX(
     .sq_id_i(rf_ex_sq_id_o),              // SQ id
     .subtype_i(rf_ex_subtype_o),            // 指令子类型
     .rs1_data_i(rf_ex_rs1_data_o),          // rs1数据
-    .rs1_forward_flag_i(rf_ex_rs1_forward_flag_o),           // rs1转发标志
-    .rs1_forward_data_i(rf_ex_rs1_forward_data_o),    // rs1转发数据
+    .rs1_fwd_sel_i(rs1_fwd_sel_i),           // rs1转发选择
+    .alu0_exe_wdata_i(alu0_exe_wdata_i),     // ALU0 执行阶段结果
+    .alu1_exe_wdata_i(alu1_exe_wdata_i),     // ALU1 执行阶段结果
     .rs2_data_i(rf_ex_rs2_data_o),          // rs2数据
     `ifdef use_f_extension
     .float_rs2_data_i(rf_ex_float_rs2_data_o),
@@ -237,11 +225,9 @@ LSU_EX u_LSU_EX(
     // from branch
     .jump_flag_i(jump_flag_i),                 // 跳转标志
     .kill_mask_id_i(kill_mask_id_i),        // 分支掩码id
-    // from commit
-    .free_mask_inst0_i(free_mask_inst0_i),                   // 指令0释放掩码标志
-    .free_id_inst0_i(free_id_inst0_i),               // 指令0释放id
-    .free_mask_inst1_i(free_mask_inst1_i),                   // 指令1释放掩码标志
-    .free_id_inst1_i(free_id_inst1_i),               // 指令1释放id
+    // from branch
+    .free_mask_inst0_i(free_mask_inst0_i),                   // 释放掩码标志
+    .free_id_inst0_i(free_id_inst0_i),               // 释放id
     // to mem
     .inst_valid_o(ex_inst_valid_o),               // 指令有效标志
     .rob_id_o(ex_rob_id_o),             // ROB id
@@ -289,11 +275,9 @@ lsu_ex_mem u_lsu_ex_mem(
     // from mem
     .flush_i(flush_o),                      // 冲刷标志
     .stall_i(stall_o),
-    // from commit
-    .free_mask_inst0_i(free_mask_inst0_i),                   // 指令0释放掩码标志
-    .free_id_inst0_i(free_id_inst0_i),               // 指令0释放id
-    .free_mask_inst1_i(free_mask_inst1_i),                   // 指令1释放掩码标志
-    .free_id_inst1_i(free_id_inst1_i),               // 指令1释放id
+    // from branch
+    .free_mask_inst0_i(free_mask_inst0_i),                   // 释放掩码标志
+    .free_id_inst0_i(free_id_inst0_i),               // 释放id
     // to mem
     .inst_valid_o(ex_mem_inst_valid_o),               // 指令有效标志
     .rob_id_o(ex_mem_rob_id_o),             // ROB id
@@ -341,11 +325,9 @@ LSU_Mem u_LSU_Mem(
     .kill_mask_id_i(kill_mask_id_i),        // 分支掩码id
     // from commit
     .commit_store_flag_i(commit_store_flag_i),             // 提交store指令标志
-    // from commit
-    .free_mask_inst0_i(free_mask_inst0_i),                   // 指令0释放掩码标志
-    .free_id_inst0_i(free_id_inst0_i),               // 指令0释放id
-    .free_mask_inst1_i(free_mask_inst1_i),                   // 指令1释放掩码标志
-    .free_id_inst1_i(free_id_inst1_i),               // 指令1释放id
+    // from branch
+    .free_mask_inst0_i(free_mask_inst0_i),                   // 释放掩码标志
+    .free_id_inst0_i(free_id_inst0_i),               // 释放id
     // from peripheral
     .perip_rdata(perip_rdata),
     // from dcache

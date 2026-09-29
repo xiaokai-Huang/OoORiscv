@@ -77,6 +77,7 @@ module Branch (
 
     // to ROB
     output complete_flag_o,             // 指令完成标志
+    output free_snap_flag_o,            // 释放快照标志
     output [5:0] commit_rob_id_o        // 提交ROB id
 );
 
@@ -125,6 +126,7 @@ wire [31:0] rf_ex_br_aux_addr_o;         // branch辅助地址
 
 // br_ex
 wire ex_br_inst_valid_o;              // branch指令有效标志
+wire ex_need_snap_o;                  // 占用快照标志
 wire [5:0] ex_commit_rob_id_o;        // 提交ROB id
 wire ex_jump_flag_o;                  // 跳转标志
 wire [2:0] ex_kill_mask_id_o;         // 分支掩码id
@@ -314,15 +316,20 @@ br_ex u_br_ex(
     .reg_wdata_o(ex_reg_wdata_o),      // 写寄存器数据
     // to br_flush
     .br_inst_valid_o(ex_br_inst_valid_o),
+    .need_snap_o(ex_need_snap_o),               // 占用快照标志
     .commit_rob_id_o(ex_commit_rob_id_o)        // 提交ROB id
 );
 
 // br_ex_flush
+// 释放快照标志
+wire need_snap;
+assign free_snap_flag_o = complete_flag_o && need_snap;
 br_ex_flush u_br_ex_flush(
     .clk(clk),
     .rst(rst),
     // from br_ex
     .br_inst_valid_i(ex_br_inst_valid_o),              // branch指令有效标志
+    .need_snap_i(ex_need_snap_o),               // 占用快照标志
     .commit_rob_id_i(ex_commit_rob_id_o),        // 提交ROB id
     .jump_flag_i(ex_jump_flag_o),                   // 跳转标志
     .kill_mask_id_i(ex_kill_mask_id_o),         // 分支掩码id
@@ -337,6 +344,7 @@ br_ex_flush u_br_ex_flush(
     .int_flag_i(int_flag_i),                   // 中断标志
     // to br_flush
     .br_inst_valid_o(complete_flag_o),              // branch指令有效标志
+    .need_snap_o(need_snap),                    // 占用快照标志
     .commit_rob_id_o(commit_rob_id_o),        // 提交ROB id
     .jump_flag_o(jump_flag_o),                  // 跳转标志
     .kill_mask_id_o(kill_mask_id_o),         // 分支掩码id

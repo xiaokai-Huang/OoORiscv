@@ -19,11 +19,9 @@ module div_rf_ex (
     input flush_i,                      // 冲刷标志
     input stall_i,                      // 暂停标志
 
-    // from commit
-    input free_mask_inst0_i,                   // 指令0释放掩码标志
-    input [2:0] free_id_inst0_i,               // 指令0释放id
-    input free_mask_inst1_i,                   // 指令1释放掩码标志
-    input [2:0] free_id_inst1_i,               // 指令1释放id
+    // from branch
+    input free_mask_inst0_i,                   // 释放掩码标志
+    input [2:0] free_id_inst0_i,               // 释放id
 
     // from clint
     input int_flag_i,                   // 中断标志
@@ -44,9 +42,6 @@ always @(*) begin
     next_mask = mask_o;
     if (free_mask_inst0_i) begin
         next_mask[free_id_inst0_i] = 1'b0;
-    end
-    if (free_mask_inst1_i) begin
-        next_mask[free_id_inst1_i] = 1'b0;
     end
 end
 

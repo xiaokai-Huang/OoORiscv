@@ -32,13 +32,9 @@ module rename(
     // from dispatch
     input stall_flag_i,               // RS/ROB满暂停
 
-    // from commit
-    input free_snap_flag_inst0_i,         // 指令0释放快照标志
-    input free_snap_flag_inst1_i,         // 指令1释放快照标志
-
-    // 释放 ID，用于清理内部 Mask
-    input [2:0] free_snap_id_inst0_i,     
-    input [2:0] free_snap_id_inst1_i,
+    // from branch
+    input free_snap_flag_inst0_i,         // 释放快照标志
+    input [2:0] free_snap_id_inst0_i,     // 释放的快照id
     
     input commit_inst0_i,                 // 指令0提交使能
     input [4:0] waddr_commit0_i,          // 提交指令的目标逻辑寄存器
@@ -193,7 +189,6 @@ module rename(
         // Inst0 Mask: 继承当前环境
         branch_mask_inst0_o = current_mask;
         if (free_snap_flag_inst0_i) branch_mask_inst0_o[free_snap_id_inst0_i] = 1'b0; // 释放快照时，强制清除对应位
-        if (free_snap_flag_inst1_i) branch_mask_inst0_o[free_snap_id_inst1_i] = 1'b0;
 
         // Inst1 Mask: 继承中间环境
         if (alloc_snap_inst0_i)
@@ -201,40 +196,36 @@ module rename(
         else
             branch_mask_inst1_o = current_mask;
         if (free_snap_flag_inst0_i) branch_mask_inst1_o[free_snap_id_inst0_i] = 1'b0; // 释放快照时，强制清除对应位
-        if (free_snap_flag_inst1_i) branch_mask_inst1_o[free_snap_id_inst1_i] = 1'b0;
     end
 
 
     // 状态更新
-    // 保存RAT快照用
-    reg [5:0] rat_after_inst0[0:31]; // 指令0执行完后的RAT状态
-    reg [5:0] rat_after_inst1[0:31]; // 指令1执行完后的RAT状态
-    always @(*) begin
-        // i=0的情况特殊处理：始终保持映射为0
-        rat_after_inst0[0] = 6'd0;
-        rat_after_inst1[0] = 6'd0;
-        
-        for (i = 1; i < 32; i = i + 1) begin
-            // 计算指令 0 执行后的状态
-            if (need_p0 && waddr_inst0_i == i[4:0]) 
-                rat_after_inst0[i] = alloc_p0;
-            else 
-                rat_after_inst0[i] = RAT[i];
-
-            // 计算指令 1 执行后的状态
-            if (need_p1 && waddr_inst1_i == i[4:0])
-                rat_after_inst1[i] = need_p0 ? alloc_p1 : alloc_p0;
-            else if (need_p0 && waddr_inst0_i == i[4:0])
-                rat_after_inst1[i] = alloc_p0;
-            else 
-                rat_after_inst1[i] = RAT[i];
-        end
+    // 快照的 RAT 内容延迟一拍写：
+    //   分配那一拍什么也不写，只记下槽位；
+    //   下一拍的活 RAT = "分配那一拍两条指令重命名之后"的映射，正好就是指令1之后的状态，
+    //   整槽写下来即可；指令0之后只需把指令1改过的那一项撤回去。
+    // 槽位不会撞：分配拍用 next_alloc_ptr(/+1)，本拍从 +req_snaps 开始。
+    reg        alloc_snap_0_d, alloc_snap_1_d;  // 上一拍真的分配了快照
+    reg [2:0]  snap_id_0_d, snap_id_1_d;        // 上一拍分配到的槽位
+    reg        need_p1_d;                       // 上一拍指令1是否重命名
+    reg [4:0]  waddr_inst1_d;                   // 上一拍指令1的目的寄存器
+    reg [5:0]  old_paddr_inst1_d;               // 指令1重命名前的旧映射
+    always @(posedge clk) begin
+        // 只需要 do_alloc：stall 那拍指针不前进，不加会跟本拍新分配的槽撞上。
+        // 冲刷/中断那拍即使置上也无所谓：错写的是 next_alloc_ptr 指向的"下一个待分配槽"，
+        // 它永远不会是 restore_snap_id_i，会在被读到之前重新分配并被整槽覆盖。
+        alloc_snap_0_d    <= do_alloc && alloc_snap_inst0_i;
+        alloc_snap_1_d    <= do_alloc && alloc_snap_inst1_i;
+        snap_id_0_d       <= next_snap_id_0;
+        snap_id_1_d       <= next_snap_id_1;
+        need_p1_d         <= need_p1;
+        waddr_inst1_d     <= waddr_inst1_i;
+        old_paddr_inst1_d <= old_paddr_inst1_o;
     end
     // 时序逻辑更新
     wire [2:0] rollback_dist = next_alloc_ptr - restore_snap_id_i - 1'b1; // 计算回滚步数 (在环上的距离)
-    // 计算本周期释放了几个快照 (Commit阶段)
-    wire [2:0] total_release_snaps = (free_snap_flag_inst0_i ? 1'b1 : 1'b0) + 
-                                     (free_snap_flag_inst1_i ? 1'b1 : 1'b0);
+    // 本周期释放的快照数
+    wire total_release_snaps = free_snap_flag_inst0_i;
     
     // 掩码更新临时变量
     reg [7:0] mask_alloc_update;
@@ -253,7 +244,6 @@ module rename(
         mask_final_update = mask_alloc_update;
         // 释放
         if (free_snap_flag_inst0_i) mask_final_update[free_snap_id_inst0_i] = 1'b0; // 强制清某一位
-        if (free_snap_flag_inst1_i) mask_final_update[free_snap_id_inst1_i] = 1'b0;
     end
     
     // 冲刷恢复mask
@@ -281,9 +271,8 @@ module rename(
         // 先计算基本的恢复值
         mask_restored = (mask_snapshots[restore_snap_id_i] & current_mask) & (~younger_mask);
 
-        // 叠加当前周期的提交释放（拉低）
+        // 叠加本周期的释放（拉低）
         if (free_snap_flag_inst0_i) mask_restored[free_snap_id_inst0_i] = 1'b0;
-        if (free_snap_flag_inst1_i) mask_restored[free_snap_id_inst1_i] = 1'b0;
     end
     wire [5:0] restore_free_cnt = (head_snapshots[restore_snap_id_i] - tail_ptr);
     // 时序更新
@@ -329,7 +318,7 @@ module rename(
 
             next_alloc_ptr <= restore_snap_id_i + 1'b1; // 提交释放当前分支快照，下一次分配当前分支的下一个ID，覆盖错误路径的分配
             current_mask <= mask_restored;
-            active_snap_cnt <= active_snap_cnt - {1'b0, rollback_dist} - {1'b0, total_release_snaps};
+            active_snap_cnt <= active_snap_cnt - {1'b0, rollback_dist} - {3'b0, total_release_snaps};
 
             // 提交/回收逻辑
             // 更新 Committed RAT (中断时恢复用)
@@ -357,30 +346,26 @@ module rename(
                 // 更新分配指针
                 head_ptr <= head_ptr + req_regs;
 
-                // 更新快照
-                // 快照保存
+                // 更新快照 (mask / head 本拍写；RAT 内容下一拍整槽写)
                 if (alloc_snap_inst0_i) begin
                     mask_snapshots[next_snap_id_0] <= current_mask;
                     head_snapshots[next_snap_id_0] <= head_ptr + need_p0;
-                    for(i = 0; i < 32; i = i + 1) rat_snapshots[next_snap_id_0][i] <= rat_after_inst0[i];
 
                     if (alloc_snap_inst1_i) begin
                         mask_snapshots[next_snap_id_1] <= branch_mask_inst1_o;
                         head_snapshots[next_snap_id_1] <= head_ptr + req_regs;
-                        for(i = 0; i < 32; i = i + 1) rat_snapshots[next_snap_id_1][i] <= rat_after_inst1[i];
                     end
                 end 
                 else if (alloc_snap_inst1_i) begin
                     mask_snapshots[next_snap_id_1] <= branch_mask_inst1_o;
                     head_snapshots[next_snap_id_1] <= head_ptr + req_regs;
-                    for(i = 0; i < 32; i = i + 1) rat_snapshots[next_snap_id_1][i] <= rat_after_inst1[i];
                 end
 
                 // 更新下一个分配指针
                 if (alloc_snap_inst0_i && alloc_snap_inst1_i)
                     next_alloc_ptr <= next_alloc_ptr + 3'd2;
                 else if (alloc_snap_inst0_i || alloc_snap_inst1_i)
-                    next_alloc_ptr <= next_alloc_ptr + 1'b1;
+                    next_alloc_ptr <= next_alloc_ptr + 3'd1;
             end
 
             // 更新全局 Mask
@@ -410,7 +395,23 @@ module rename(
         end
     end
 
-    
-    
+    // 延迟一拍整槽写入快照的 RAT 内容
+    //   本拍的活 RAT 已经等于"上一拍两条指令都重命名之后"的映射
+    //   → 指令1的槽直接抄活 RAT (0 逻辑)
+    //   → 指令0的槽要把指令1改过的那一项撤回到它原来的映射
+    // 独立于复位/中断/冲刷：
+    //   这几个信号不影响写入的正确性 —— 错写到的槽是 next_alloc_ptr 指向的"下一个待分配槽"，
+    //   它永远不会是 restore_snap_id_i，会在被读到之前重新分配并被整槽覆盖。
+    //   好处：1536 个快照 FF 的写使能少掉 rst/int_flag/flush 这几项，且不会丢更新。
+    always @(posedge clk) begin
+        if (alloc_snap_1_d) begin
+            for (i = 1; i < 32; i = i + 1)
+                rat_snapshots[snap_id_1_d][i] <= RAT[i];
+        end
+        if (alloc_snap_0_d) begin
+            for (i = 1; i < 32; i = i + 1)
+                rat_snapshots[snap_id_0_d][i] <= (need_p1_d && (waddr_inst1_d == i[4:0])) ? old_paddr_inst1_d : RAT[i];
+        end
+    end
 
 endmodule

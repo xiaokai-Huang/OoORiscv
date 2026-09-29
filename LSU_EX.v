@@ -10,8 +10,9 @@ module LSU_EX (
     input [1:0] sq_id_i,              // SQ id
     input [3:0] subtype_i,            // 指令子类型
     input [31:0] rs1_data_i,          // rs1数据（寄存器读出的原始数据）
-    input rs1_forward_flag_i,         // rs1转发标志
-    input [31:0] rs1_forward_data_i,  // rs1转发数据
+    input [1:0] rs1_fwd_sel_i,        // rs1转发选择（2 位 one-hot：01=ALU0, 10=ALU1, 00=不转发）
+    input [31:0] alu0_exe_wdata_i,    // ALU0 执行阶段结果（转发模块不搬运数据，由 ALU 直连）
+    input [31:0] alu1_exe_wdata_i,    // ALU1 执行阶段结果（转发模块不搬运数据，由 ALU 直连）
     input [31:0] rs2_data_i,          // rs2数据
 
     `ifdef use_f_extension
@@ -25,11 +26,9 @@ module LSU_EX (
     input jump_flag_i,                 // 跳转标志
     input [2:0] kill_mask_id_i,        // 分支掩码id
 
-    // from commit
-    input free_mask_inst0_i,                   // 指令0释放掩码标志
-    input [2:0] free_id_inst0_i,               // 指令0释放id
-    input free_mask_inst1_i,                   // 指令1释放掩码标志
-    input [2:0] free_id_inst1_i,               // 指令1释放id
+    // from branch
+    input free_mask_inst0_i,                   // 释放掩码标志
+    input [2:0] free_id_inst0_i,               // 释放id
 
     // to mem
     output inst_valid_o,               // 指令有效标志
@@ -58,18 +57,18 @@ assign float_rs2_data_o = float_rs2_data_i;
 `endif
 assign pwaddr_o = pwaddr_i;
 
-// 访存地址
-wire [31:0] mem_addr_reg = rs1_data_i + imm_i;          // 寄存器读数据 + 立即数
-wire [31:0] mem_addr_fwd = rs1_forward_data_i + imm_i;  // 转发数据 + 立即数
-assign mem_addr_o = rs1_forward_flag_i ? mem_addr_fwd : mem_addr_reg;
+// 访存地址：三路并行加法 + 末级选择
+wire [31:0] mem_addr_reg  = rs1_data_i       + imm_i;   // 寄存器读数据 + 立即数
+wire [31:0] mem_addr_alu0 = alu0_exe_wdata_i + imm_i;   // ALU0 结果 + 立即数
+wire [31:0] mem_addr_alu1 = alu1_exe_wdata_i + imm_i;   // ALU1 结果 + 立即数
+
+assign mem_addr_o = (rs1_fwd_sel_i == 2'b01) ? mem_addr_alu0 :
+                    (rs1_fwd_sel_i == 2'b10) ? mem_addr_alu1 : mem_addr_reg;
 
 always @(*) begin
     mask_o = mask_i;
     if (free_mask_inst0_i) begin
         mask_o[free_id_inst0_i] = 1'b0;
-    end
-    if (free_mask_inst1_i) begin
-        mask_o[free_id_inst1_i] = 1'b0;
     end
 end
 

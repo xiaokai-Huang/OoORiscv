@@ -8,6 +8,7 @@ module br_ex_flush (
 
     // from br_ex
     input br_inst_valid_i,              // branch指令有效标志
+    input need_snap_i,                  // 占用快照标志
     input [5:0] commit_rob_id_i,        // 提交ROB id
     input jump_flag_i,                   // 跳转标志
     input [2:0] kill_mask_id_i,         // 分支掩码id
@@ -24,6 +25,7 @@ module br_ex_flush (
 
     // to br_flush
     output reg br_inst_valid_o,              // branch指令有效标志
+    output reg need_snap_o,                  // 占用快照标志
     output reg [5:0] commit_rob_id_o,        // 提交ROB id
     output reg jump_flag_o,                  // 跳转标志
     output reg [2:0] kill_mask_id_o,         // 分支掩码id
@@ -52,6 +54,7 @@ always @(posedge clk) begin
 end
 
 always @(posedge clk) begin
+    need_snap_o <= need_snap_i;
     commit_rob_id_o <= commit_rob_id_i;
     kill_mask_id_o <= kill_mask_id_i;
     ras_snap_ptr_o <= ras_snap_ptr_i;

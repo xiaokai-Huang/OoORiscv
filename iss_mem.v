@@ -22,11 +22,9 @@ module iss_mem (
     input [5:0] pwaddr_i,             // 物理寄存器写地址
     input [31:0] imm_i,               // 立即数
 
-    // from commit
-    input free_mask_inst0_i,                   // 指令0释放掩码标志
-    input [2:0] free_id_inst0_i,               // 指令0释放id
-    input free_mask_inst1_i,                   // 指令1释放掩码标志
-    input [2:0] free_id_inst1_i,               // 指令1释放id
+    // from branch
+    input free_mask_inst0_i,                   // 释放掩码标志
+    input [2:0] free_id_inst0_i,               // 释放id
 
     // from branch
     input jump_flag_i,                      // 跳转标志
@@ -52,9 +50,6 @@ always @(*) begin
     next_mask = mask_o;
     if (free_mask_inst0_i) begin
         next_mask[free_id_inst0_i] = 1'b0;
-    end
-    if (free_mask_inst1_i) begin
-        next_mask[free_id_inst1_i] = 1'b0;
     end
 end
 

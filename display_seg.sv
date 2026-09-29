@@ -33,7 +33,7 @@ module display_seg (
     logic  [4:0]   count;
     logic  [3:0]   digit1, digit2, digit3, digit4; 
 
-    always@(posedge clk or posedge rst) begin
+    always@(posedge clk) begin     // 同步复位
         if(rst)  
             count <= 0;
         else 

@@ -63,10 +63,8 @@ module Issue (
 
     // from commit
     input [1:0] sq_commit_cnt_i,               // store queue提交数量
-    input free_mask_inst0_i,                   // 指令0释放掩码标志
-    input [2:0] free_id_inst0_i,               // 指令0释放id
-    input free_mask_inst1_i,                   // 指令1释放掩码标志
-    input [2:0] free_id_inst1_i,               // 指令1释放id
+    input free_mask_inst0_i,                   // 释放掩码标志
+    input [2:0] free_id_inst0_i,               // 释放id
 
     // from clint
     input int_flag_i,                       // 中断标志
@@ -1700,11 +1698,6 @@ always @(posedge clk) begin
                 alu_mask[i][free_id_inst0_i] <= 1'b0; // 清除对应位
             end
         end
-        if (free_mask_inst1_i) begin
-            for (i = 0; i < 8; i = i + 1) begin
-                alu_mask[i][free_id_inst1_i] <= 1'b0; // 清除对应位
-            end
-        end
     end
     else begin
         // 发射后将指令无效化并更新读指针
@@ -1766,11 +1759,6 @@ always @(posedge clk) begin
                 alu_mask[i][free_id_inst0_i] <= 1'b0; // 清除对应位
             end
         end
-        if (free_mask_inst1_i) begin
-            for (i = 0; i < 8; i = i + 1) begin
-                alu_mask[i][free_id_inst1_i] <= 1'b0; // 清除对应位
-            end
-        end
     end
 end
 
@@ -1782,10 +1770,6 @@ always @(*) begin
     if (free_mask_inst0_i) begin
         alu0_mask_new[free_id_inst0_i] = 1'b0;
         alu1_mask_new[free_id_inst0_i] = 1'b0;
-    end
-    if (free_mask_inst1_i) begin
-        alu0_mask_new[free_id_inst1_i] = 1'b0;
-        alu1_mask_new[free_id_inst1_i] = 1'b0;
     end
 end
 iss_alu u_iss_alu_inst0 (
@@ -1962,11 +1946,6 @@ always @(posedge clk) begin
                 branch_mask[i][free_id_inst0_i] <= 1'b0; // 清除对应位
             end
         end
-        if (free_mask_inst1_i) begin
-            for (i = 0; i < 4; i = i + 1) begin
-                branch_mask[i][free_id_inst1_i] <= 1'b0; // 清除对应位
-            end
-        end
     end
     else begin
         // 发射后将指令无效化并更新读指针
@@ -2059,11 +2038,6 @@ always @(posedge clk) begin
                 branch_mask[i][free_id_inst0_i] <= 1'b0; // 清除对应位
             end
         end
-        if (free_mask_inst1_i) begin
-            for (i = 0; i < 4; i = i + 1) begin
-                branch_mask[i][free_id_inst1_i] <= 1'b0; // 清除对应位
-            end
-        end
     end
 end
 
@@ -2073,9 +2047,6 @@ always @(*) begin
     br_mask_new = branch_mask[branch_rd_ptr];
     if (free_mask_inst0_i) begin
         br_mask_new[free_id_inst0_i] = 1'b0;
-    end
-    if (free_mask_inst1_i) begin
-        br_mask_new[free_id_inst1_i] = 1'b0;
     end
 end
 iss_br u_iss_br (
@@ -2280,11 +2251,6 @@ always @(posedge clk) begin
                 mem_mask[i][free_id_inst0_i] <= 1'b0; // 清除对应位
             end
         end
-        if (free_mask_inst1_i) begin
-            for (i = 0; i < 8; i = i + 1) begin
-                mem_mask[i][free_id_inst1_i] <= 1'b0; // 清除对应位
-            end
-        end
         // 更新SQ占用计数
         sq_count <= sq_count - rollback_dist - {1'b0, sq_commit_cnt_i};
         // sq_count <= sq_count - flushed_store_cnt - sq_commit_cnt_i;
@@ -2352,11 +2318,6 @@ always @(posedge clk) begin
                 mem_mask[i][free_id_inst0_i] <= 1'b0; // 清除对应位
             end
         end
-        if (free_mask_inst1_i) begin
-            for (i = 0; i < 8; i = i + 1) begin
-                mem_mask[i][free_id_inst1_i] <= 1'b0; // 清除对应位
-            end
-        end
     end
 end
 
@@ -2366,9 +2327,6 @@ always @(*) begin
     mem_mask_new = mem_mask[mem_rd_ptr];
     if (free_mask_inst0_i) begin
         mem_mask_new[free_id_inst0_i] = 1'b0;
-    end
-    if (free_mask_inst1_i) begin
-        mem_mask_new[free_id_inst1_i] = 1'b0;
     end
 end
 iss_mem u_iss_mem(
@@ -2389,11 +2347,9 @@ iss_mem u_iss_mem(
     .praddr2_i(mem_praddr2[mem_rd_ptr]),            // 物理寄存器2读地址
     .pwaddr_i(mem_pwaddr[mem_rd_ptr]),             // 物理寄存器写地址
     .imm_i(mem_imm[mem_rd_ptr]),               // 立即数
-    // from commit
-    .free_mask_inst0_i(free_mask_inst0_i),                   // 指令0释放掩码标志
-    .free_id_inst0_i(free_id_inst0_i),               // 指令0释放id
-    .free_mask_inst1_i(free_mask_inst1_i),                   // 指令1释放掩码标志
-    .free_id_inst1_i(free_id_inst1_i),               // 指令1释放id
+    // from branch
+    .free_mask_inst0_i(free_mask_inst0_i),                   // 释放掩码标志
+    .free_id_inst0_i(free_id_inst0_i),               // 释放id
     // from branch
     .jump_flag_i(jump_flag_i),                      // 跳转标志
     .kill_mask_id_i(kill_mask_id_i),             // 杀死指令掩码id
@@ -2700,11 +2656,6 @@ always @(posedge clk) begin
                 mul_div_mask[i][free_id_inst0_i] <= 1'b0; // 清除对应位
             end
         end
-        if (free_mask_inst1_i) begin
-            for (i = 0; i < 4; i = i + 1) begin
-                mul_div_mask[i][free_id_inst1_i] <= 1'b0; // 清除对应位
-            end
-        end
     end
     else begin
         // 发射后将指令无效化并更新读指针
@@ -2755,11 +2706,6 @@ always @(posedge clk) begin
                 mul_div_mask[i][free_id_inst0_i] <= 1'b0; // 清除对应位
             end
         end
-        if (free_mask_inst1_i) begin
-            for (i = 0; i < 4; i = i + 1) begin
-                mul_div_mask[i][free_id_inst1_i] <= 1'b0; // 清除对应位
-            end
-        end
     end
 end
 
@@ -2769,9 +2715,6 @@ always @(*) begin
     div_mask_new = mul_div_mask[mul_div_rd_ptr];
     if (free_mask_inst0_i) begin
         div_mask_new[free_id_inst0_i] = 1'b0;
-    end
-    if (free_mask_inst1_i) begin
-        div_mask_new[free_id_inst1_i] = 1'b0;
     end
 end
 iss_div u_iss_div(
@@ -2788,11 +2731,9 @@ iss_div u_iss_div(
     .praddr1_i(mul_div_praddr1[mul_div_rd_ptr]),            // 物理寄存器1读地址
     .praddr2_i(mul_div_praddr2[mul_div_rd_ptr]),            // 物理寄存器2读地址
     .pwaddr_i(mul_div_pwaddr[mul_div_rd_ptr]),             // 物理寄存器写地址
-    // from commit
-    .free_mask_inst0_i(free_mask_inst0_i),                   // 指令0释放掩码标志
-    .free_id_inst0_i(free_id_inst0_i),               // 指令0释放id
-    .free_mask_inst1_i(free_mask_inst1_i),                   // 指令1释放掩码标志
-    .free_id_inst1_i(free_id_inst1_i),               // 指令1释放id
+    // from branch
+    .free_mask_inst0_i(free_mask_inst0_i),                   // 释放掩码标志
+    .free_id_inst0_i(free_id_inst0_i),               // 释放id
     // from branch
     .jump_flag_i(jump_flag_i),                      // 跳转标志
     .kill_mask_id_i(kill_mask_id_i),             // 杀死指令掩码id
@@ -2811,9 +2752,6 @@ always @(*) begin
     mul_mask_new = mul_div_mask[mul_div_rd_ptr];
     if (free_mask_inst0_i) begin
         mul_mask_new[free_id_inst0_i] = 1'b0;
-    end
-    if (free_mask_inst1_i) begin
-        mul_mask_new[free_id_inst1_i] = 1'b0;
     end
 end
 iss_mul u_iss_mul(

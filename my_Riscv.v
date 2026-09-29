@@ -24,7 +24,8 @@ module my_Riscv(
     input uart_int_flag
 
     `ifdef DEBUG
-    ,output [31:0] ex_branch_hit_cnt,
+    ,
+    output [31:0] ex_branch_hit_cnt,
     output [31:0] ex_branch_miss_cnt
     `endif
 
@@ -280,6 +281,7 @@ wire br_reg_wflag_o;                 // 写回阶段写寄存器标志
 wire [5:0] br_reg_waddr_o;           // 写回阶段写寄存器地址
 wire [31:0] br_reg_wdata_o;          // 写回阶段写寄存器数据
 wire br_complete_flag_o;             // 指令完成标志
+wire br_free_snap_flag;               // 释放快照标志
 wire [5:0] br_commit_rob_id_o;       // 提交ROB id
 
 // bpu_update_buffer模块输出信号
@@ -357,10 +359,8 @@ wire [5:0] rob_reg_raddr_o;                 // CSR指令在提交阶段才读取
 wire rob_reg_wflag_o;                   // CSR指令写回阶段写寄存器标志
 wire [5:0] rob_reg_waddr_o;                 // CSR指令写回阶段写寄存器地址
 wire [31:0] rob_reg_wdata_o;            // CSR指令写回阶段写寄存器数据
-wire rob_free_snap_flag_inst0_o;         // 指令0释放快照标志
-wire rob_free_snap_flag_inst1_o;         // 指令1释放快照标志
-wire [2:0] rob_free_snap_id_inst0_o;         // 指令0释放快照id
-wire [2:0] rob_free_snap_id_inst1_o;         // 指令1释放快照id
+// 快照释放：由branch给出，直接广播到全流水线
+wire [2:0] br_free_snap_id = br_kill_mask_id_o;       // 释放快照id
 wire rob_commit_inst0_o;                 // 指令0提交使能
 wire [4:0] rob_waddr_commit0_o;              // 提交指令的目标逻辑寄存器
 wire [5:0] rob_paddr_commit0_o;              // 提交指令的目标物理寄存器(成为架构状态)
@@ -372,7 +372,7 @@ wire [5:0] rob_free_paddr_inst1_o;           // 释放的物理寄存器地址
 reg  rob_reg_wflag_d0;
 reg  [5:0] rob_reg_waddr_d0;
 reg  [31:0] rob_reg_wdata_d0;
-always @(posedge clk or negedge rst) begin
+always @(posedge clk) begin          // 同步复位
     if (!rst) begin
         rob_reg_wflag_d0 <= 1'b0;
         rob_reg_waddr_d0 <= 6'b0;
@@ -394,8 +394,7 @@ wire alu1_rs1_forward_flag_o;           // ALU_1 rs1转发标志
 wire [31:0] alu1_rs1_forward_data_o;    // ALU_1 rs1转发数据
 wire alu1_rs2_forward_flag_o;           // ALU_1 rs2转发标志
 wire [31:0] alu1_rs2_forward_data_o;    // ALU_1 rs2转发数据
-wire mem_rs1_forward_flag_o;            // mem rs1转发标志
-wire [31:0] mem_rs1_forward_data_o;     // mem rs1转发数据
+wire [1:0] mem_rs1_fwd_sel_o;           // mem rs1转发选择（01=ALU0, 10=ALU1, 00=不转发）
 wire mem_rs2_forward_flag_o;            // mem rs2转发标志
 wire [31:0] mem_rs2_forward_data_o;     // mem rs2转发数据
 wire branch_rs1_forward_flag_o;         // branch rs1转发标志
@@ -533,11 +532,9 @@ IDU u_IDU(
     .jump_flag_i(br_jump_flag_o),                         // 执行确认阶段跳转标志
     .restore_snap_id_i(br_kill_mask_id_o),             // 需要恢复的快照id
     .stall_flag_i(iss_stall_o),                        // RS/ROB满暂停
-    // from commit
-    .free_snap_flag_inst0_i(rob_free_snap_flag_inst0_o),
-    .free_snap_flag_inst1_i(rob_free_snap_flag_inst1_o),
-    .free_snap_id_inst0_i(rob_free_snap_id_inst0_o),     
-    .free_snap_id_inst1_i(rob_free_snap_id_inst1_o),
+    // from branch
+    .free_snap_flag_inst0_i(br_free_snap_flag),         // 释放快照标志
+    .free_snap_id_inst0_i(br_free_snap_id),         // 释放的快照id
     .commit_inst0_i(rob_commit_inst0_o),                 // 指令0提交使能
     .waddr_commit0_i(rob_waddr_commit0_o),          // 提交指令的目标逻辑寄存器
     .paddr_commit0_i(rob_paddr_commit0_o),          // 提交指令的目标物理寄存器(成为架构状态)
@@ -666,10 +663,8 @@ Issue u_Issue(
     .rob_id_inst1_i(rob_id_inst1_o),              // 指令1 ROB id
     // from commit
     .sq_commit_cnt_i(rob_sq_commit_cnt_o),               // store queue提交数量
-    .free_mask_inst0_i(rob_free_snap_flag_inst0_o),                   // 指令0释放掩码标志
-    .free_id_inst0_i(rob_free_snap_id_inst0_o),               // 指令0释放id
-    .free_mask_inst1_i(rob_free_snap_flag_inst1_o),                   // 指令1释放掩码标志
-    .free_id_inst1_i(rob_free_snap_id_inst1_o),               // 指令1释放id
+    .free_mask_inst0_i(br_free_snap_flag),                   // 释放掩码标志
+    .free_id_inst0_i(br_free_snap_id),               // 释放id
     // from clint
     .int_flag_i(clint_int_flag_o),                       // 中断标志
     // from ex
@@ -804,10 +799,8 @@ ALU u_ALU_0(
     .jump_flag_i(br_jump_flag_o),                  // 跳转标志
     .kill_mask_id_i(br_kill_mask_id_o),         // 分支掩码id
     // from commit
-    .free_mask_inst0_i(rob_free_snap_flag_inst0_o),                   // 指令0释放掩码标志
-    .free_id_inst0_i(rob_free_snap_id_inst0_o),               // 指令0释放id
-    .free_mask_inst1_i(rob_free_snap_flag_inst1_o),                   // 指令1释放掩码标志
-    .free_id_inst1_i(rob_free_snap_id_inst1_o),               // 指令1释放id
+    .free_mask_inst0_i(br_free_snap_flag),                   // 释放掩码标志
+    .free_id_inst0_i(br_free_snap_id),               // 释放id
     // from regs
     .reg_rdata1_i(regs_alu_inst0_rdata1_o),          // 寄存器1读数据
     .reg_rdata2_i(regs_alu_inst0_rdata2_o),          // 寄存器2读数据
@@ -853,10 +846,8 @@ ALU u_ALU_1(
     .jump_flag_i(br_jump_flag_o),                  // 跳转标志
     .kill_mask_id_i(br_kill_mask_id_o),         // 分支掩码id
     // from commit
-    .free_mask_inst0_i(rob_free_snap_flag_inst0_o),                   // 指令0释放掩码标志
-    .free_id_inst0_i(rob_free_snap_id_inst0_o),               // 指令0释放id
-    .free_mask_inst1_i(rob_free_snap_flag_inst1_o),                   // 指令1释放掩码标志
-    .free_id_inst1_i(rob_free_snap_id_inst1_o),               // 指令1释放id
+    .free_mask_inst0_i(br_free_snap_flag),                   // 释放掩码标志
+    .free_id_inst0_i(br_free_snap_id),               // 释放id
     // from regs
     .reg_rdata1_i(regs_alu_inst1_rdata1_o),          // 寄存器1读数据
     .reg_rdata2_i(regs_alu_inst1_rdata2_o),          // 寄存器2读数据
@@ -941,6 +932,7 @@ Branch u_Branch(
     .reg_wdata_o(br_reg_wdata_o),          // 写回阶段写寄存器数据
     // to ROB
     .complete_flag_o(br_complete_flag_o),             // 指令完成标志
+    .free_snap_flag_o(br_free_snap_flag),             // 释放快照标志
     .commit_rob_id_o(br_commit_rob_id_o)        // 提交ROB id
 );
 
@@ -979,8 +971,9 @@ LSU u_LSU(
     .pwaddr_i(iss_mem_pwaddr_o),              // 物理寄存器写地址
     .imm_i(iss_mem_imm_o),                    // 立即数
     // from forward_unit
-    .rs1_forward_flag_i(mem_rs1_forward_flag_o),           // rs1转发标志
-    .rs1_forward_data_i(mem_rs1_forward_data_o),    // rs1转发数据
+    .rs1_fwd_sel_i(mem_rs1_fwd_sel_o),           // rs1转发选择
+    .alu0_exe_wdata_i(alu0_exe_wdata_o),         // ALU0 执行阶段结果
+    .alu1_exe_wdata_i(alu1_exe_wdata_o),         // ALU1 执行阶段结果
     .rs2_forward_flag_i(mem_rs2_forward_flag_o),           // rs2转发标志
     .rs2_forward_data_i(mem_rs2_forward_data_o),    // rs2转发数据
     // from regs
@@ -996,10 +989,8 @@ LSU u_LSU(
     .jump_flag_i(br_jump_flag_o),                 // 跳转标志
     .kill_mask_id_i(br_kill_mask_id_o),        // 分支掩码id
     // from commit
-    .free_mask_inst0_i(rob_free_snap_flag_inst0_o),                   // 指令0释放掩码标志
-    .free_id_inst0_i(rob_free_snap_id_inst0_o),               // 指令0释放id
-    .free_mask_inst1_i(rob_free_snap_flag_inst1_o),                   // 指令1释放掩码标志
-    .free_id_inst1_i(rob_free_snap_id_inst1_o),               // 指令1释放id
+    .free_mask_inst0_i(br_free_snap_flag),                   // 释放掩码标志
+    .free_id_inst0_i(br_free_snap_id),               // 释放id
     // from commit
     .commit_store_flag_i(rob_commit_store_flag_o),             // 提交store指令标志
     // from peripheral
@@ -1102,10 +1093,8 @@ DIV u_DIV(
     .jump_flag_i(br_jump_flag_o),                  // 跳转标志
     .kill_mask_id_i(br_kill_mask_id_o),         // 分支掩码id
     // from commit
-    .free_mask_inst0_i(rob_free_snap_flag_inst0_o),                   // 指令0释放掩码标志
-    .free_id_inst0_i(rob_free_snap_id_inst0_o),               // 指令0释放id
-    .free_mask_inst1_i(rob_free_snap_flag_inst1_o),                   // 指令1释放掩码标志
-    .free_id_inst1_i(rob_free_snap_id_inst1_o),               // 指令1释放id
+    .free_mask_inst0_i(br_free_snap_flag),                   // 释放掩码标志
+    .free_id_inst0_i(br_free_snap_id),               // 释放id
     // from regs
     .reg_rdata1_i(regs_div_rdata1_o),          // 寄存器1读数据
     .reg_rdata2_i(regs_div_rdata2_o),          // 寄存器2读数据
@@ -1176,8 +1165,7 @@ Forwarding_Unit u_Forwarding_Unit(
     .alu1_rs2_forward_flag_o(alu1_rs2_forward_flag_o),           // ALU_1 rs2转发标志
     .alu1_rs2_forward_data_o(alu1_rs2_forward_data_o),    // ALU_1 rs2转发数据
     // to mem
-    .mem_rs1_forward_flag_o(mem_rs1_forward_flag_o),            // mem rs1转发标志
-    .mem_rs1_forward_data_o(mem_rs1_forward_data_o),     // mem rs1转发数据
+    .mem_rs1_fwd_sel_o(mem_rs1_fwd_sel_o),            // mem rs1转发选择
     .mem_rs2_forward_flag_o(mem_rs2_forward_flag_o),            // mem rs2转发标志
     .mem_rs2_forward_data_o(mem_rs2_forward_data_o),     // mem rs2转发数据
     // to branch
@@ -1341,6 +1329,7 @@ ROB u_ROB(
     // from branch
     .jump_flag_i(br_jump_flag_o),                  // 跳转标志
     .kill_mask_id_i(br_kill_mask_id_o),            // 分支掩码id
+    .br_free_snap_flag_i(br_free_snap_flag),          // 释放快照标志
     // from mem
     .stall_store(lsu_stall_store),                 // store指令暂停标志
     // from ex
@@ -1395,11 +1384,6 @@ ROB u_ROB(
     .reg_waddr_o(rob_reg_waddr_o),                 // CSR指令写回阶段写寄存器地址
     .reg_wdata_o(rob_reg_wdata_o),            // CSR指令写回阶段写寄存器数据
     // to rename
-    .free_snap_flag_inst0_o(rob_free_snap_flag_inst0_o),         // 指令0释放快照标志
-    .free_snap_flag_inst1_o(rob_free_snap_flag_inst1_o),         // 指令1释放快照标志
-    // 释放 ID，用于清理内部 Mask
-    .free_snap_id_inst0_o(rob_free_snap_id_inst0_o),     
-    .free_snap_id_inst1_o(rob_free_snap_id_inst1_o),
     .commit_inst0_o(rob_commit_inst0_o),                 // 指令0提交使能
     .waddr_commit0_o(rob_waddr_commit0_o),              // 提交指令的目标逻辑寄存器
     .paddr_commit0_o(rob_paddr_commit0_o),              // 提交指令的目标物理寄存器(成为架构状态)

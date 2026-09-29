@@ -10,8 +10,6 @@ module lsu_rf_ex (
     input [1:0] sq_id_i,              // SQ id
     input [3:0] subtype_i,            // 指令子类型
     input [31:0] rs1_data_i,          // rs1数据（寄存器读出的原始数据）
-    input rs1_forward_flag_i,         // rs1转发标志
-    input [31:0] rs1_forward_data_i,  // rs1转发数据
     input [31:0] rs2_data_i,          // rs2数据
 
     `ifdef use_f_extension
@@ -28,8 +26,6 @@ module lsu_rf_ex (
     output [1:0] sq_id_o,              // SQ id
     output [3:0] subtype_o,            // 指令子类型
     output [31:0] rs1_data_o,          // rs1数据
-    output rs1_forward_flag_o,         // rs1转发标志
-    output [31:0] rs1_forward_data_o,  // rs1转发数据
     output [31:0] rs2_data_o,          // rs2数据
 
     `ifdef use_f_extension
@@ -46,8 +42,6 @@ assign mask_o       = mask_i;
 assign sq_id_o      = sq_id_i;
 assign subtype_o    = subtype_i;
 assign rs1_data_o   = rs1_data_i;
-assign rs1_forward_flag_o = rs1_forward_flag_i;
-assign rs1_forward_data_o = rs1_forward_data_i;
 assign rs2_data_o   = rs2_data_i;
 `ifdef use_f_extension
 assign float_rs2_data_o = float_rs2_data_i;

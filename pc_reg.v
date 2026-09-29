@@ -38,7 +38,7 @@ module pc_reg(
 
 );
 
-always @(posedge clk or negedge rst) begin
+always @(posedge clk) begin
     if(!rst) begin                 // 复位
         pc_o <= 32'h8000_0000;
     end

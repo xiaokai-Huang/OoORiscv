@@ -32,6 +32,7 @@ module br_ex (
     // to pipeline
     output reg jump_flag_o,                 // 跳转标志
     output [2:0] kill_mask_id_o,            // 分支掩码id
+    output need_snap_o,                     // 占用快照标志
 
     // to RAS
     output [2:0] ras_snap_ptr_o,              // RAS快照指针
@@ -67,6 +68,9 @@ wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_
 assign br_inst_valid_o = br_inst_valid_i && ((br_mask_i & kill_mask) == 0); // 如果指令的掩码位被kill_mask覆盖，则无效
 
 assign kill_mask_id_o = br_snap_id_i;
+// JAL在ID阶段就冲刷，不占快照
+assign need_snap_o = (br_type_i == `TYPE_BR) ||
+                     ((br_type_i == `TYPE_JAL) && (br_subtype_i == `JUMP_JALR));
 assign ras_snap_ptr_o = br_ras_ptr_i;
 assign br_mem_wr_ptr_o = br_mem_wr_ptr_i;
 assign br_sq_ptr_o = br_sq_ptr_i;

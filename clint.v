@@ -68,10 +68,10 @@ localparam S_CSR_IDLE            = 3'b001;    // 空闲
 localparam S_CSR_INT_W           = 3'b010;    // 中断时写mepc、mstatus、mcause
 localparam S_CSR_MSTATUS_MRET    = 3'b100;    // 中断返回时写mstatus
 
-reg[4:0] int_state;
-reg[2:0] csr_state;
-reg[31:0] inst_addr;
-reg[31:0] cause;
+reg [4:0] int_state;
+reg [2:0] csr_state;
+reg [31:0] inst_addr;
+reg [31:0] cause;
 
 assign int_flag_o = (int_state != S_INT_IDLE) | (csr_state != S_CSR_IDLE);
 assign int_w_disable_o = global_int_en_i && ((mie_MEIE && mip_MEIP) || (mie_MTIE && mip_MTIP));
@@ -100,16 +100,40 @@ always @(*) begin
         mip_wdata_o[7] = 1'b1;
     end
 end
+// 异常检测
+reg exception_flag;
+always @(posedge clk) begin
+    if (!rst) begin
+        exception_flag <= 1'b0;
+    end
+    else if (exception_flag) begin
+        exception_flag <= 1'b0;
+    end
+    else if (exception_flag_i && !int_w_disable_o) begin
+        exception_flag <= 1'b1;
+    end
+end
+// 中断返回检测
+reg mret_flag;
+always @(posedge clk) begin
+    if (!rst) begin
+        mret_flag <= 1'b0;
+    end
+    else if (mret_flag) begin
+        mret_flag <= 1'b0;
+    end
+    else if (mret_flag_i && !int_w_disable_o) begin
+        mret_flag <= 1'b1;
+    end
+end
 
-// reg [2:0] mret_cnt;
-// reg mret_start;
 // 中断仲裁逻辑
 wire external_int_assert = inst_ready_flag_i && mie_MEIE && mip_MEIP && global_int_en_i;
 wire timer_int_assert = inst_ready_flag_i && mie_MTIE && mip_MTIP && global_int_en_i;
 always @(*) begin
     int_state = S_INT_IDLE;
     // 发生异常
-    if(exception_flag_i) begin
+    if(exception_flag) begin
         int_state = S_INT_SYNC_ASSERT;
     end
     // 外部中断
@@ -121,7 +145,7 @@ always @(*) begin
         int_state = S_INT_TIMER_ASSERT;
     end
     // 中断返回
-    else if(mret_flag_i) begin
+    else if(mret_flag) begin
         int_state = S_INT_MRET;
     end
 end
@@ -232,27 +256,6 @@ always @ (*) begin
         end
     endcase
 end
-
-
-// always @(posedge clk or negedge rst) begin
-//     if(!rst) begin
-//         mret_cnt <= 3'd7;
-//         mret_start <= 1'b0;
-//     end
-//     else if(csr_state == S_CSR_MSTATUS_MRET) begin
-//         mret_cnt <= 3'd1;
-//         mret_start <= 1'b1;
-//     end
-//     else if(mret_start) begin
-//         if(mret_cnt == 6) begin
-//             mret_cnt <= 3'd7;
-//             mret_start <= 1'b0;
-//         end
-//         else begin
-//             mret_cnt <= mret_cnt + 1;
-//         end
-//     end
-// end
 
 
 

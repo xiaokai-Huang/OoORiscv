@@ -31,11 +31,9 @@ module LSU_Mem (
     // from commit
     input commit_store_flag_i,             // 提交store指令标志
 
-    // from commit
-    input free_mask_inst0_i,                   // 指令0释放掩码标志
-    input [2:0] free_id_inst0_i,               // 指令0释放id
-    input free_mask_inst1_i,                   // 指令1释放掩码标志
-    input [2:0] free_id_inst1_i,               // 指令1释放id
+    // from branch
+    input free_mask_inst0_i,                   // 释放掩码标志
+    input [2:0] free_id_inst0_i,               // 释放id
 
     // from peripheral
     input [31:0] perip_rdata,
@@ -108,16 +106,11 @@ assign sq_mask_o = sq_mem_mask[sq_rd_ptr];
 assign sq_addr_o = sq_mem_addr[sq_rd_ptr];
 assign sq_data_o = sq_mem_data[sq_rd_ptr];
 // SQ写入逻辑
-always @(posedge clk or negedge rst) begin
+always @(posedge clk) begin          // 同步复位
     if (!rst) begin
         sq_rd_ptr <= 2'b0;
         for (i = 0; i < 4; i = i + 1) begin
             sq_valid[i] <= 1'b0;
-            sq_br_mask[i] <= 8'b0;
-            sq_byte_mask[i] <= 4'b0;
-            sq_mem_mask[i] <= 2'b0;
-            sq_mem_addr[i] <= 32'b0;
-            sq_mem_data[i] <= 32'b0;
         end
     end
     else if (int_flag_i) begin
@@ -148,11 +141,6 @@ always @(posedge clk or negedge rst) begin
         if (free_mask_inst0_i) begin
             for (i = 0; i < 4; i = i + 1) begin
                 sq_br_mask[i][free_id_inst0_i] <= 1'b0; // 指令0释放，检查并清除所有被其分支掩码覆盖的SQ条目
-            end
-        end
-        if (free_mask_inst1_i) begin
-            for (i = 0; i < 4; i = i + 1) begin
-                sq_br_mask[i][free_id_inst1_i] <= 1'b0; // 指令1释放，检查并清除所有被其分支掩码覆盖的SQ条目
             end
         end
         if (commit_store_flag_i) begin

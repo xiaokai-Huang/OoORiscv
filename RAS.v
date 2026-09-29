@@ -31,24 +31,21 @@ reg [2:0] top_ptr;              // 栈顶指针（指向下一个未压栈的位
 integer i;
 
 // 压栈
-always @(posedge clk or negedge rst) begin
-    if(!rst) begin
+always @(posedge clk) begin          // 同步复位
+    if (!rst) begin
         top_ptr <= 3'd0;
-        for(i = 0; i < 8; i = i + 1) begin
-            stack[i] <= 32'b0;
-        end
     end
-    else if(restore_en) begin
+    else if (restore_en) begin
         top_ptr <= restore_ptr;
     end
-    else if(hold_flag_i) begin
+    else if (hold_flag_i) begin
         top_ptr <= top_ptr;
     end
-    else if(push_en) begin
+    else if (push_en) begin
         stack[top_ptr] <= data_in;
         top_ptr <= top_ptr + 3'd1;
     end
-    else if(pop_en) begin
+    else if (pop_en) begin
         top_ptr <= top_ptr - 3'd1;
     end
 end

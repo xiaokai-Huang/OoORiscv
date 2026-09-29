@@ -3,7 +3,6 @@
 `timescale 1ns / 1ps
 
 // 无符号乘法器
-(* use_dsp = "yes" *)
 module Mul_Core (
     input clk,
     input rst_n,
@@ -24,35 +23,24 @@ always @(posedge clk) begin
 end
 
 // 计算4个16位乘法的中间结果，并存入寄存器
-reg [31:0] mul_ll_s2; // Low * Low
-reg [31:0] mul_lh_s2; // Low * High
-reg [31:0] mul_hl_s2; // High * Low
-reg [31:0] mul_hh_s2; // High * High
+(* use_dsp = "yes" *) reg [31:0] mul_ll_s2; // Low * Low
+(* use_dsp = "yes" *) reg [31:0] mul_lh_s2; // Low * High
+(* use_dsp = "yes" *) reg [31:0] mul_hl_s2; // High * Low
+(* use_dsp = "yes" *) reg [31:0] mul_hh_s2; // High * High
 
-always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        mul_ll_s2 <= 32'd0;
-        mul_lh_s2 <= 32'd0;
-        mul_hl_s2 <= 32'd0; 
-        mul_hh_s2 <= 32'd0;
-    end 
-    else begin
-        mul_ll_s2 <= op1_l_s1 * op2_l_s1;
-        mul_lh_s2 <= op1_l_s1 * op2_h_s1;
-        mul_hl_s2 <= op1_h_s1 * op2_l_s1;
-        mul_hh_s2 <= op1_h_s1 * op2_h_s1;
-    end
+always @(posedge clk) begin
+    mul_ll_s2 <= op1_l_s1 * op2_l_s1;
+    mul_lh_s2 <= op1_l_s1 * op2_h_s1;
+    mul_hl_s2 <= op1_h_s1 * op2_l_s1;
+    mul_hh_s2 <= op1_h_s1 * op2_h_s1;
 end
 
 // 合并中间结果（移位+加法），得到最终64位乘法结果
-always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        product <= 64'd0;
-    end
-    else begin
-        product <= {mul_hh_s2, 32'b0} + (({32'b0, mul_lh_s2} + {32'b0, mul_hl_s2}) << 16) + {32'b0, mul_ll_s2};
-    end
-end
+wire [32:0] mid = {1'b0, mul_lh_s2} + {1'b0, mul_hl_s2};
+wire [16:0] t1  = {1'b0, mul_ll_s2[31:16]} + {1'b0, mid[15:0]};
+wire [32:0] hi  = {1'b0, mul_hh_s2} + {16'b0, mid[32:16]} + {32'b0, t1[16]};
+always @(posedge clk) product <= {hi[31:0], t1[15:0], mul_ll_s2[15:0]};
+
 
 
 

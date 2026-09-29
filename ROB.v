@@ -66,6 +66,7 @@ module ROB (
     input alu1_complete_flag_i,             // ALU_1指令完成标志
     input [5:0] alu1_commit_rob_id_i,       // ALU_1提交ROB id
     input br_complete_flag_i,               // branch指令完成标志
+    input br_free_snap_flag_i,              // 释放快照标志
     input [5:0] br_commit_rob_id_i,         // branch提交ROB id
     input store_complete_flag_i,            // store指令完成标志
     input [5:0] store_commit_rob_id_i,      // store提交ROB id
@@ -124,11 +125,6 @@ module ROB (
     output [31:0] reg_wdata_o,                // CSR指令写回阶段写寄存器数据
 
     // to rename
-    output reg free_snap_flag_inst0_o,         // 指令0释放快照标志
-    output reg free_snap_flag_inst1_o,         // 指令1释放快照标志
-    // 释放 ID，用于清理内部 Mask
-    output [2:0] free_snap_id_inst0_o,     
-    output [2:0] free_snap_id_inst1_o,
     output reg commit_inst0_o,                 // 指令0提交使能
     output [4:0] waddr_commit0_o,              // 提交指令的目标逻辑寄存器
     output [5:0] paddr_commit0_o,              // 提交指令的目标物理寄存器(成为架构状态)
@@ -164,7 +160,7 @@ wire inst1_valid = inst_valid_port1_i;
 `ifdef use_f_extension
 // dual_float_latch: 首拍收inst0置1，浮点提交后收inst1清0
 // 状态机：0→(dual_float && ~stall)→1→(~stall)→0，stall=1时保持
-always @(posedge clk or negedge rst) begin
+always @(posedge clk) begin          // 同步复位
     if (!rst)
         dual_float_latch <= 1'b0;
     else if (int_flag_i || jump_flag_i)
@@ -250,7 +246,7 @@ reg [31:0] csr_reg_wdata;
 reg [31:0] reg_wdata;
 reg [31:0] csr_reg_wdata_d1;
 reg [31:0] reg_wdata_d1;
-always @(posedge clk or negedge rst) begin
+always @(posedge clk) begin          // 同步复位
     if (!rst) begin
         csr_reg_wdata_d1 <= 32'b0;
         reg_wdata_d1 <= 32'b0;
@@ -266,7 +262,7 @@ assign csr_reg_wflag_o = !int_w_disable_i && (csr_cnt == 1'b1) && rob_valid[rob_
 assign reg_wflag_o = !int_w_disable_i && (csr_cnt == 1'b1) && rob_valid[rob_rd_ptr];
 assign csr_reg_wdata_o = csr_reg_wdata_d1;
 assign reg_wdata_o = reg_wdata_d1;
-always @(posedge clk or negedge rst) begin
+always @(posedge clk) begin          // 同步复位
     if(!rst) begin
         csr_cnt <= 1'b0;
     end
@@ -530,7 +526,7 @@ integer i;
 `ifdef use_f_extension
 integer f_idx;
 `endif
-always @(posedge clk or negedge rst) begin
+always @(posedge clk) begin          // 同步复位
     if (!rst) begin
         rob_rd_ptr <= 5'b0;
         rob_wr_ptr <= 5'b0;
@@ -739,14 +735,13 @@ rob_bank u_rob_static_bank1 (
 // 无浮点版本
 `else
 
-localparam TYPE_STORE = 2'b00,
-           TYPE_BRANCH = 2'b01,
-           TYPE_CSR = 2'b10;
+// 独热码：普通指令(含分支)用00，只留 store/csr 两种要特判的类型
+localparam TYPE_STORE = 2'b01,
+           TYPE_CSR   = 2'b10;
 
 // ROB
 reg rob_valid[0:31];
 reg rob_complete[0:31];
-reg [2:0] rob_snap_id[0:31];
 reg [7:0] rob_br_mask[0:31];
 
 wire [63:0] rob_static_data_port0, rob_static_data_port1;
@@ -808,8 +803,6 @@ assign mret_inst_addr_o = {16'h8000, rob_inst0_addr};
 assign csr_reg_addr_o = rob_inst0_csr_addr;
 assign reg_raddr_o = rob_inst0_rs1_addr;
 assign reg_waddr_o = rob_inst0_pwaddr;
-assign free_snap_id_inst0_o = rob_snap_id[rob_rd_ptr];
-assign free_snap_id_inst1_o = rob_snap_id[(rob_rd_ptr + 5'd1) & 5'b11111];
 assign waddr_commit0_o = rob_inst0_rd;
 assign paddr_commit0_o = rob_inst0_pwaddr;
 assign free_paddr_inst0_o = rob_inst0_old_pwaddr;
@@ -835,7 +828,7 @@ assign csr_reg_wflag_o = !int_w_disable_i && (csr_cnt == 2'd2) && rob_valid[rob_
 assign reg_wflag_o = !int_w_disable_i && (csr_cnt == 2'd2) && rob_valid[rob_rd_ptr];
 assign csr_reg_wdata_o = csr_reg_wdata_d1;
 assign reg_wdata_o = reg_wdata_d1;
-always @(posedge clk or negedge rst) begin
+always @(posedge clk) begin          // 同步复位
     if(!rst) begin
         csr_cnt <= 2'd0;
     end
@@ -891,6 +884,20 @@ always @(*) begin
         end
     endcase
 end
+// ecall, ebreak, mret多打一拍
+reg exception_cnt;
+reg exception_cnt_up;
+always @(posedge clk) begin          // 同步复位
+    if (!rst) begin
+        exception_cnt <= 1'b0;
+    end
+    else if (exception_cnt) begin
+        exception_cnt <= 1'b0;
+    end
+    else if (exception_cnt_up) begin
+        exception_cnt <= 1'b1;
+    end
+end
 
 always @(*) begin
     commit_inst0_o = 1'b0;
@@ -901,14 +908,11 @@ always @(*) begin
     perip_wen = 1'b0;
     dcache_wen = 1'b0;
     // CSR
+    exception_cnt_up = 1'b0;
     exception_flag_o = 1'b0;
     exception_cause_o = 32'b0;
     mret_flag_o = 1'b0;
     w_csr_reg = 1'b0;
-    // B type
-    free_snap_flag_inst0_o = 1'b0;
-    free_snap_flag_inst1_o = 1'b0;
-
     // 提交第一条指令
     if (rob_valid[rob_rd_ptr] && (rob_complete[rob_rd_ptr] || rob_inst0_type == TYPE_CSR)) begin
         case (rob_inst0_type)
@@ -919,24 +923,23 @@ always @(*) begin
                 perip_wen = !stall_store && !int_w_disable_i;
                 dcache_wen = !int_w_disable_i;
             end
-            TYPE_BRANCH: begin
-                commit_inst0_o = 1'b1;
-                free_snap_flag_inst0_o = 1'b1; // 分支指令提交时释放快照
-            end
             TYPE_CSR: begin
                 case (rob_inst0_subtype)
                     `CSR_ECALL: begin
-                        commit_inst0_o = 1'b1;
+                        exception_cnt_up = 1'b1;
+                        commit_inst0_o = (exception_cnt == 1'b1);
                         exception_flag_o = 1'b1;
                         exception_cause_o = 32'h0000000b; // ECALL异常编号
                     end
                     `CSR_EBREAK: begin
-                        commit_inst0_o = 1'b1;
+                        exception_cnt_up = 1'b1;
+                        commit_inst0_o = (exception_cnt == 1'b1);
                         exception_flag_o = 1'b1;
                         exception_cause_o = 32'h00000003; // EBREAK异常编号
                     end
                     `CSR_MRET: begin
-                        commit_inst0_o = 1'b1;
+                        exception_cnt_up = 1'b1;
+                        commit_inst0_o = (exception_cnt == 1'b1);
                         mret_flag_o = 1'b1;
                     end
                     `CSR_RW: begin
@@ -973,10 +976,6 @@ always @(*) begin
                     perip_wen = !stall_store && !int_w_disable_i;
                     dcache_wen = !int_w_disable_i;
                 end
-                TYPE_BRANCH: begin
-                    commit_inst1_o = (rob_inst0_type == TYPE_STORE) ? !stall_store : 1'b1; // 如果inst0是store指令，则inst1提交还受store暂停的影响
-                    free_snap_flag_inst1_o = (rob_inst0_type == TYPE_STORE) ? !stall_store : 1'b1; // 分支指令提交时释放快照
-                end
                 default: begin
                     commit_inst1_o = (rob_inst0_type == TYPE_STORE) ? !stall_store : 1'b1; // 如果inst0是store指令，则inst1提交还受store暂停的影响
                 end
@@ -988,14 +987,11 @@ end
 // dispatch 写入
 reg [1:0] rob_port0_type, rob_port1_type;
 always @(*) begin
-    rob_port0_type = 2'b11;
-    rob_port1_type = 2'b11;
+    rob_port0_type = 2'b0;
+    rob_port1_type = 2'b0;
     // inst0
     if (inst_type_port0_i == `TYPE_MEM && inst_subtype_port0_i[3] == 1'b1) begin
         rob_port0_type = TYPE_STORE;
-    end
-    else if ((inst_type_port0_i == `TYPE_BR) || (inst_type_port0_i == `TYPE_JAL && inst_subtype_port0_i == `JUMP_JALR)) begin
-        rob_port0_type = TYPE_BRANCH;
     end
     else if (inst_type_port0_i == `TYPE_CSR) begin
         rob_port0_type = TYPE_CSR;
@@ -1003,9 +999,6 @@ always @(*) begin
     // inst1
     if (inst_type_port1_i == `TYPE_MEM && inst_subtype_port1_i[3] == 1'b1) begin
         rob_port1_type = TYPE_STORE;
-    end
-    else if ((inst_type_port1_i == `TYPE_BR) || (inst_type_port1_i == `TYPE_JAL && inst_subtype_port1_i == `JUMP_JALR)) begin
-        rob_port1_type = TYPE_BRANCH;
     end
     else if (inst_type_port1_i == `TYPE_CSR) begin
         rob_port1_type = TYPE_CSR;
@@ -1106,16 +1099,13 @@ end
 wire [1:0] inst_commit_cnt = commit_inst0_o + commit_inst1_o;
 // ROB动态信息更新
 integer i;
-always @(posedge clk or negedge rst) begin
+always @(posedge clk) begin          // 同步复位
     if (!rst) begin
         rob_rd_ptr <= 5'b0;
         rob_wr_ptr <= 5'b0;
         rob_free_cnt <= 6'd32;
         for (i = 0; i < 32; i = i + 1) begin
             rob_valid[i] <= 1'b0;
-            rob_complete[i] <= 1'b0;
-            rob_snap_id[i] <= 3'b0;
-            rob_br_mask[i] <= 8'b0;
         end
     end
     else if (int_flag_i) begin
@@ -1155,14 +1145,9 @@ always @(posedge clk or negedge rst) begin
             end
         end
         // 提交释放掩码
-        if (free_snap_flag_inst0_o) begin
+        if (br_free_snap_flag_i) begin
             for (i = 0; i < 32; i = i + 1) begin
-                rob_br_mask[i][free_snap_id_inst0_o] <= 1'b0; // 清除对应位
-            end
-        end
-        if (free_snap_flag_inst1_o) begin
-            for (i = 0; i < 32; i = i + 1) begin
-                rob_br_mask[i][free_snap_id_inst1_o] <= 1'b0; // 清除对应位
+                rob_br_mask[i][kill_mask_id_i] <= 1'b0; // 清除对应位
             end
         end
     end
@@ -1194,14 +1179,9 @@ always @(posedge clk or negedge rst) begin
             end
         end
         // 提交释放掩码
-        if (free_snap_flag_inst0_o) begin
+        if (br_free_snap_flag_i) begin
             for (i = 0; i < 32; i = i + 1) begin
-                rob_br_mask[i][free_snap_id_inst0_o] <= 1'b0; // 清除对应位
-            end
-        end
-        if (free_snap_flag_inst1_o) begin
-            for (i = 0; i < 32; i = i + 1) begin
-                rob_br_mask[i][free_snap_id_inst1_o] <= 1'b0; // 清除对应位
+                rob_br_mask[i][kill_mask_id_i] <= 1'b0; // 清除对应位
             end
         end
     end
@@ -1221,13 +1201,11 @@ always @(posedge clk or negedge rst) begin
             if (inst_valid_port0_i) begin
                 rob_valid[rob_id_inst0_o[4:0]] <= 1'b1;
                 rob_complete[rob_id_inst0_o[4:0]] <= 1'b0;
-                rob_snap_id[rob_id_inst0_o[4:0]] <= snap_id_inst0_i;
                 rob_br_mask[rob_id_inst0_o[4:0]] <= branch_mask_inst0_i;
             end
             if (inst_valid_port1_i) begin
                 rob_valid[rob_id_inst1_o[4:0]] <= 1'b1;
                 rob_complete[rob_id_inst1_o[4:0]] <= 1'b0;
-                rob_snap_id[rob_id_inst1_o[4:0]] <= snap_id_inst1_i;
                 rob_br_mask[rob_id_inst1_o[4:0]] <= branch_mask_inst1_i;
             end
             rob_wr_ptr <= rob_wr_ptr + rob_req;
@@ -1248,14 +1226,9 @@ always @(posedge clk or negedge rst) begin
         end
         rob_free_cnt <= rob_free_cnt + inst_commit_cnt - ((~stall) ? rob_req : 0);
         // 提交释放掩码
-        if (free_snap_flag_inst0_o) begin
+        if (br_free_snap_flag_i) begin
             for (i = 0; i < 32; i = i + 1) begin
-                rob_br_mask[i][free_snap_id_inst0_o] <= 1'b0; // 清除对应位
-            end
-        end
-        if (free_snap_flag_inst1_o) begin
-            for (i = 0; i < 32; i = i + 1) begin
-                rob_br_mask[i][free_snap_id_inst1_o] <= 1'b0; // 清除对应位
+                rob_br_mask[i][kill_mask_id_i] <= 1'b0; // 清除对应位
             end
         end
     end

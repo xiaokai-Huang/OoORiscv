@@ -53,9 +53,8 @@ module Forwarding_Unit (
     output reg [31:0] alu1_rs1_forward_data_o,    // ALU_1 rs1转发数据
     output reg alu1_rs2_forward_flag_o,           // ALU_1 rs2转发标志
     output reg [31:0] alu1_rs2_forward_data_o,    // ALU_1 rs2转发数据
-    // to mem
-    output reg mem_rs1_forward_flag_o,            // mem rs1转发标志
-    output reg [31:0] mem_rs1_forward_data_o,     // mem rs1转发数据
+    // to mem（rs1 只送 2 位 one-hot 选择，32 位转发数据由 ALU 直连到 LSU_EX
+    output reg [1:0] mem_rs1_fwd_sel_o,           // mem rs1转发选择：01=ALU0, 10=ALU1, 00=不转发
     output reg mem_rs2_forward_flag_o,            // mem rs2转发标志
     output reg [31:0] mem_rs2_forward_data_o,     // mem rs2转发数据
     // to branch
@@ -125,16 +124,19 @@ always @(*) begin
         alu1_rs2_forward_data_o = 32'b0;
     end
 end
-// mem_rs1转发
+// mem_rs1转发（只产生 2 位 one-hot 选择，不再搬运 32 位数据）
 always @(*) begin
+    mem_rs1_fwd_sel_o = 2'b00;
     if (mem_rf_raddr1_i != 6'b0) begin
-        mem_rs1_forward_flag_o = (mem_rf_raddr1_i == alu0_exe_waddr_i) | (mem_rf_raddr1_i == alu1_exe_waddr_i);
-        mem_rs1_forward_data_o = {32{mem_rf_raddr1_i == alu0_exe_waddr_i}} & alu0_exe_wdata_i |
-                                 {32{mem_rf_raddr1_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i;
+        if (mem_rf_raddr1_i == alu0_exe_waddr_i) begin
+            mem_rs1_fwd_sel_o = 2'b01;
+        end
+        else if (mem_rf_raddr1_i == alu1_exe_waddr_i) begin
+            mem_rs1_fwd_sel_o = 2'b10;
+        end
     end 
     else begin
-        mem_rs1_forward_flag_o = 1'b0;
-        mem_rs1_forward_data_o = 32'b0;
+        mem_rs1_fwd_sel_o = 2'b00;
     end
 end
 // mem_rs2转发

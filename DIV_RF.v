@@ -22,11 +22,9 @@ module DIV_RF (
     input jump_flag_i,                  // 跳转标志
     input [2:0] kill_mask_id_i,         // 分支掩码id
 
-    // from commit
-    input free_mask_inst0_i,                   // 指令0释放掩码标志
-    input [2:0] free_id_inst0_i,               // 指令0释放id
-    input free_mask_inst1_i,                   // 指令1释放掩码标志
-    input [2:0] free_id_inst1_i,               // 指令1释放id
+    // from branch
+    input free_mask_inst0_i,                   // 释放掩码标志
+    input [2:0] free_id_inst0_i,               // 释放id
 
     // from regs
     input [31:0] reg_rdata1_i,          // 寄存器1读数据
@@ -54,9 +52,6 @@ always @(*) begin
     mask_o = mask_i;
     if (free_mask_inst0_i) begin
         mask_o[free_id_inst0_i] = 1'b0;
-    end
-    if (free_mask_inst1_i) begin
-        mask_o[free_id_inst1_i] = 1'b0;
     end
 end
 

@@ -15,8 +15,6 @@ module LSU_RF (
     input [31:0] imm_i,               // 立即数
 
     // from forward_unit
-    input rs1_forward_flag_i,           // rs1转发标志
-    input [31:0] rs1_forward_data_i,    // rs1转发数据
     input rs2_forward_flag_i,           // rs2转发标志
     input [31:0] rs2_forward_data_i,    // rs2转发数据
 
@@ -40,8 +38,6 @@ module LSU_RF (
     output [1:0] sq_id_o,              // SQ id
     output [3:0] subtype_o,            // 指令子类型
     output [31:0] rs1_data_o,          // rs1数据（寄存器读出的原始数据，不在RF选择）
-    output rs1_forward_flag_o,          // rs1转发标志（透传到EX，用于最后选择访存地址）
-    output [31:0] rs1_forward_data_o,   // rs1转发数据（透传到EX）
     output [31:0] rs2_data_o,          // rs2数据
     `ifdef use_f_extension
     output [31:0] float_rs2_data_o,    // 浮点rs2数据
@@ -58,8 +54,6 @@ assign mask_o = mask_i;
 assign sq_id_o = sq_id_i;
 assign subtype_o = subtype_i;
 assign rs1_data_o = reg_rdata1_i;
-assign rs1_forward_flag_o = rs1_forward_flag_i;
-assign rs1_forward_data_o = rs1_forward_data_i;
 assign rs2_data_o = rs2_forward_flag_i ? rs2_forward_data_i : reg_rdata2_i;
 `ifdef use_f_extension
 assign float_rs2_data_o = float_rs2_rdata_i;

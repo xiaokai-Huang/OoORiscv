@@ -114,19 +114,12 @@ reg [31:0] regs[0:63];    // 物理寄存器
 reg [63:0] ready;         // 寄存器就绪标志，位0-63分别对应物理寄存器0-63
 integer i;
 assign ready_flag_o = ready;
-// always @(*) begin
-//     ready_flag_o[0] = ready[0];  // x0寄存器始终就绪
-//     for (i = 1; i < 64; i = i + 1) begin
-//         // 已写回或者正在写入可以旁路
-//         ready_flag_o[i] = ready[i] || (branch_wflag_i && (branch_waddr_i == i[5:0]));
-//     end
-// end
 
 // 写
-always @(posedge clk or negedge rst) begin
+always @(posedge clk) begin
     if(!rst) begin
         ready <= {32'b0, 32'hFFFF_FFFF};
-        for (i = 0; i < 64; i = i + 1) begin     // 用for循环初始化
+        for (i = 0; i < 32; i = i + 1) begin     // 用for循环初始化
             regs[i] <= 32'b0;
         end
     end

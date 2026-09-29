@@ -29,11 +29,9 @@ module DIV (
     input jump_flag_i,                  // 跳转标志
     input [2:0] kill_mask_id_i,         // 分支掩码id
 
-    // from commit
-    input free_mask_inst0_i,                   // 指令0释放掩码标志
-    input [2:0] free_id_inst0_i,               // 指令0释放id
-    input free_mask_inst1_i,                   // 指令1释放掩码标志
-    input [2:0] free_id_inst1_i,               // 指令1释放id
+    // from branch
+    input free_mask_inst0_i,                   // 释放掩码标志
+    input [2:0] free_id_inst0_i,               // 释放id
 
     // from regs
     input [31:0] reg_rdata1_i,          // 寄存器1读数据
@@ -83,11 +81,9 @@ DIV_RF u_DIV_RF(
     // from branch
     .jump_flag_i(jump_flag_i),                  // 跳转标志
     .kill_mask_id_i(kill_mask_id_i),         // 分支掩码id
-    // from commit
-    .free_mask_inst0_i(free_mask_inst0_i),                   // 指令0释放掩码标志
-    .free_id_inst0_i(free_id_inst0_i),               // 指令0释放id
-    .free_mask_inst1_i(free_mask_inst1_i),                   // 指令1释放掩码标志
-    .free_id_inst1_i(free_id_inst1_i),               // 指令1释放id
+    // from branch
+    .free_mask_inst0_i(free_mask_inst0_i),                   // 释放掩码标志
+    .free_id_inst0_i(free_id_inst0_i),               // 释放id
     // from regs
     .reg_rdata1_i(reg_rdata1_i),          // 寄存器1读数据
     .reg_rdata2_i(reg_rdata2_i),          // 寄存器2读数据
@@ -127,11 +123,9 @@ div_rf_ex u_div_rf_ex(
     // from ex
     .flush_i(flush_o),                      // 冲刷标志
     .stall_i(stall_o),                      // 暂停标志
-    // from commit
-    .free_mask_inst0_i(free_mask_inst0_i),                   // 指令0释放掩码标志
-    .free_id_inst0_i(free_id_inst0_i),               // 指令0释放id
-    .free_mask_inst1_i(free_mask_inst1_i),                   // 指令1释放掩码标志
-    .free_id_inst1_i(free_id_inst1_i),               // 指令1释放id
+    // from branch
+    .free_mask_inst0_i(free_mask_inst0_i),                   // 释放掩码标志
+    .free_id_inst0_i(free_id_inst0_i),               // 释放id
     // from clint
     .int_flag_i(int_flag_i),                   // 中断标志
     // to ex

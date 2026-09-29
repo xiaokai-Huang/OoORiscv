@@ -31,11 +31,9 @@ module IDU(
     input [2:0] restore_snap_id_i,             // 需要恢复的快照id
     input stall_flag_i,                        // RS/ROB满暂停
 
-    // from commit
-    input free_snap_flag_inst0_i,
-    input free_snap_flag_inst1_i,
-    input [2:0] free_snap_id_inst0_i,     
-    input [2:0] free_snap_id_inst1_i,
+    // from branch
+    input free_snap_flag_inst0_i,              // 释放快照标志
+    input [2:0] free_snap_id_inst0_i,          // 释放的快照id
     input commit_inst0_i,                 // 指令0提交使能
     input [4:0] waddr_commit0_i,          // 提交指令的目标逻辑寄存器
     input [5:0] paddr_commit0_i,          // 提交指令的目标物理寄存器(成为架构状态)
@@ -420,12 +418,9 @@ rename u_rename(
     .wflag_inst1_i(id_rn_reg_wflag_port1_o),              // 写寄存器标志
     // from dispatch
     .stall_flag_i(stall_flag_i),               // RS/ROB满暂停
-    // from commit
-    .free_snap_flag_inst0_i(free_snap_flag_inst0_i),         // 指令0释放快照标志
-    .free_snap_flag_inst1_i(free_snap_flag_inst1_i),         // 指令1释放快照标志
-    // 释放 ID，用于清理内部 Mask
-    .free_snap_id_inst0_i(free_snap_id_inst0_i),     
-    .free_snap_id_inst1_i(free_snap_id_inst1_i),
+    // from branch
+    .free_snap_flag_inst0_i(free_snap_flag_inst0_i),         // 释放快照标志
+    .free_snap_id_inst0_i(free_snap_id_inst0_i),         // 释放的快照id
     .commit_inst0_i(commit_inst0_i),                 // 指令0提交使能
     .waddr_commit0_i(waddr_commit0_i),          // 提交指令的目标逻辑寄存器
     .paddr_commit0_i(paddr_commit0_i),          // 提交指令的目标物理寄存器(成为架构状态)
@@ -536,11 +531,6 @@ rn_dp u_rn_dp(
     .jump_flag_i(jump_flag_i),                         // 执行确认阶段跳转标志
     .dp_stall_flag_i(stall_flag_i),                     // RS/ROB满暂停
     .rn_stall_flag_i(rn_stall_o),                     // 重命名阶段暂停
-    // from commit
-    .free_mask_inst0_i(free_snap_flag_inst0_i),                   // 指令0释放掩码标志
-    .free_id_inst0_i(free_snap_id_inst0_i),               // 指令0释放id
-    .free_mask_inst1_i(free_snap_flag_inst1_i),                   // 指令1释放掩码标志
-    .free_id_inst1_i(free_snap_id_inst1_i),               // 指令1释放id
     // to dispatch
     .ras_snap_ptr_o(rn_dp_ras_snap_ptr_o),                 // RAS快照指针
     .inst_addr_o(rn_dp_inst_addr_o),                   // 指令地址
