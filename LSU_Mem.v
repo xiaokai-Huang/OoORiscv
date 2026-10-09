@@ -6,6 +6,9 @@ module LSU_Mem (
     input clk,
     input rst,
 
+    // from issue
+    input [31:0] imm_i,               // 立即数
+
     // from ex
     input inst_valid_i,               // 指令有效标志
     input [5:0] rob_id_i,             // ROB id
@@ -58,6 +61,9 @@ module LSU_Mem (
 
     // to regs
     output mem_reg_wflag_o,                     // Mem阶段load写寄存器标志(给ready置1)
+
+    // to ex
+    output reg [31:0] fwd_mem_addr_o,
 
     // to forward_unit and wb
     output [5:0] mem_reg_waddr_o,               // Mem阶段写寄存器地址(同时传到regs)
@@ -250,17 +256,20 @@ reg [31:0] dcache_wdata;
 reg [31:0] perip_wdata;
 always @(*) begin
     mem_reg_wdata_o = 32'b0;
+    fwd_mem_addr_o  = 32'b0;
     if (access_dram && !dcache_miss) begin
         mem_reg_wdata_o = dcache_wdata;
+        fwd_mem_addr_o  = dcache_wdata + imm_i;
     end 
     else begin
         mem_reg_wdata_o = perip_wdata;
+        fwd_mem_addr_o  = perip_wdata + imm_i;
     end
 end
 always @(*) begin
     // L type
     dcache_wdata = 32'b0;
-    perip_wdata = 32'b0;
+    perip_wdata  = 32'b0;
     `ifdef use_f_extension
     rd_is_float_o = 1'b0;
     `endif

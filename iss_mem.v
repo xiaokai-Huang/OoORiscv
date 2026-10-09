@@ -11,6 +11,8 @@ module iss_mem (
     input flush_flag_i,               // 冲刷标志
     input mem_stall_i,                // 访存暂停标志
     input issue_flag_i,               // 发射标志
+    input rs1_dep_rf_i,               // 操作数1依赖访存结果
+    input rs2_dep_rf_i,               // 操作数2依赖访存结果
     input [5:0] rob_id_i,             // ROB id
     input [7:0] mask_i,               // 分支掩码
     input [1:0] sq_id_i,              // SQ id
@@ -32,6 +34,8 @@ module iss_mem (
 
     // to ex
     output reg inst_valid_o,          // 指令有效标志
+    output reg rs1_dep_rf_o,          // 操作数1依赖访存结果
+    output reg rs2_dep_rf_o,          // 操作数2依赖访存
     output reg [5:0] rob_id_o,        // ROB id
     output reg [7:0] mask_o,          // 分支掩码
     output reg [1:0] sq_id_o,         // SQ id
@@ -96,6 +100,8 @@ end
 // 数据通路，仅在发射时更新
 always @(posedge clk) begin
     if (issue_flag_i) begin
+        rs1_dep_rf_o <= rs1_dep_rf_i;
+        rs2_dep_rf_o <= rs2_dep_rf_i;
         rob_id_o <= rob_id_i;
         sq_id_o <= sq_id_i;
         subtype_o <= subtype_i;

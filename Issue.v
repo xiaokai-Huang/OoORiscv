@@ -150,6 +150,8 @@ module Issue (
     output [7:0] mem_mask_o,             // mem分支掩码
     output [1:0] mem_sq_id_o,            // mem SQ id
     output [3:0] mem_subtype_o,          // mem指令子类型
+    output mem_rs1_dep_rf_o,             // mem操作数1依赖访存结果
+    output mem_rs2_dep_rf_o,             // mem操作数2依赖访存结果
     output [1:0] mem_op1_src_o,          // mem操作数1
     output [1:0] mem_op2_src_o,          // mem操作数2
     output [5:0] mem_praddr1_o,          // mem物理寄存器1读地址
@@ -2137,10 +2139,12 @@ wire mem_stall = (mem_req + mem_count > 4'd8) || (sq_count + store_req > 3'd4);
 reg mem_issue_flag;
 wire mem_op1_ready = (mem_op1_src[mem_rd_ptr] != `OP1_REG) || ready_flag_i[mem_praddr1[mem_rd_ptr]] || 
                      (mem_praddr1[mem_rd_ptr] == alu0_rf_pwaddr_i) || (mem_praddr1[mem_rd_ptr] == alu1_rf_pwaddr_i) ||
-                     (mem_praddr1[mem_rd_ptr] == mem_pwaddr_i);
+                     (mem_praddr1[mem_rd_ptr] == mem_pwaddr_i) || (mem_praddr1[mem_rd_ptr] == mem_pwaddr_o);
 wire mem_op2_ready = (mem_op2_src[mem_rd_ptr] != `OP2_REG) || ready_flag_i[mem_praddr2[mem_rd_ptr]] || 
                      (mem_praddr2[mem_rd_ptr] == alu0_rf_pwaddr_i) || (mem_praddr2[mem_rd_ptr] == alu1_rf_pwaddr_i) ||
-                     (mem_praddr2[mem_rd_ptr] == mem_pwaddr_i);
+                     (mem_praddr2[mem_rd_ptr] == mem_pwaddr_i) || (mem_praddr2[mem_rd_ptr] == mem_pwaddr_o);
+wire mem_rs1_dep_rf = (mem_praddr1[mem_rd_ptr] == mem_pwaddr_o) && (mem_pwaddr_o != 6'b0);
+wire mem_rs2_dep_rf = (mem_praddr2[mem_rd_ptr] == mem_pwaddr_o) && (mem_pwaddr_o != 6'b0);
 always @(*) begin
     mem_issue_flag = 1'b0;
     if (mem_inst_valid[mem_rd_ptr] && mem_op1_ready && mem_op2_ready && ((mem_mask[mem_rd_ptr] & kill_mask) == 0) && !mem_stall_i) begin
@@ -2160,37 +2164,6 @@ always @(*) begin
     if (is_store_inst1) next_sq_ptr_1 = next_sq_ptr_0 + 3'd1; // 自动回绕
     else next_sq_ptr_1 = next_sq_ptr_0;
 end
-// 统计本拍 Flush 掉了多少个 Store
-// reg [2:0] flushed_store_cnt;
-// always @(*) begin
-//     flushed_store_cnt = 0;
-//     for (i = 0; i < 8; i = i + 1) begin
-//         if ((mem_mask[i] & kill_mask) != 0) begin
-//             // 它是有效的且是 Store
-//             if (mem_inst_valid[i] && mem_subtype[i][3]) begin
-//                 flushed_store_cnt = flushed_store_cnt + 1;
-//             end
-//         end
-//     end
-// end
-// 写指针回滚
-// reg [2:0] recovered_wr_ptr;
-// reg [2:0] p_idx;
-// integer k;
-// always @(*) begin
-//     // 默认回退到读指针（假设全部被 Kill 或 队列为空）
-//     recovered_wr_ptr = mem_rd_ptr;
-//     // 逻辑倒序遍历：从 rd_ptr 开始往后找，找到逻辑上最新的一个幸存者
-//     // 只有在有效范围内 (count) 才检查
-//     for (k = 0; k < 8; k = k + 1) begin
-//         p_idx = mem_rd_ptr + k[2:0]; // 计算物理索引（自动回绕）
-//         // 如果该指令有效 且 没有被杀死
-//         if (mem_inst_valid[p_idx] && ((mem_mask[p_idx] & kill_mask) == 0)) begin
-//             // 更新恢复指针为：当前幸存者位置 + 1
-//             recovered_wr_ptr = p_idx + 3'd1;
-//         end
-//     end
-// end
 // 计算sq指针回滚距离
 wire [2:0] rollback_dist = sq_alloc_ptr - restore_sq_ptr_i; // 3位自动回绕
 // 时序逻辑
@@ -2337,6 +2310,8 @@ iss_mem u_iss_mem(
     .flush_flag_i(mem_flush_i),               // 冲刷标志
     .mem_stall_i(mem_stall_i),               // 访存暂停标志
     .issue_flag_i(mem_issue_flag),               // 发射标志
+    .rs1_dep_rf_i(mem_rs1_dep_rf),               // 操作数1依赖访存结果
+    .rs2_dep_rf_i(mem_rs2_dep_rf),               // 操作数2依赖访存结果
     .rob_id_i(mem_rob_id[mem_rd_ptr]),                   // ROB id
     .mask_i(mem_mask_new),               // 分支掩码
     .sq_id_i(mem_sq_id[mem_rd_ptr]),              // SQ id
@@ -2359,6 +2334,8 @@ iss_mem u_iss_mem(
     .mask_o(mem_mask_o),          // 分支掩码
     .sq_id_o(mem_sq_id_o),         // SQ id
     .subtype_o(mem_subtype_o),       // 指令子类型
+    .rs1_dep_rf_o(mem_rs1_dep_rf_o),   // 操作数1依赖访存结果
+    .rs2_dep_rf_o(mem_rs2_dep_rf_o),   // 操作数2依赖访存结果
     .op1_src_o(mem_op1_src_o),       // 操作数1
     .op2_src_o(mem_op2_src_o),       // 操作数2
     .praddr1_o(mem_praddr1_o),       // 物理寄存器1读地址

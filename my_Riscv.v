@@ -206,6 +206,8 @@ wire [5:0] iss_mem_rob_id_o;           // mem ROB id
 wire [7:0] iss_mem_mask_o;             // mem分支掩码
 wire [1:0] iss_mem_sq_id_o;            // mem SQ id
 wire [3:0] iss_mem_subtype_o;          // mem指令子类型
+wire iss_mem_rs1_dep_rf_o;             // mem操作数1依赖访存结果
+wire iss_mem_rs2_dep_rf_o;             // mem操作数2依赖访存结果
 wire [1:0] iss_mem_op1_src_o;          // mem操作数1
 wire [1:0] iss_mem_op2_src_o;          // mem操作数2
 wire [5:0] iss_mem_praddr1_o;          // mem物理寄存器1读地址
@@ -743,6 +745,8 @@ Issue u_Issue(
     .mem_mask_o(iss_mem_mask_o),             // mem分支掩码
     .mem_sq_id_o(iss_mem_sq_id_o),            // mem SQ id
     .mem_subtype_o(iss_mem_subtype_o),          // mem指令子类型
+    .mem_rs1_dep_rf_o(iss_mem_rs1_dep_rf_o),             // mem操作数1依赖访存结果
+    .mem_rs2_dep_rf_o(iss_mem_rs2_dep_rf_o),             // mem操作数2依赖访存结果
     .mem_op1_src_o(iss_mem_op1_src_o),          // mem操作数1
     .mem_op2_src_o(iss_mem_op2_src_o),          // mem操作数2
     .mem_praddr1_o(iss_mem_praddr1_o),          // mem物理寄存器1读地址
@@ -962,6 +966,8 @@ LSU u_LSU(
     .rst(rst),
     // from issue
     .inst_valid_i(iss_mem_inst_valid_o),               // 指令有效标志
+    .rs1_dep_rf_i(iss_mem_rs1_dep_rf_o),             // rs1依赖访存结果
+    .rs2_dep_rf_i(iss_mem_rs2_dep_rf_o),             // rs2依赖访存结果
     .rob_id_i(iss_mem_rob_id_o),             // ROB id
     .mask_i(iss_mem_mask_o),               // 分支掩码
     .sq_id_i(iss_mem_sq_id_o),              // SQ id
