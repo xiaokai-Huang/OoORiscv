@@ -54,18 +54,13 @@ module br_ex (
     output reg lhp_update_en,                     // 更新使能
     output reg branch_taken,                      // 实际跳转结果(1为跳转)
 
-    // to regs
-    output reg_wflag_o,                 // 写寄存器标志
-    output [5:0] reg_waddr_o,           // 写寄存器地址
-    output reg [31:0] reg_wdata_o,      // 写寄存器数据
-
     // to flush
     output br_inst_valid_o,
     output [5:0] commit_rob_id_o        // 提交ROB id
 );
 // 冲刷逻辑
-wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_0000;
-assign br_inst_valid_o = br_inst_valid_i && ((br_mask_i & kill_mask) == 0); // 如果指令的掩码位被kill_mask覆盖，则无效
+wire kill_mask = jump_flag_i && (br_mask_i != 8'b0);
+assign br_inst_valid_o = br_inst_valid_i && !kill_mask; // 如果指令的掩码位被kill_mask覆盖，则无效
 
 assign kill_mask_id_o = br_snap_id_i;
 // JAL在ID阶段就冲刷，不占快照
@@ -77,8 +72,6 @@ assign br_sq_ptr_o = br_sq_ptr_i;
 assign br_alu_wr_ptr_o = br_alu_wr_ptr_i;
 assign br_branch_wr_ptr_o = br_branch_wr_ptr_i;
 assign br_mul_div_wr_ptr_o = br_mul_div_wr_ptr_i;
-assign reg_wflag_o = br_inst_valid_i && (br_type_i == `TYPE_JAL);
-assign reg_waddr_o = br_waddr_i;
 assign ex_pc = br_inst_addr_i;
 assign is_branch = (br_type_i == `TYPE_BR);
 assign commit_rob_id_o = br_rob_id_i;
@@ -90,7 +83,6 @@ always @(*) begin
     lhp_update_en = 1'b0;
     branch_taken = 1'b0;
     btb_update_en = 1'b0;
-    reg_wdata_o = 32'h0;
 
     if (br_inst_valid_o) begin
         case (br_type_i)
@@ -99,13 +91,11 @@ always @(*) begin
                     jump_flag_o = (br_rs1_data_i + br_imm_i != br_bpu_pre_addr_i);
                     jump_addr_o = br_rs1_data_i + br_imm_i;
                     btb_update_en = 1'b0;
-                    reg_wdata_o = br_aux_addr_i;
                 end
                 else begin // JAL
                     jump_flag_o = 1'b0; // id已经冲刷
                     jump_addr_o = br_aux_addr_i;
                     btb_update_en = 1'b1;
-                    reg_wdata_o = {16'h8000, br_inst_addr_i} + 32'h4;
                 end
             end
             `TYPE_BR: begin
@@ -135,7 +125,6 @@ always @(*) begin
                         lhp_update_en = 1'b0;
                         branch_taken = 1'b0;
                         btb_update_en = 1'b0;
-                        reg_wdata_o = 32'h0;
                     end
                 endcase
             end
@@ -145,7 +134,6 @@ always @(*) begin
                 lhp_update_en = 1'b0;
                 branch_taken = 1'b0;
                 btb_update_en = 1'b0;
-                reg_wdata_o = 32'h0;
             end
         endcase
     end
@@ -155,7 +143,6 @@ always @(*) begin
         lhp_update_en = 1'b0;
         branch_taken = 1'b0;
         btb_update_en = 1'b0;
-        reg_wdata_o = 32'h0;
     end
 end
 

@@ -15,11 +15,12 @@ module ALU_RF (
     input [5:0] pwaddr_i,               // ALU物理寄存器写地址
     input [31:0] imm_i,                 // ALU立即数
 
-    // from forward_unit
-    input rs1_forward_flag_i,           // rs1转发标志
-    input [31:0] rs1_forward_data_i,    // rs1转发数据
-    input rs2_forward_flag_i,           // rs2转发标志
-    input [31:0] rs2_forward_data_i,    // rs2转发数据
+    // from forward_unit（只送 2 位 one-hot 选择）
+    input [1:0] rs1_fwd_sel_i,          // rs1转发选择：01=ALU0, 10=ALU1, 00=不转发
+    input [1:0] rs2_fwd_sel_i,          // rs2转发选择：01=ALU0, 10=ALU1, 00=不转发
+    // from ALU exe（直连转发，不经过转发模块）
+    input [31:0] alu0_exe_wdata_i,      // ALU0 执行阶段结果
+    input [31:0] alu1_exe_wdata_i,      // ALU1 执行阶段结果
 
     // from branch
     input jump_flag_i,                  // 跳转标志
@@ -55,15 +56,17 @@ assign praddr2_o = praddr2_i;
 assign rf_wflag_o = inst_valid_i;
 assign rf_waddr_o = pwaddr_i;
 // 冲刷逻辑
-wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_0000;
-assign inst_valid_o = inst_valid_i && ((mask_i & kill_mask) == 0); // 如果指令的掩码位被kill_mask覆盖，则无效
+wire kill_mask = jump_flag_i && (mask_i != 8'b0);
+assign inst_valid_o = inst_valid_i && !kill_mask; // 如果指令的掩码位被kill_mask覆盖，则无效
 // 输出到执行阶段
 assign rob_id_o = rob_id_i;
 assign subtype_o = subtype_i;
-// 操作数选择
-assign op1_o = rs1_forward_flag_i ? rs1_forward_data_i : reg_rdata1_i; // 转发优先于寄存器文件
+// 操作数选择（转发选择直连 alu0/alu1 的 exe_wdata，不经过转发模块）
+assign op1_o = (rs1_fwd_sel_i == 2'b01) ? alu0_exe_wdata_i :
+               (rs1_fwd_sel_i == 2'b10) ? alu1_exe_wdata_i : reg_rdata1_i; // 转发优先于寄存器文件
 assign op2_o = (op2_src_i == `OP2_REG) ?
-               (rs2_forward_flag_i ? rs2_forward_data_i : reg_rdata2_i) : imm_i;
+               ((rs2_fwd_sel_i == 2'b01) ? alu0_exe_wdata_i :
+                (rs2_fwd_sel_i == 2'b10) ? alu1_exe_wdata_i : reg_rdata2_i) : imm_i;
 
 always @(*) begin
     mask_o = mask_i;

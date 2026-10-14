@@ -33,9 +33,9 @@ module DIV_EX (
     output reg [31:0] reg_wdata_o        // 写寄存器数据
 );
 // 冲刷逻辑
-wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_0000;
-assign inst_valid_o = inst_valid_i && ((mask_i & kill_mask) == 0); // 如果指令的掩码位被kill_mask覆盖，则无效
-assign flush_o = inst_valid_i && ((mask_i & kill_mask) != 0);
+wire kill_mask = jump_flag_i && (mask_i != 8'b0);
+assign inst_valid_o = inst_valid_i && !kill_mask; // 如果指令的掩码位被kill_mask覆盖，则无效
+assign flush_o = inst_valid_i && kill_mask;
 
 assign stall_o = inst_valid_i && !div_done; // 当指令有效且除法未完成时，发出stall信号
 assign rob_id_o = rob_id_i;

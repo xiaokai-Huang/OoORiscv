@@ -119,7 +119,7 @@ assign ready_flag_o = ready;
 always @(posedge clk) begin
     if(!rst) begin
         ready <= {32'b0, 32'hFFFF_FFFF};
-        for (i = 0; i < 32; i = i + 1) begin     // 用for循环初始化
+        for (i = 0; i < 1; i = i + 1) begin     // 用for循环初始化
             regs[i] <= 32'b0;
         end
     end

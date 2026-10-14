@@ -14,10 +14,6 @@ module LSU_RF (
     input [5:0] pwaddr_i,             // 物理寄存器写地址
     input [31:0] imm_i,               // 立即数
 
-    // from forward_unit
-    input rs2_forward_flag_i,           // rs2转发标志
-    input [31:0] rs2_forward_data_i,    // rs2转发数据
-
     // from regs
     input [31:0] reg_rdata1_i,          // 寄存器1读数据
     input [31:0] reg_rdata2_i,          // 寄存器2读数据
@@ -54,7 +50,7 @@ assign mask_o = mask_i;
 assign sq_id_o = sq_id_i;
 assign subtype_o = subtype_i;
 assign rs1_data_o = reg_rdata1_i;
-assign rs2_data_o = rs2_forward_flag_i ? rs2_forward_data_i : reg_rdata2_i;
+assign rs2_data_o = reg_rdata2_i;
 `ifdef use_f_extension
 assign float_rs2_data_o = float_rs2_rdata_i;
 `endif

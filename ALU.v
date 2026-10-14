@@ -18,11 +18,12 @@ module ALU (
     input [5:0] pwaddr_i,               // ALU物理寄存器写地址
     input [31:0] imm_i,                 // ALU立即数
 
-    // from forward_unit
-    input rs1_forward_flag_i,           // rs1转发标志
-    input [31:0] rs1_forward_data_i,    // rs1转发数据
-    input rs2_forward_flag_i,           // rs2转发标志
-    input [31:0] rs2_forward_data_i,    // rs2转发数据
+    // from forward_unit（只送 2 位 one-hot 选择）
+    input [1:0] rs1_fwd_sel_i,          // rs1转发选择：01=ALU0, 10=ALU1, 00=不转发
+    input [1:0] rs2_fwd_sel_i,          // rs2转发选择：01=ALU0, 10=ALU1, 00=不转发
+    // from ALU exe（直连转发，不经过转发模块）
+    input [31:0] alu0_exe_wdata_i,      // ALU0 执行阶段结果
+    input [31:0] alu1_exe_wdata_i,      // ALU1 执行阶段结果
 
     // from clint
     input int_flag_i,                   // 中断标志
@@ -99,10 +100,11 @@ ALU_RF u_ALU_RF(
     .pwaddr_i(pwaddr_i),               // ALU物理寄存器写地址
     .imm_i(imm_i),                 // ALU立即数
     // from forward_unit
-    .rs1_forward_flag_i(rs1_forward_flag_i),           // rs1转发标志
-    .rs1_forward_data_i(rs1_forward_data_i),    // rs1转发数据
-    .rs2_forward_flag_i(rs2_forward_flag_i),           // rs2转发标志
-    .rs2_forward_data_i(rs2_forward_data_i),    // rs2转发数据
+    .rs1_fwd_sel_i(rs1_fwd_sel_i),           // rs1转发选择
+    .rs2_fwd_sel_i(rs2_fwd_sel_i),           // rs2转发选择
+    // from ALU exe（直连转发）
+    .alu0_exe_wdata_i(alu0_exe_wdata_i),     // ALU0 执行阶段结果
+    .alu1_exe_wdata_i(alu1_exe_wdata_i),     // ALU1 执行阶段结果
     // from branch
     .jump_flag_i(jump_flag_i),                  // 跳转标志
     .kill_mask_id_i(kill_mask_id_i),         // 分支掩码id

@@ -88,10 +88,10 @@ localparam DRAM_ADDR_END   = 32'h8013_FFFF;
 wire access_dram = mem_addr_i[31] == 1'b1 && mem_addr_i[21] == 1'b0;
 assign mem_addr_o = mem_addr_i;
 // 冲刷逻辑
-wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_0000;
-assign inst_valid_o = inst_valid_i && ((mask_i & kill_mask) == 0); // 如果指令的掩码位被kill_mask覆盖，则无效
+wire kill_mask = jump_flag_i && (mask_i != 8'b0);
+assign inst_valid_o = inst_valid_i && !kill_mask; // 如果指令的掩码位被kill_mask覆盖，则无效
 assign subtype_o = subtype_i;
-assign flush_o = inst_valid_i && ((mask_i & kill_mask) != 0); // 当前指令被冲刷
+assign flush_o = inst_valid_i && kill_mask; // 当前指令被冲刷
 // Store Queue
 reg sq_valid[0:3];              // SQ有效位
 reg [7:0] sq_br_mask[0:3];      // SQ分支掩码
@@ -129,8 +129,8 @@ always @(posedge clk) begin          // 同步复位
         if (jump_flag_i) begin
             // 冲刷
             for (i = 0; i < 4; i = i + 1) begin
-                if ((sq_br_mask[i] & kill_mask) != 0) begin
-                    sq_valid[i] <= 1'b0; // 如果SQ条目的分支掩码被kill_mask覆盖，则无效
+                if (sq_br_mask[i] != 8'b0) begin
+                    sq_valid[i] <= 1'b0; // 掩码非0即比冲刷分支年轻，无效
                 end
             end
         end
@@ -256,14 +256,12 @@ reg [31:0] dcache_wdata;
 reg [31:0] perip_wdata;
 always @(*) begin
     mem_reg_wdata_o = 32'b0;
-    fwd_mem_addr_o  = 32'b0;
+    fwd_mem_addr_o  = {8'h80, dcache_wdata[23:0] + imm_i[23:0]};
     if (access_dram && !dcache_miss) begin
         mem_reg_wdata_o = dcache_wdata;
-        fwd_mem_addr_o  = dcache_wdata + imm_i;
     end 
     else begin
         mem_reg_wdata_o = perip_wdata;
-        fwd_mem_addr_o  = perip_wdata + imm_i;
     end
 end
 always @(*) begin

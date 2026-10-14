@@ -57,8 +57,8 @@ always @(*) begin
     end
 end
 
-wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_0000;
-wire next_valid = inst_valid_o && ((mask_o & kill_mask) == 0); // 如果指令的掩码位被kill_mask覆盖，则无效
+wire kill_mask = jump_flag_i && (mask_o != 8'b0);
+wire next_valid = inst_valid_o && !kill_mask; // 如果指令的掩码位被kill_mask覆盖，则无效
 
 always @(posedge clk) begin
     if (!rst) begin

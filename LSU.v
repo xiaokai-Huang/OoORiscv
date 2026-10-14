@@ -20,12 +20,11 @@ module LSU (
     input [5:0] pwaddr_i,             // 物理寄存器写地址
     input [31:0] imm_i,               // 立即数
 
-    // from forward_unit
+    // from forward_unit（只送 2 位 one-hot 选择，32 位数据由 ALU 直连）
     input [1:0] rs1_fwd_sel_i,          // mem rs1转发选择：01=ALU0, 10=ALU1, 00=不转发
+    input [1:0] rs2_fwd_sel_i,          // mem rs2转发选择：01=ALU0, 10=ALU1, 00=不转发
     input [31:0] alu0_exe_wdata_i,      // ALU0 执行阶段结果
     input [31:0] alu1_exe_wdata_i,      // ALU1 执行阶段结果
-    input rs2_forward_flag_i,           // rs2转发标志
-    input [31:0] rs2_forward_data_i,    // rs2转发数据
 
     // from regs
     input [31:0] reg_rdata1_i,          // 寄存器1读数据
@@ -97,6 +96,8 @@ module LSU (
     output load_complete_flag_o,              // load指令完成标志
     output [5:0] load_commit_rob_id_o         // load提交ROB id
 );
+wire [1:0] rs1_fwd_sel = rs1_fwd_sel_i | {2{rs1_dep_rf_i}};
+wire [1:0] rs2_fwd_sel = rs2_fwd_sel_i | {2{rs2_dep_rf_i}};
 
 // rf
 wire rf_inst_valid_o;               // 指令有效标志
@@ -123,9 +124,6 @@ LSU_RF u_LSU_RF(
     .praddr2_i(praddr2_i),            // 物理寄存器2读地址
     .pwaddr_i(pwaddr_i),              // 物理寄存器写地址
     .imm_i(imm_i),                    // 立即数
-    // from forward_unit
-    .rs2_forward_flag_i(rs2_forward_flag_i),           // rs2转发标志
-    .rs2_forward_data_i(rs2_forward_data_i),    // rs2转发数据
     // from regs
     .reg_rdata1_i(reg_rdata1_i),          // 寄存器1读数据
     .reg_rdata2_i(reg_rdata2_i),          // 寄存器2读数据
@@ -205,7 +203,9 @@ wire [31:0] ex_rs2_data_o;          // rs2数据
 wire [31:0] ex_float_rs2_data_o;    // 浮点rs2数据
 `endif
 wire [5:0] ex_pwaddr_o;             // 物理寄存器写地址
-wire [31:0] ex_mem_addr_o;          // 访存地址
+wire [31:0] mem_addr_reg;
+wire [31:0] mem_addr_alu0;
+wire [31:0] mem_addr_alu1;
 
 LSU_EX u_LSU_EX(
     // from rf
@@ -241,11 +241,18 @@ LSU_EX u_LSU_EX(
     .float_rs2_data_o(ex_float_rs2_data_o),
     `endif
     .pwaddr_o(ex_pwaddr_o),             // 物理寄存器写地址
-    .mem_addr_o(ex_mem_addr_o)           // 访存地址
+    .mem_addr_reg(mem_addr_reg),
+    .mem_addr_alu0(mem_addr_alu0),
+    .mem_addr_alu1(mem_addr_alu1)
 );
 wire [31:0] fwd_mem_addr_o;
-wire [31:0] final_mem_addr = rs1_dep_rf_i ? fwd_mem_addr_o  : ex_mem_addr_o;
-wire [31:0] final_rs2_data = rs2_dep_rf_i ? mem_reg_wdata_o : ex_rs2_data_o;
+wire [31:0] final_mem_addr = (rs1_fwd_sel == 2'b01) ? mem_addr_alu0  :
+                             (rs1_fwd_sel == 2'b10) ? mem_addr_alu1  :
+                             (rs1_fwd_sel == 2'b11) ? fwd_mem_addr_o : mem_addr_reg;
+// rs2 与访存地址同样的选择结构：01/10=ALU 转发，11=访存转发（rs2_dep_rf_i），00=寄存器读数据
+wire [31:0] final_rs2_data = (rs2_fwd_sel == 2'b01) ? alu0_exe_wdata_i :
+                             (rs2_fwd_sel == 2'b10) ? alu1_exe_wdata_i :
+                             (rs2_fwd_sel == 2'b11) ? mem_reg_wdata_o  : ex_rs2_data_o;
 
 // ex_mem
 wire ex_mem_inst_valid_o;               // 指令有效标志
@@ -379,6 +386,7 @@ assign mem_reg_wflag_o = mem_reg_wflag && !dcache_stall_o;
 dcache u_dcache(
     .clk(clk),
     .rst(rst),
+    .rs1_dep_rf_i(rs1_dep_rf_i),
     // from mem
     .mem_addr(mem_addr_o),
     .mem_ren(mem_dcache_ren),

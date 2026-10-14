@@ -43,20 +43,15 @@ module Forwarding_Unit (
     // `endif
 
     // to RF
-    // to ALU_0
-    output reg alu0_rs1_forward_flag_o,           // ALU_0 rs1转发标志
-    output reg [31:0] alu0_rs1_forward_data_o,    // ALU_0 rs1转发数据
-    output reg alu0_rs2_forward_flag_o,           // ALU_0 rs2转发标志
-    output reg [31:0] alu0_rs2_forward_data_o,    // ALU_0 rs2转发数据
-    // to ALU_1
-    output reg alu1_rs1_forward_flag_o,           // ALU_1 rs1转发标志
-    output reg [31:0] alu1_rs1_forward_data_o,    // ALU_1 rs1转发数据
-    output reg alu1_rs2_forward_flag_o,           // ALU_1 rs2转发标志
-    output reg [31:0] alu1_rs2_forward_data_o,    // ALU_1 rs2转发数据
-    // to mem（rs1 只送 2 位 one-hot 选择，32 位转发数据由 ALU 直连到 LSU_EX
+    // to ALU_0（只送 2 位 one-hot 选择，32 位转发数据由 alu0/1_exe_wdata 直连到 ALU_RF 选择）
+    output reg [1:0] alu0_rs1_fwd_sel_o,           // ALU_0 rs1转发选择：01=ALU0, 10=ALU1, 00=不转发
+    output reg [1:0] alu0_rs2_fwd_sel_o,           // ALU_0 rs2转发选择：01=ALU0, 10=ALU1, 00=不转发
+    // to ALU_1（只送 2 位 one-hot 选择，32 位转发数据由 alu0/1_exe_wdata 直连到 ALU_RF 选择）
+    output reg [1:0] alu1_rs1_fwd_sel_o,           // ALU_1 rs1转发选择：01=ALU0, 10=ALU1, 00=不转发
+    output reg [1:0] alu1_rs2_fwd_sel_o,           // ALU_1 rs2转发选择：01=ALU0, 10=ALU1, 00=不转发
+    // to mem（rs1/rs2 只送 2 位 one-hot 选择，32 位转发数据由 ALU 直连到 LSU）
     output reg [1:0] mem_rs1_fwd_sel_o,           // mem rs1转发选择：01=ALU0, 10=ALU1, 00=不转发
-    output reg mem_rs2_forward_flag_o,            // mem rs2转发标志
-    output reg [31:0] mem_rs2_forward_data_o,     // mem rs2转发数据
+    output reg [1:0] mem_rs2_fwd_sel_o,           // mem rs2转发选择：01=ALU0, 10=ALU1, 00=不转发
     // to branch
     output reg branch_rs1_forward_flag_o,         // branch rs1转发标志
     output reg [31:0] branch_rs1_forward_data_o,  // branch rs1转发数据
@@ -64,7 +59,8 @@ module Forwarding_Unit (
     output reg [31:0] branch_rs2_forward_data_o   // branch rs2转发数据
     `ifdef use_m_extension
     // to mul
-    ,output reg mul_rs1_forward_flag_o,           // mul rs1转发标志
+    ,
+    output reg mul_rs1_forward_flag_o,           // mul rs1转发标志
     output reg [31:0] mul_rs1_forward_data_o,     // mul rs1转发数据
     output reg mul_rs2_forward_flag_o,            // mul rs2转发标志
     output reg [31:0] mul_rs2_forward_data_o,     // mul rs2转发数据
@@ -76,53 +72,53 @@ module Forwarding_Unit (
     `endif
 );
 
-// ALU0_rs1转发
+// ALU0_rs1转发（只产生 2 位 one-hot 选择，32 位数据由 ALU_RF 直连 alu0/1_exe_wdata 选择）
 always @(*) begin
+    alu0_rs1_fwd_sel_o = 2'b00;
     if (alu0_rf_raddr1_i != 6'b0) begin
-        alu0_rs1_forward_flag_o = (alu0_rf_raddr1_i == alu0_exe_waddr_i) | (alu0_rf_raddr1_i == alu1_exe_waddr_i);
-        alu0_rs1_forward_data_o = {32{alu0_rf_raddr1_i == alu0_exe_waddr_i}} & alu0_exe_wdata_i |
-                                  {32{alu0_rf_raddr1_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i;
+        if (alu0_rf_raddr1_i == alu0_exe_waddr_i) begin
+            alu0_rs1_fwd_sel_o = 2'b01;
+        end
+        else if (alu0_rf_raddr1_i == alu1_exe_waddr_i) begin
+            alu0_rs1_fwd_sel_o = 2'b10;
+        end
     end 
-    else begin
-        alu0_rs1_forward_flag_o = 1'b0;
-        alu0_rs1_forward_data_o = 32'b0;
-    end
 end
 // ALU0_rs2转发
 always @(*) begin
+    alu0_rs2_fwd_sel_o = 2'b00;
     if (alu0_rf_raddr2_i != 6'b0) begin
-        alu0_rs2_forward_flag_o = (alu0_rf_raddr2_i == alu0_exe_waddr_i) | (alu0_rf_raddr2_i == alu1_exe_waddr_i);
-        alu0_rs2_forward_data_o = {32{alu0_rf_raddr2_i == alu0_exe_waddr_i}} & alu0_exe_wdata_i |
-                                  {32{alu0_rf_raddr2_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i;
+        if (alu0_rf_raddr2_i == alu0_exe_waddr_i) begin
+            alu0_rs2_fwd_sel_o = 2'b01;
+        end
+        else if (alu0_rf_raddr2_i == alu1_exe_waddr_i) begin
+            alu0_rs2_fwd_sel_o = 2'b10;
+        end
     end 
-    else begin
-        alu0_rs2_forward_flag_o = 1'b0;
-        alu0_rs2_forward_data_o = 32'b0;
-    end
 end
 // ALU1_rs1转发
 always @(*) begin
+    alu1_rs1_fwd_sel_o = 2'b00;
     if (alu1_rf_raddr1_i != 6'b0) begin
-        alu1_rs1_forward_flag_o = (alu1_rf_raddr1_i == alu0_exe_waddr_i) | (alu1_rf_raddr1_i == alu1_exe_waddr_i);
-        alu1_rs1_forward_data_o = {32{alu1_rf_raddr1_i == alu0_exe_waddr_i}} & alu0_exe_wdata_i |
-                                  {32{alu1_rf_raddr1_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i;
+        if (alu1_rf_raddr1_i == alu0_exe_waddr_i) begin
+            alu1_rs1_fwd_sel_o = 2'b01;
+        end
+        else if (alu1_rf_raddr1_i == alu1_exe_waddr_i) begin
+            alu1_rs1_fwd_sel_o = 2'b10;
+        end
     end 
-    else begin
-        alu1_rs1_forward_flag_o = 1'b0;
-        alu1_rs1_forward_data_o = 32'b0;
-    end
 end
 // ALU1_rs2转发
 always @(*) begin
+    alu1_rs2_fwd_sel_o = 2'b00;
     if (alu1_rf_raddr2_i != 6'b0) begin
-        alu1_rs2_forward_flag_o = (alu1_rf_raddr2_i == alu0_exe_waddr_i) | (alu1_rf_raddr2_i == alu1_exe_waddr_i);
-        alu1_rs2_forward_data_o = {32{alu1_rf_raddr2_i == alu0_exe_waddr_i}} & alu0_exe_wdata_i |
-                                  {32{alu1_rf_raddr2_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i;
+        if (alu1_rf_raddr2_i == alu0_exe_waddr_i) begin
+            alu1_rs2_fwd_sel_o = 2'b01;
+        end
+        else if (alu1_rf_raddr2_i == alu1_exe_waddr_i) begin
+            alu1_rs2_fwd_sel_o = 2'b10;
+        end
     end 
-    else begin
-        alu1_rs2_forward_flag_o = 1'b0;
-        alu1_rs2_forward_data_o = 32'b0;
-    end
 end
 // mem_rs1转发（只产生 2 位 one-hot 选择，不再搬运 32 位数据）
 always @(*) begin
@@ -139,16 +135,16 @@ always @(*) begin
         mem_rs1_fwd_sel_o = 2'b00;
     end
 end
-// mem_rs2转发
+// mem_rs2转发（只产生 2 位 one-hot 选择，32 位数据由 LSU_RF 直连 alu0/1_exe_wdata 选择）
 always @(*) begin
+    mem_rs2_fwd_sel_o = 2'b00;
     if (mem_rf_raddr2_i != 6'b0) begin
-        mem_rs2_forward_flag_o = (mem_rf_raddr2_i == alu0_exe_waddr_i) | (mem_rf_raddr2_i == alu1_exe_waddr_i);
-        mem_rs2_forward_data_o = {32{mem_rf_raddr2_i == alu0_exe_waddr_i}} & alu0_exe_wdata_i |
-                                 {32{mem_rf_raddr2_i == alu1_exe_waddr_i}} & alu1_exe_wdata_i;
-    end 
-    else begin
-        mem_rs2_forward_flag_o = 1'b0;
-        mem_rs2_forward_data_o = 32'b0;
+        if (mem_rf_raddr2_i == alu0_exe_waddr_i) begin
+            mem_rs2_fwd_sel_o = 2'b01;
+        end
+        else if (mem_rf_raddr2_i == alu1_exe_waddr_i) begin
+            mem_rs2_fwd_sel_o = 2'b10;
+        end
     end
 end
 // branch_rs1转发

@@ -43,11 +43,13 @@ module LSU_EX (
     `endif
 
     output [5:0] pwaddr_o,             // 物理寄存器写地址
-    output [31:0] mem_addr_o           // 访存地址
+    output [31:0] mem_addr_reg,
+    output [31:0] mem_addr_alu0,
+    output [31:0] mem_addr_alu1
 );
 
-wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_0000;
-assign inst_valid_o = inst_valid_i && ((mask_i & kill_mask) == 0); // 如果指令的掩码位被kill_mask覆盖，则无效
+wire kill_mask = jump_flag_i && (mask_i != 8'b0);
+assign inst_valid_o = inst_valid_i && !kill_mask; // 如果指令的掩码位被kill_mask覆盖，则无效
 assign rob_id_o = rob_id_i;
 assign sq_id_o = sq_id_i;
 assign subtype_o = subtype_i;
@@ -58,12 +60,9 @@ assign float_rs2_data_o = float_rs2_data_i;
 assign pwaddr_o = pwaddr_i;
 
 // 访存地址：三路并行加法 + 末级选择
-wire [31:0] mem_addr_reg  = rs1_data_i       + imm_i;   // 寄存器读数据 + 立即数
-wire [31:0] mem_addr_alu0 = alu0_exe_wdata_i + imm_i;   // ALU0 结果 + 立即数
-wire [31:0] mem_addr_alu1 = alu1_exe_wdata_i + imm_i;   // ALU1 结果 + 立即数
-
-assign mem_addr_o = (rs1_fwd_sel_i == 2'b01) ? mem_addr_alu0 :
-                    (rs1_fwd_sel_i == 2'b10) ? mem_addr_alu1 : mem_addr_reg;
+assign mem_addr_reg  = {8'h80, rs1_data_i[23:0]       + imm_i[23:0]};   // 寄存器读数据 + 立即数
+assign mem_addr_alu0 = {8'h80, alu0_exe_wdata_i[23:0] + imm_i[23:0]};   // ALU0 结果 + 立即数
+assign mem_addr_alu1 = {8'h80, alu1_exe_wdata_i[23:0] + imm_i[23:0]};   // ALU1 结果 + 立即数
 
 always @(*) begin
     mask_o = mask_i;

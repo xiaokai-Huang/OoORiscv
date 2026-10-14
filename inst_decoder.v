@@ -488,7 +488,6 @@ always@(*) begin
             reg2_raddr_o = 5'b0;
             reg_waddr_o = rd;
             reg_wflag_o = 1'b1;
-            aux_addr_o = inst_addr_i + 32'd4;
         end
         `INST_LUI:begin
             inst_type_o = `TYPE_ALU;

@@ -283,8 +283,16 @@ wire br_reg_wflag_o;                 // 写回阶段写寄存器标志
 wire [5:0] br_reg_waddr_o;           // 写回阶段写寄存器地址
 wire [31:0] br_reg_wdata_o;          // 写回阶段写寄存器数据
 wire br_complete_flag_o;             // 指令完成标志
-wire br_free_snap_flag;               // 释放快照标志
+wire br_free_snap_flag;              // 释放快照标志
 wire [5:0] br_commit_rob_id_o;       // 提交ROB id
+reg  br_reg_wflag_d0;
+reg  [5:0] br_reg_waddr_d0;
+reg  [31:0] br_reg_wdata_d0;
+always @(posedge clk) begin
+    br_reg_wflag_d0 <= br_reg_wflag_o;
+    br_reg_waddr_d0 <= br_reg_waddr_o;
+    br_reg_wdata_d0 <= br_reg_wdata_o;
+end
 
 // bpu_update_buffer模块输出信号
 wire [31:0] buf_jump_addr_o;
@@ -325,6 +333,14 @@ wire mul_ex_wflag_o;                  // 执行阶段写寄存器标志
 wire [5:0] mul_ex_waddr_o;            // 执行阶段写寄存器地址
 wire mul_complete_flag_o;             // 指令完成标志
 wire [5:0] mul_commit_rob_id_o;       // 提交ROB id
+reg  mul_reg_wflag_d0;
+reg  [5:0] mul_reg_waddr_d0;
+reg  [31:0] mul_reg_wdata_d0;
+always @(posedge clk) begin
+    mul_reg_wflag_d0 <= mul_reg_wflag_o;
+    mul_reg_waddr_d0 <= mul_reg_waddr_o;
+    mul_reg_wdata_d0 <= mul_reg_wdata_o;
+end
 // DIV模块输出信号
 wire div_flush_o;
 wire div_stall_o;
@@ -374,31 +390,19 @@ wire [5:0] rob_free_paddr_inst1_o;           // 释放的物理寄存器地址
 reg  rob_reg_wflag_d0;
 reg  [5:0] rob_reg_waddr_d0;
 reg  [31:0] rob_reg_wdata_d0;
-always @(posedge clk) begin          // 同步复位
-    if (!rst) begin
-        rob_reg_wflag_d0 <= 1'b0;
-        rob_reg_waddr_d0 <= 6'b0;
-        rob_reg_wdata_d0 <= 32'b0;
-    end
-    else begin
-        rob_reg_wflag_d0 <= rob_reg_wflag_o;
-        rob_reg_waddr_d0 <= rob_reg_waddr_o;
-        rob_reg_wdata_d0 <= rob_reg_wdata_o;
-    end
+always @(posedge clk) begin
+    rob_reg_wflag_d0 <= rob_reg_wflag_o;
+    rob_reg_waddr_d0 <= rob_reg_waddr_o;
+    rob_reg_wdata_d0 <= rob_reg_wdata_o;
 end
 
 // Forward_unit模块输出信号
-wire alu0_rs1_forward_flag_o;           // ALU_0 rs1转发标志
-wire [31:0] alu0_rs1_forward_data_o;    // ALU_0 rs1转发数据
-wire alu0_rs2_forward_flag_o;           // ALU_0 rs2转发标志
-wire [31:0] alu0_rs2_forward_data_o;    // ALU_0 rs2转发数据
-wire alu1_rs1_forward_flag_o;           // ALU_1 rs1转发标志
-wire [31:0] alu1_rs1_forward_data_o;    // ALU_1 rs1转发数据
-wire alu1_rs2_forward_flag_o;           // ALU_1 rs2转发标志
-wire [31:0] alu1_rs2_forward_data_o;    // ALU_1 rs2转发数据
+wire [1:0] alu0_rs1_fwd_sel_o;          // ALU_0 rs1转发选择（01=ALU0, 10=ALU1, 00=不转发）
+wire [1:0] alu0_rs2_fwd_sel_o;          // ALU_0 rs2转发选择（01=ALU0, 10=ALU1, 00=不转发）
+wire [1:0] alu1_rs1_fwd_sel_o;          // ALU_1 rs1转发选择（01=ALU0, 10=ALU1, 00=不转发）
+wire [1:0] alu1_rs2_fwd_sel_o;          // ALU_1 rs2转发选择（01=ALU0, 10=ALU1, 00=不转发）
 wire [1:0] mem_rs1_fwd_sel_o;           // mem rs1转发选择（01=ALU0, 10=ALU1, 00=不转发）
-wire mem_rs2_forward_flag_o;            // mem rs2转发标志
-wire [31:0] mem_rs2_forward_data_o;     // mem rs2转发数据
+wire [1:0] mem_rs2_fwd_sel_o;           // mem rs2转发选择（01=ALU0, 10=ALU1, 00=不转发）
 wire branch_rs1_forward_flag_o;         // branch rs1转发标志
 wire [31:0] branch_rs1_forward_data_o;  // branch rs1转发数据
 wire branch_rs2_forward_flag_o;         // branch rs2转发标志
@@ -793,10 +797,11 @@ ALU u_ALU_0(
     .pwaddr_i(iss_alu_pwaddr_inst0_o),               // ALU物理寄存器写地址
     .imm_i(iss_alu_imm_inst0_o),                 // ALU立即数
     // from forward_unit
-    .rs1_forward_flag_i(alu0_rs1_forward_flag_o),           // rs1转发标志
-    .rs1_forward_data_i(alu0_rs1_forward_data_o),    // rs1转发数据
-    .rs2_forward_flag_i(alu0_rs2_forward_flag_o),           // rs2转发标志
-    .rs2_forward_data_i(alu0_rs2_forward_data_o),    // rs2转发数据
+    .rs1_fwd_sel_i(alu0_rs1_fwd_sel_o),           // rs1转发选择
+    .rs2_fwd_sel_i(alu0_rs2_fwd_sel_o),           // rs2转发选择
+    // from ALU exe（直连转发，不经过转发模块）
+    .alu0_exe_wdata_i(alu0_exe_wdata_o),          // ALU0 执行阶段结果
+    .alu1_exe_wdata_i(alu1_exe_wdata_o),          // ALU1 执行阶段结果
     // from clint
     .int_flag_i(clint_int_flag_o),                   // 中断标志
     // from branch
@@ -840,10 +845,11 @@ ALU u_ALU_1(
     .pwaddr_i(iss_alu_pwaddr_inst1_o),               // ALU物理寄存器写地址
     .imm_i(iss_alu_imm_inst1_o),                 // ALU立即数
     // from forward_unit
-    .rs1_forward_flag_i(alu1_rs1_forward_flag_o),           // rs1转发标志
-    .rs1_forward_data_i(alu1_rs1_forward_data_o),    // rs1转发数据
-    .rs2_forward_flag_i(alu1_rs2_forward_flag_o),           // rs2转发标志
-    .rs2_forward_data_i(alu1_rs2_forward_data_o),    // rs2转发数据
+    .rs1_fwd_sel_i(alu1_rs1_fwd_sel_o),           // rs1转发选择
+    .rs2_fwd_sel_i(alu1_rs2_fwd_sel_o),           // rs2转发选择
+    // from ALU exe（直连转发，不经过转发模块）
+    .alu0_exe_wdata_i(alu0_exe_wdata_o),          // ALU0 执行阶段结果
+    .alu1_exe_wdata_i(alu1_exe_wdata_o),          // ALU1 执行阶段结果
     // from clint
     .int_flag_i(clint_int_flag_o),                   // 中断标志
     // from branch
@@ -978,10 +984,9 @@ LSU u_LSU(
     .imm_i(iss_mem_imm_o),                    // 立即数
     // from forward_unit
     .rs1_fwd_sel_i(mem_rs1_fwd_sel_o),           // rs1转发选择
+    .rs2_fwd_sel_i(mem_rs2_fwd_sel_o),           // rs2转发选择
     .alu0_exe_wdata_i(alu0_exe_wdata_o),         // ALU0 执行阶段结果
     .alu1_exe_wdata_i(alu1_exe_wdata_o),         // ALU1 执行阶段结果
-    .rs2_forward_flag_i(mem_rs2_forward_flag_o),           // rs2转发标志
-    .rs2_forward_data_i(mem_rs2_forward_data_o),    // rs2转发数据
     // from regs
     .reg_rdata1_i(regs_mem_rdata1_o),          // 寄存器1读数据
     .reg_rdata2_i(regs_mem_rdata2_o),          // 寄存器2读数据
@@ -1160,20 +1165,15 @@ Forwarding_Unit u_Forwarding_Unit(
 //     .mul_exe_wdata_i,      // mul 执行阶段写寄存器数据
 // `endif
     // to RF
-    // to ALU_0
-    .alu0_rs1_forward_flag_o(alu0_rs1_forward_flag_o),           // ALU_0 rs1转发标志
-    .alu0_rs1_forward_data_o(alu0_rs1_forward_data_o),    // ALU_0 rs1转发数据
-    .alu0_rs2_forward_flag_o(alu0_rs2_forward_flag_o),           // ALU_0 rs2转发标志
-    .alu0_rs2_forward_data_o(alu0_rs2_forward_data_o),    // ALU_0 rs2转发数据
-    // to ALU_1
-    .alu1_rs1_forward_flag_o(alu1_rs1_forward_flag_o),           // ALU_1 rs1转发标志
-    .alu1_rs1_forward_data_o(alu1_rs1_forward_data_o),    // ALU_1 rs1转发数据
-    .alu1_rs2_forward_flag_o(alu1_rs2_forward_flag_o),           // ALU_1 rs2转发标志
-    .alu1_rs2_forward_data_o(alu1_rs2_forward_data_o),    // ALU_1 rs2转发数据
+    // to ALU_0（只送 2 位 one-hot 选择，32 位转发数据由 ALU 直连）
+    .alu0_rs1_fwd_sel_o(alu0_rs1_fwd_sel_o),           // ALU_0 rs1转发选择
+    .alu0_rs2_fwd_sel_o(alu0_rs2_fwd_sel_o),           // ALU_0 rs2转发选择
+    // to ALU_1（只送 2 位 one-hot 选择，32 位转发数据由 ALU 直连）
+    .alu1_rs1_fwd_sel_o(alu1_rs1_fwd_sel_o),           // ALU_1 rs1转发选择
+    .alu1_rs2_fwd_sel_o(alu1_rs2_fwd_sel_o),           // ALU_1 rs2转发选择
     // to mem
     .mem_rs1_fwd_sel_o(mem_rs1_fwd_sel_o),            // mem rs1转发选择
-    .mem_rs2_forward_flag_o(mem_rs2_forward_flag_o),            // mem rs2转发标志
-    .mem_rs2_forward_data_o(mem_rs2_forward_data_o),     // mem rs2转发数据
+    .mem_rs2_fwd_sel_o(mem_rs2_fwd_sel_o),            // mem rs2转发选择
     // to branch
     .branch_rs1_forward_flag_o(branch_rs1_forward_flag_o),         // branch rs1转发标志
     .branch_rs1_forward_data_o(branch_rs1_forward_data_o),  // branch rs1转发数据
@@ -1212,9 +1212,9 @@ regs u_regs(
     // from branch
     .branch_rf_wflag_i(br_rf_wflag_o),            // 读寄存器文件阶段写寄存器标志
     .branch_rf_waddr_i(br_rf_waddr_o),      // 读寄存器文件阶段写寄存器地址
-    .branch_wflag_i(br_reg_wflag_o),               // 写回阶段写寄存器标志
-    .branch_waddr_i(br_reg_waddr_o),         // 写回阶段写寄存器地址
-    .branch_wdata_i(br_reg_wdata_o),        // 写回阶段写寄存器数据
+    .branch_wflag_i(br_reg_wflag_d0),               // 写回阶段写寄存器标志
+    .branch_waddr_i(br_reg_waddr_d0),         // 写回阶段写寄存器地址
+    .branch_wdata_i(br_reg_wdata_d0),        // 写回阶段写寄存器数据
     // from mem
     .mem_exe_wflag_i(lsu_mem_reg_wflag_o),           // 执行阶段写寄存器标志
     .mem_exe_waddr_i(lsu_mem_reg_waddr_o),     // 执行阶段写寄存器地址
@@ -1225,9 +1225,9 @@ regs u_regs(
     // from mul
     .mul_exe_wflag_i(mul_ex_wflag_o),           // 执行阶段写寄存器标志
     .mul_exe_waddr_i(mul_ex_waddr_o),     // 执行阶段写寄存器地址
-    .mul_wflag_i(mul_reg_wflag_o),               // 写回阶段写寄存器标志
-    .mul_waddr_i(mul_reg_waddr_o),         // 写回阶段写寄存器地址
-    .mul_wdata_i(mul_reg_wdata_o),        // 写回阶段写寄存器数据
+    .mul_wflag_i(mul_reg_wflag_d0),               // 写回阶段写寄存器标志
+    .mul_waddr_i(mul_reg_waddr_d0),         // 写回阶段写寄存器地址
+    .mul_wdata_i(mul_reg_wdata_d0),        // 写回阶段写寄存器数据
     // from div
     .div_exe_wflag_i(div_ex_wflag_o),           // 执行阶段写寄存器标志
     .div_exe_waddr_i(div_ex_waddr_o),     // 执行阶段写寄存器地址

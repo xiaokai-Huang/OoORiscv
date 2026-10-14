@@ -1074,7 +1074,6 @@ wire [1:0] rob_req = inst_valid_port0_i + inst_valid_port1_i;
 assign stall_o = (rob_free_cnt < rob_req);
 wire stall = stall_i || stall_o;
 // 冲刷逻辑
-wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_0000;
 reg prev_flush_flag;
 always @(posedge clk) prev_flush_flag <= jump_flag_i;
 reg [5:0] restore_free_cnt;
@@ -1118,7 +1117,7 @@ always @(posedge clk) begin          // 同步复位
     end
     else if (jump_flag_i) begin
         for (i = 0; i < 32; i = i + 1) begin
-            if ((rob_br_mask[i] & kill_mask) != 0) rob_valid[i] <= 1'b0;
+            if (rob_br_mask[i] != 8'b0) rob_valid[i] <= 1'b0;
         end
         // 指令完成更新
         if (alu0_complete_flag_i)  rob_complete[alu0_commit_rob_id_i[4:0]]  <= 1'b1;

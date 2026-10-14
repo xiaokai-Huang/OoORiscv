@@ -71,9 +71,9 @@ module Branch (
     output [5:0] rf_raddr2_o,               // RF 阶段读寄存器2地址（同时传到转发模块）
     output rf_wflag_o,                      // RF 阶段写寄存器标志
     output [5:0] rf_waddr_o,                // RF 阶段写寄存器地址(同时传到issue阶段)
-    output reg reg_wflag_o,                 // 写回阶段写寄存器标志
-    output reg [5:0] reg_waddr_o,           // 写回阶段写寄存器地址
-    output reg [31:0] reg_wdata_o,          // 写回阶段写寄存器数据
+    output reg_wflag_o,                     // 写回阶段写寄存器标志
+    output [5:0] reg_waddr_o,               // 写回阶段写寄存器地址
+    output [31:0] reg_wdata_o,              // 写回阶段写寄存器数据
 
     // to ROB
     output complete_flag_o,             // 指令完成标志
@@ -178,6 +178,9 @@ br_rf u_br_rf(
     .rf_raddr2_o(rf_raddr2_o),           // RF 阶段读寄存器2地址（同时传到转发模块）
     .rf_wflag_o(rf_wflag_o),                  // RF 阶段写寄存器标志
     .rf_waddr_o(rf_waddr_o),            // RF 阶段写寄存器地址(同时传到issue阶段和ex阶段)
+    .reg_wflag_o(reg_wflag_o),                 // 写寄存器标志
+    .reg_waddr_o(reg_waddr_o),           // 写寄存器地址
+    .reg_wdata_o(reg_wdata_o),      // 写寄存器数据
     // to ex
     .br_inst_valid_o(rf_br_inst_valid_o),              // branch指令有效标志
     .br_inst_addr_o(rf_br_inst_addr_o),        // branch指令地址
@@ -251,21 +254,6 @@ br_rf_ex u_br_rf_ex(
 );
 
 // br_ex
-wire ex_reg_wflag_o;
-wire [5:0] ex_reg_waddr_o;
-wire [31:0] ex_reg_wdata_o;
-always @(posedge clk) begin
-    if (!rst) begin
-        reg_wflag_o <= 1'b0;
-        reg_waddr_o <= 6'b0;
-        reg_wdata_o <= 32'b0;
-    end
-    else begin
-        reg_wflag_o <= ex_reg_wflag_o;
-        reg_waddr_o <= ex_reg_waddr_o;
-        reg_wdata_o <= ex_reg_wdata_o;
-    end
-end
 br_ex u_br_ex(
     // from RF
     .br_inst_valid_i(rf_ex_br_inst_valid_o),              // branch指令有效标志
@@ -310,10 +298,6 @@ br_ex u_br_ex(
     .is_branch(is_branch),                             // 是否为分支指令
     .lhp_update_en(lhp_update_en),                     // 更新使能
     .branch_taken(branch_taken),                      // 实际跳转结果(1为跳转)
-    // to regs
-    .reg_wflag_o(ex_reg_wflag_o),                 // 写寄存器标志
-    .reg_waddr_o(ex_reg_waddr_o),           // 写寄存器地址
-    .reg_wdata_o(ex_reg_wdata_o),      // 写寄存器数据
     // to br_flush
     .br_inst_valid_o(ex_br_inst_valid_o),
     .need_snap_o(ex_need_snap_o),               // 占用快照标志

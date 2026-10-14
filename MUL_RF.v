@@ -39,8 +39,8 @@ module MUL_RF (
     output [5:0] pwaddr_o              // 物理寄存器写地址
 );
 // 冲刷逻辑
-wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_0000;
-assign inst_valid_o = inst_valid_i && ((mask_i & kill_mask) == 0); // 如果指令的掩码位被kill_mask覆盖，则无效
+wire kill_mask = jump_flag_i && (mask_i != 8'b0);
+assign inst_valid_o = inst_valid_i && !kill_mask; // 如果指令的掩码位被kill_mask覆盖，则无效
 
 assign rob_id_o = rob_id_i;
 assign subtype_o = subtype_i;

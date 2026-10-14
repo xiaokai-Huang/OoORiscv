@@ -176,10 +176,10 @@
             rdata = alu0_wdata_i; \
         else if (alu1_wflag_i && (alu1_waddr_i == raddr)) \
             rdata = alu1_wdata_i; \
-        else if (branch_wflag_i && (branch_waddr_i == raddr)) \
-            rdata = branch_wdata_i; \
         else if (mem_wflag_i && (mem_waddr_i == raddr)) \
             rdata = mem_wdata_i; \
+        else if (mul_wflag_i && (mul_waddr_i == raddr)) \
+            rdata = mul_wdata_i; \
         else \
             rdata = regs[raddr];
 `else
@@ -190,8 +190,6 @@
             rdata = alu0_wdata_i; \
         else if (alu1_wflag_i && (alu1_waddr_i == raddr)) \
             rdata = alu1_wdata_i; \
-        else if (branch_wflag_i && (branch_waddr_i == raddr)) \
-            rdata = branch_wdata_i; \
         else if (mem_wflag_i && (mem_waddr_i == raddr)) \
             rdata = mem_wdata_i; \
         else \

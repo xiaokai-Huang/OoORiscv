@@ -1580,9 +1580,6 @@ assign stall_o = rob_stall_i || alu_stall || branch_stall || mem_stall
 // 无浮点版本
 `else
 
-// 冲刷逻辑
-wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_0000;
-
 // ALU发射队列
 reg alu_inst_valid[0:7];       // 指令有效标志
 reg [5:0] alu_rob_id[0:7];     // ROB id
@@ -1632,10 +1629,10 @@ wire alu_dep_mem1 = ((alu_praddr1[alu_slot1] == mem_pwaddr_i) || (alu_praddr2[al
 always @(*) begin
     alu_issue_flag_inst0 = 1'b0;
     alu_issue_flag_inst1 = 1'b0;
-    if (alu_inst_valid[alu_slot0] && alu_op1_ready0 && alu_op2_ready0 && ((alu_mask[alu_slot0] & kill_mask) == 0) && 
+    if (alu_inst_valid[alu_slot0] && alu_op1_ready0 && alu_op2_ready0 && (!jump_flag_i || (alu_mask[alu_slot0] == 8'b0)) && 
         (!mem_stall_i || !alu_dep_mem0)) begin
         alu_issue_flag_inst0 = 1'b1; // 队头可以发射
-        if (alu_inst_valid[alu_slot1] && alu_op1_ready1 && alu_op2_ready1 && ((alu_mask[alu_slot1] & kill_mask) == 0) &&
+        if (alu_inst_valid[alu_slot1] && alu_op1_ready1 && alu_op2_ready1 && (!jump_flag_i || (alu_mask[alu_slot1] == 8'b0)) &&
             (!mem_stall_i || !alu_dep_mem1)) begin
             alu_issue_flag_inst1 = 1'b1; // 队头第二条连续发射
         end
@@ -1670,7 +1667,7 @@ always @(posedge clk) begin
     else if (jump_flag_i) begin
         // 冲刷所有被杀死的指令
         for (i = 0; i < 8; i = i + 1) begin
-            if ((alu_mask[i] & kill_mask) != 0) begin
+            if (alu_mask[i] != 8'b0) begin
                 alu_inst_valid[i] <= 1'b0; // 冲刷指令
             end
         end
@@ -1685,7 +1682,7 @@ always @(posedge clk) begin
             alu_rd_ptr <= alu_rd_ptr + 3'd1; // 只发射队头，读指针加1
         end
         // 更新写指针
-        if (alu_inst_valid[alu_slot0] && ((alu_mask[alu_slot0] & kill_mask) != 0)) begin
+        if (alu_inst_valid[alu_slot0] && (alu_mask[alu_slot0] != 8'b0)) begin
             alu_wr_ptr <= alu_rd_ptr; // 队头命中 Kill Mask，整个队列都在错误路上，拉回队头开始写
         end
         else if (alu_inst_valid[alu_slot0]) begin
@@ -1877,7 +1874,7 @@ wire br_dep_mem = ((branch_praddr1[branch_rd_ptr] == mem_pwaddr_i) || (branch_pr
                   && (mem_pwaddr_i != 6'b0);
 always @(*) begin
     br_issue_flag = 1'b0;
-    if (branch_inst_valid[branch_rd_ptr] && br_op1_ready && br_op2_ready && ((branch_mask[branch_rd_ptr] & kill_mask) == 0) && 
+    if (branch_inst_valid[branch_rd_ptr] && br_op1_ready && br_op2_ready && (!jump_flag_i || (branch_mask[branch_rd_ptr] == 8'b0)) && 
         (!mem_stall_i || !br_dep_mem)) begin
         br_issue_flag = 1'b1; // 当前队头指令就绪，未被冲刷杀死且访存没有因为miss暂停，可以发射
     end
@@ -1923,7 +1920,7 @@ always @(posedge clk) begin
     else if (jump_flag_i) begin
         // 冲刷所有被杀死的指令
         for (i = 0; i < 4; i = i + 1) begin
-            if ((branch_mask[i] & kill_mask) != 0) begin
+            if (branch_mask[i] != 8'b0) begin
                 branch_inst_valid[i] <= 1'b0; // 冲刷指令
             end
         end
@@ -1933,7 +1930,7 @@ always @(posedge clk) begin
             branch_rd_ptr <= branch_rd_ptr + 2'd1; // 读指针前移,溢出自动回绕
         end
         // 更新写指针
-        if (branch_inst_valid[branch_rd_ptr] && ((branch_mask[branch_rd_ptr] & kill_mask) != 0)) begin
+        if (branch_inst_valid[branch_rd_ptr] && (branch_mask[branch_rd_ptr] != 8'b0)) begin
             branch_wr_ptr <= branch_rd_ptr; // 队头命中 Kill Mask，整个队列都在错误路上，拉回队头开始写
         end
         else if (branch_inst_valid[branch_rd_ptr]) begin
@@ -2147,7 +2144,7 @@ wire mem_rs1_dep_rf = (mem_praddr1[mem_rd_ptr] == mem_pwaddr_o) && (mem_pwaddr_o
 wire mem_rs2_dep_rf = (mem_praddr2[mem_rd_ptr] == mem_pwaddr_o) && (mem_pwaddr_o != 6'b0);
 always @(*) begin
     mem_issue_flag = 1'b0;
-    if (mem_inst_valid[mem_rd_ptr] && mem_op1_ready && mem_op2_ready && ((mem_mask[mem_rd_ptr] & kill_mask) == 0) && !mem_stall_i) begin
+    if (mem_inst_valid[mem_rd_ptr] && mem_op1_ready && mem_op2_ready && (!jump_flag_i || (mem_mask[mem_rd_ptr] == 8'b0)) && !mem_stall_i) begin
         mem_issue_flag = 1'b1; // 当前队头指令就绪，未被冲刷杀死且访存没有因为miss暂停，可以发射
     end
 end
@@ -2201,7 +2198,7 @@ always @(posedge clk) begin
     else if (jump_flag_i) begin
         // 冲刷所有被杀死的指令
         for (i = 0; i < 8; i = i + 1) begin
-            if ((mem_mask[i] & kill_mask) != 0) mem_inst_valid[i] <= 1'b0; // 冲刷指令
+            if (mem_mask[i] != 8'b0) mem_inst_valid[i] <= 1'b0; // 冲刷指令
         end
         // 发射后将指令无效化并更新读指针
         if (mem_issue_flag) begin
@@ -2209,7 +2206,7 @@ always @(posedge clk) begin
             mem_rd_ptr <= mem_rd_ptr + 3'd1; // 读指针前移,溢出自动回绕
         end
         // 更新写指针
-        if (mem_inst_valid[mem_rd_ptr] && ((mem_mask[mem_rd_ptr] & kill_mask) != 0)) begin
+        if (mem_inst_valid[mem_rd_ptr] && (mem_mask[mem_rd_ptr] != 8'b0)) begin
             mem_wr_ptr <= mem_rd_ptr; // 队头是有效指令，且命中 Kill Mask，说明整个队列都是错误路上的，拉回队头开始写
         end
         else if (mem_inst_valid[mem_rd_ptr]) begin
@@ -2572,7 +2569,7 @@ always @(*) begin
     div_issue_flag = 1'b0;
     mul_issue_flag = 1'b0;
     if (mul_div_inst_valid[mul_div_rd_ptr] && mul_div_op1_ready && mul_div_op2_ready && 
-        ((mul_div_mask[mul_div_rd_ptr] & kill_mask) == 0) && (!mem_stall_i || !mul_div_dep_mem)) begin
+        (!jump_flag_i || (mul_div_mask[mul_div_rd_ptr] == 8'b0)) && (!mem_stall_i || !mul_div_dep_mem)) begin
         if (is_div_or_mul[mul_div_rd_ptr]) begin // 除法
             if (!div_stall_i) div_issue_flag = 1'b1;
         end
@@ -2608,7 +2605,7 @@ always @(posedge clk) begin
     else if (jump_flag_i) begin
         // 冲刷所有被杀死的指令
         for (i = 0; i < 4; i = i + 1) begin
-            if ((mul_div_mask[i] & kill_mask) != 0) begin
+            if (mul_div_mask[i] != 8'b0) begin
                 mul_div_inst_valid[i] <= 1'b0; // 冲刷指令
             end
         end
@@ -2618,7 +2615,7 @@ always @(posedge clk) begin
             mul_div_rd_ptr <= mul_div_rd_ptr + 2'd1; // 读指针前移,溢出自动回绕
         end
         // 更新写指针
-        if (mul_div_inst_valid[mul_div_rd_ptr] && ((mul_div_mask[mul_div_rd_ptr] & kill_mask) != 0)) begin
+        if (mul_div_inst_valid[mul_div_rd_ptr] && (mul_div_mask[mul_div_rd_ptr] != 8'b0)) begin
             mul_div_wr_ptr <= mul_div_rd_ptr; // 队头命中 Kill Mask，整个队列都在错误路上，拉回队头开始写
         end
         else if (mul_div_inst_valid[mul_div_rd_ptr]) begin

@@ -317,8 +317,8 @@ module rename(
             free_cnt <= 6'd32 - restore_free_cnt  + {4'b0, retire_cnt};
 
             next_alloc_ptr <= restore_snap_id_i + 1'b1; // 提交释放当前分支快照，下一次分配当前分支的下一个ID，覆盖错误路径的分配
-            current_mask <= mask_restored;
-            active_snap_cnt <= active_snap_cnt - {1'b0, rollback_dist} - {3'b0, total_release_snaps};
+            current_mask <= 8'b0;
+            active_snap_cnt <= 4'd0;
 
             // 提交/回收逻辑
             // 更新 Committed RAT (中断时恢复用)
@@ -372,7 +372,7 @@ module rename(
             current_mask <= mask_final_update;
 
             // 更新活跃快照计数器
-            active_snap_cnt <= active_snap_cnt - {1'b0, total_release_snaps} + (do_alloc ? {2'b0, req_snaps} : 4'd0);
+            active_snap_cnt <= active_snap_cnt - {3'b0, total_release_snaps} + (do_alloc ? {2'b0, req_snaps} : 4'd0);
 
 
             // 提交/回收逻辑

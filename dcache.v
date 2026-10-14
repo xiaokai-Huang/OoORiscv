@@ -5,6 +5,7 @@
 module dcache (
     input clk,
     input rst,
+    input rs1_dep_rf_i,
     // from mem
     input [31:0] mem_addr,
     input mem_ren,
@@ -91,8 +92,6 @@ end
 
 // 未命中时等待dram数据输出,进行行替换
 reg [1:0] miss_cnt;
-// reg [31:0] mem_addr_old;
-// always @(posedge clk) mem_addr_old <= mem_addr;
 
 // 读写同一行cache
 wire access_conflict = mem_wen && access_dram && (raddr == waddr);
@@ -112,7 +111,7 @@ always @(posedge clk) begin
 end
 
 always @(*) begin
-    if (cache_miss && read_dram && (miss_cnt < 2)) begin
+    if (cache_miss && read_dram && (miss_cnt < 2 || rs1_dep_rf_i)) begin
         miss_hold = 1'b1;
     end
     else begin
@@ -171,26 +170,11 @@ end
 wire refill = (miss_cnt == 2);
 wire write_hit = (mem_wen && access_dram && commit_dcache_rdata[137] && commit_dcache_rdata[136:128] == wr_tag);
 always @(*) begin
-    stall_store = 1'b0;
-    dcache_we = 1'b0;
-    dcache_wdata = 138'b0;
-
-    if (refill) begin
-        dcache_waddr = raddr;  // Refill 用读地址
-    end 
-    else begin
-        dcache_waddr = waddr;
-    end
-
-    if (refill) begin
-        stall_store = 1'b1;
-        dcache_we = 1'b1;
-        dcache_wdata = {1'b1,tag,cache_line};
-    end
-    else if (write_hit) begin
-        dcache_we = 1'b1;
-        dcache_wdata = {1'b1,wr_tag,dcache_update_line};
-    end
+    dcache_waddr = refill ? raddr : waddr;    // Refill 用读地址
+    dcache_we    = refill | write_hit;
+    dcache_wdata = refill ? {1'b1, tag, cache_line}
+                          : {1'b1, wr_tag, dcache_update_line};
+    stall_store  = refill;
 end
 
 

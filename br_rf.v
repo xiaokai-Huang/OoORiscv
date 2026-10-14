@@ -44,6 +44,9 @@ module br_rf (
     output [5:0] rf_raddr2_o,           // RF 阶段读寄存器2地址（同时传到转发模块）
     output rf_wflag_o,                  // RF 阶段写寄存器标志
     output [5:0] rf_waddr_o,            // RF 阶段写寄存器地址(同时传到issue阶段和ex阶段)
+    output reg_wflag_o,
+    output [5:0] reg_waddr_o,
+    output [31:0] reg_wdata_o,
 
     // to ex
     output br_inst_valid_o,              // branch指令有效标志
@@ -68,14 +71,18 @@ module br_rf (
 
 );
 // 冲刷逻辑
-wire [7:0] kill_mask = jump_flag_i ? (8'b0000_0001 << kill_mask_id_i) : 8'b0000_0000;
-assign br_inst_valid_o = br_inst_valid_i && ((br_mask_i & kill_mask) == 0); // 如果指令的掩码位被kill_mask覆盖，则无效
+wire kill_mask = jump_flag_i && (br_mask_i != 8'b0);
+assign br_inst_valid_o = br_inst_valid_i && !kill_mask; // 如果指令的掩码位被kill_mask覆盖，则无效
 // 读寄存器文件
 assign rf_raddr1_o = br_praddr1_i;
 assign rf_raddr2_o = br_praddr2_i;
 // 写寄存器文件ready信号
 assign rf_wflag_o = br_inst_valid_i && (br_type_i == `TYPE_JAL); // 只有 JAL/JALR 指令需要写回寄存器
 assign rf_waddr_o = br_pwaddr_i;
+// 写回寄存器
+assign reg_wflag_o = br_inst_valid_i && (br_type_i == `TYPE_JAL);
+assign reg_waddr_o = br_pwaddr_i;
+assign reg_wdata_o = {16'h8000, br_inst_addr_i} + 32'h4;
 // 输出到执行阶段
 assign br_inst_addr_o = br_inst_addr_i;
 assign br_rob_id_o = br_rob_id_i;
