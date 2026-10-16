@@ -40,17 +40,17 @@ module student_top#(
 );
 
     // IROM
-    logic [31:0]  pc;
-    logic [12:0]  inst_addr;
-    logic [10:0]  cache_addr;
-    logic [63:0]  instruction;
-    logic [255:0] cache_line;
+    wire [31:0]  pc;
+    wire [12:0]  inst_addr;
+    wire [10:0]  cache_addr;
+    wire [63:0]  instruction;
+    wire [255:0] cache_line;
 
     // perip
-    logic [31:0] perip_waddr, perip_addr, perip_wdata, perip_rdata, branch_hit_cnt, branch_miss_cnt;
-    logic [127:0] dcache_line;
-    logic perip_wen, timer_int_flag, uart_int_flag;
-    logic [1:0] perip_mask;
+    wire [31:0] perip_waddr, perip_addr, perip_wdata, perip_rdata, branch_hit_cnt, branch_miss_cnt;
+    wire [127:0] dcache_line;
+    wire perip_wen, timer_int_flag, uart_int_flag;
+    wire [1:0] perip_mask;
 
     // 64KB = 2^14 * 32bit
     assign inst_addr = pc[15:3];

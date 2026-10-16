@@ -21,33 +21,33 @@
 `include "defines.vh"
 
 module perip_bridge(
-    input  logic         clk				,
-    input  logic         cnt_clk			,
-    input  logic         rst                ,
+    input  wire          clk				,
+    input  wire          cnt_clk			,
+    input  wire          rst                ,
 
-    input  logic [31:0]  perip_waddr        ,
-    input  logic [31:0]  perip_addr			,
-    input  logic [31:0]  perip_wdata		,
-    input  logic         perip_wen			,
-	input  logic [1:0]	 perip_mask			,
-    output logic [31:0]  perip_rdata		,
-    output logic [127:0] dcache_line        ,
-    output logic         timer_int_flag	    ,
-    output logic         uart_int_flag	    ,
+    input  wire  [31:0]  perip_waddr        ,
+    input  wire  [31:0]  perip_addr			,
+    input  wire  [31:0]  perip_wdata		,
+    input  wire          perip_wen			,
+	input  wire  [1:0]	 perip_mask			,
+    output wire  [31:0]  perip_rdata		,
+    output wire  [127:0] dcache_line        ,
+    output wire          timer_int_flag	    ,
+    output wire          uart_int_flag	    ,
 
-    input  logic [63:0]  virtual_sw_input	,
-    input  logic [7:0]   virtual_key_input	,	
+    input  wire  [63:0]  virtual_sw_input	,
+    input  wire  [7:0]   virtual_key_input	,	
 
-	output logic [39:0]  virtual_seg_output	,
-    output logic [31:0]  virtual_led_output ,
+	output wire [39:0]  virtual_seg_output	,
+    output wire [31:0]  virtual_led_output ,
 
-    input  logic         rx                 ,
-    output logic         tx
+    input  wire          rx                 ,
+    output wire          tx
 
     `ifdef DEBUG
     ,
-    input  logic [31:0] branch_hit_cnt,
-    input  logic [31:0] branch_miss_cnt
+    input  wire  [31:0] branch_hit_cnt,
+    input  wire  [31:0] branch_miss_cnt
     `endif
 
 );
@@ -70,13 +70,13 @@ module perip_bridge(
     // localparam TICK_CNT_ADDR     = 32'h8020_0070;  // tick_count
     
 
-    logic [31:0] LED;
-    logic [31:0] seg_wdata, cnt_rdata, mmio_rdata, dram_rdata,timer_rdata,uart_rdata;
-    logic [39:0] seg_output;
+    reg   [31:0] LED, seg_wdata, mmio_rdata;
+    wire  [31:0] cnt_rdata, dram_rdata, timer_rdata, uart_rdata;
+    wire  [39:0] seg_output;
 
     // we don't care perip_mask in LED, SEG, SW & KEY, only care in DRAM
     // write process
-    always_ff @(posedge clk) begin
+    always @(posedge clk) begin
         if (perip_wen) begin
             case (perip_waddr)
                 LED_ADDR:   LED <= perip_wdata;
@@ -86,7 +86,7 @@ module perip_bridge(
     end
 
     // read process: in one cycle
-    always_comb begin
+    always @(*) begin
         case (perip_addr)
             SW0_ADDR:  mmio_rdata = virtual_sw_input[31:0];
             SW1_ADDR:  mmio_rdata = virtual_sw_input[63:32];
