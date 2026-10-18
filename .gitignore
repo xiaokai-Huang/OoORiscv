@@ -3,3 +3,6 @@ xvlog.pb
 
 zip/
 xsim.dir/
+
+# Digital IDE (sterben.fpga-support) LSP 索引缓存
+.dide/

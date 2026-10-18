@@ -61,6 +61,8 @@ wire if_id_bpu_pre_flag_port0_o;
 wire if_id_bpu_pre_flag_port1_o;
 wire [31:0] if_id_bpu_pre_addr_port0_o;
 wire [31:0] if_id_bpu_pre_addr_port1_o;
+wire [9:0] if_id_lhp_state_port0_o;
+wire [9:0] if_id_lhp_state_port1_o;
 
 // BPU模块输出信号
 wire [2:0] bpu_ras_snap_ptr;             // 传到取指阶段2的快照栈指针
@@ -106,6 +108,8 @@ wire rn_dp_bpu_pre_flag_port0_o;            // 预测标志
 wire rn_dp_bpu_pre_flag_port1_o;            // 预测标志
 wire [31:0] rn_dp_bpu_pre_addr_port0_o;     // 预测地址
 wire [31:0] rn_dp_bpu_pre_addr_port1_o;     // 预测地址
+wire [9:0] rn_dp_lhp_state_port0_o;         // 偶指令旧值
+wire [9:0] rn_dp_lhp_state_port1_o;         // 奇指令旧值
 wire [5:0] rn_dp_praddr1_inst0_o;           // 指令0物理寄存器1读地址
 wire [5:0] rn_dp_praddr2_inst0_o;           // 指令0物理寄存器2读地址
 wire [5:0] rn_dp_praddr1_inst1_o;           // 指令1物理寄存器1读地址
@@ -184,6 +188,11 @@ wire [15:0] iss_br_inst_addr_o;        // branch指令地址
 wire [5:0] iss_br_rob_id_o;            // branch ROB id
 wire iss_br_bpu_pre_flag_o;            // branch BPU预测标志
 wire [31:0] iss_br_bpu_pre_addr_o;     // branch BPU预测地址
+wire [9:0] iss_br_lhp_state_o;         // branch 旧 LHP 状态
+wire [9:0] bpu_lhp_state_port0;        // BPU 下发的偶指令旧值
+wire [9:0] bpu_lhp_state_port1;        // BPU 下发的奇指令旧值
+wire [9:0] br_ex_lhp_state;            // 执行阶段送回的旧值
+wire [9:0] buf_lhp_state;              // 打一拍后的旧值
 wire [7:0] iss_br_mask_o;              // branch分支掩码
 wire [2:0] iss_br_ras_ptr_o;           // branch RAS快照指针
 wire [2:0] iss_br_mem_wr_ptr_o;        // branch mem队列写操作快照指针
@@ -456,6 +465,7 @@ BPU u_BPU(
     // LHP
     .lhp_update_en(buf_lhp_update_en_o),                   // 来自执行阶段的更新使能
     .branch_taken(buf_branch_taken_o),                    // 来自执行阶段实际跳转结果
+    .update_lhp_state_i(buf_lhp_state),        // 来自执行阶段的旧 LHP 状态
     // RAS
     .ras_push_en(ifu_ras_push_flag_o),                     // 来自取指阶段的压栈使能
     .ras_data_in(ifu_ras_push_data_o),              // 来自取指阶段的压栈数据
@@ -469,7 +479,9 @@ BPU u_BPU(
     .odd_inst_jump(bpu_odd_inst_jump),            // 跳转的是否是奇数指令（1为奇数，0为偶数）
     // to PC
     .jump_flag_o(bpu_jump_flag_o),                 // 跳转使能
-    .jump_addr_o(bpu_jump_addr_o)           // 跳转地址
+    .jump_addr_o(bpu_jump_addr_o),           // 跳转地址
+    .lhp_state_port0_o(bpu_lhp_state_port0),
+    .lhp_state_port1_o(bpu_lhp_state_port1)
 );
 
 // 取指单元
@@ -487,6 +499,8 @@ IFU u_IFU(
     .ras_pre_addr_i(bpu_ras_data_out),    // 来自BPU的RAS预测地址
     .bpu_pre_flag_i(bpu_jump_flag_o),
     .bpu_pre_addr_i(bpu_jump_addr_o),
+    .lhp_state_port0_i(bpu_lhp_state_port0),
+    .lhp_state_port1_i(bpu_lhp_state_port1),
     .pc_o(pc_o),
     // IF_Stage1
     .bpu_jump_odd_i(bpu_odd_inst_jump),
@@ -510,7 +524,9 @@ IFU u_IFU(
     .if_id_bpu_pre_flag_port0_o(if_id_bpu_pre_flag_port0_o),
     .if_id_bpu_pre_flag_port1_o(if_id_bpu_pre_flag_port1_o),
     .if_id_bpu_pre_addr_port0_o(if_id_bpu_pre_addr_port0_o),
-    .if_id_bpu_pre_addr_port1_o(if_id_bpu_pre_addr_port1_o)
+    .if_id_bpu_pre_addr_port1_o(if_id_bpu_pre_addr_port1_o),
+    .if_id_lhp_state_port0_o(if_id_lhp_state_port0_o),
+    .if_id_lhp_state_port1_o(if_id_lhp_state_port1_o)
 );
 
 // 译码单元
@@ -530,6 +546,8 @@ IDU u_IDU(
     .bpu_pre_flag_port1_i(if_id_bpu_pre_flag_port1_o),               // 预测标志
     .bpu_pre_addr_port0_i(if_id_bpu_pre_addr_port0_o),        // 预测地址
     .bpu_pre_addr_port1_i(if_id_bpu_pre_addr_port1_o),        // 预测地址
+    .lhp_state_port0_i(if_id_lhp_state_port0_o),
+    .lhp_state_port1_i(if_id_lhp_state_port1_o),
     // to pc and if_id
     .jal_flush_o(idu_jal_flush_o),                   // jal指令跳转冲刷
     .jal_addr_o(idu_jal_addr_o),             // jal指令的跳转地址
@@ -586,6 +604,8 @@ IDU u_IDU(
     .rn_dp_bpu_pre_flag_port1_o(rn_dp_bpu_pre_flag_port1_o),            // 预测标志
     .rn_dp_bpu_pre_addr_port0_o(rn_dp_bpu_pre_addr_port0_o),     // 预测地址
     .rn_dp_bpu_pre_addr_port1_o(rn_dp_bpu_pre_addr_port1_o),     // 预测地址
+    .rn_dp_lhp_state_port0_o(rn_dp_lhp_state_port0_o),
+    .rn_dp_lhp_state_port1_o(rn_dp_lhp_state_port1_o),
     .rn_dp_praddr1_inst0_o(rn_dp_praddr1_inst0_o),           // 指令0物理寄存器1读地址
     .rn_dp_praddr2_inst0_o(rn_dp_praddr2_inst0_o),           // 指令0物理寄存器2读地址
     .rn_dp_praddr1_inst1_o(rn_dp_praddr1_inst1_o),           // 指令1物理寄存器1读地址
@@ -638,6 +658,8 @@ Issue u_Issue(
     .bpu_pre_flag_port1_i(rn_dp_bpu_pre_flag_port1_o),                 // 预测标志
     .bpu_pre_addr_port0_i(rn_dp_bpu_pre_addr_port0_o),          // 预测地址
     .bpu_pre_addr_port1_i(rn_dp_bpu_pre_addr_port1_o),          // 预测地址
+    .lhp_state_port0_i(rn_dp_lhp_state_port0_o),
+    .lhp_state_port1_i(rn_dp_lhp_state_port1_o),
     .praddr1_inst0_i(rn_dp_praddr1_inst0_o),         // 指令0物理寄存器1读地址
     .praddr2_inst0_i(rn_dp_praddr2_inst0_o),         // 指令0物理寄存器2读地址
     .praddr1_inst1_i(rn_dp_praddr1_inst1_o),         // 指令1物理寄存器1读地址
@@ -726,6 +748,7 @@ Issue u_Issue(
     .br_rob_id_o(iss_br_rob_id_o),                       // branch ROB id
     .br_bpu_pre_flag_o(iss_br_bpu_pre_flag_o),            // branch BPU预测标志
     .br_bpu_pre_addr_o(iss_br_bpu_pre_addr_o),     // branch BPU预测地址
+    .br_lhp_state_o(iss_br_lhp_state_o),           // branch 旧 LHP 状态
     .br_mask_o(iss_br_mask_o),              // branch分支掩码
     .br_ras_ptr_o(iss_br_ras_ptr_o),           // branch RAS快照指针
     .br_mem_wr_ptr_o(iss_br_mem_wr_ptr_o),        // branch mem队列写操作快照指针
@@ -902,6 +925,7 @@ Branch u_Branch(
     .br_pwaddr_i(iss_br_pwaddr_o),            // branch物理寄存器写地址
     .br_imm_i(iss_br_imm_o),              // branch立即数
     .br_aux_addr_i(iss_br_aux_addr_o),         // branch辅助地址
+    .br_lhp_state_i(iss_br_lhp_state_o),       // 旧 LHP 状态
     // from forward_unit
     .rs1_forward_flag_i(branch_rs1_forward_flag_o),           // rs1转发标志
     .rs1_forward_data_i(branch_rs1_forward_data_o),    // rs1转发数据
@@ -932,6 +956,7 @@ Branch u_Branch(
     .is_branch(br_is_branch),                             // 是否为分支指令
     .lhp_update_en(br_lhp_update_en),                     // 更新使能
     .branch_taken(br_branch_taken),                      // 实际跳转结果(1为跳转)
+    .ex_lhp_state_o(br_ex_lhp_state),                    // 旧 LHP 状态
     // to regs
     .rf_raddr1_o(br_rf_raddr1_o),           // RF 阶段读寄存器1地址（同时传到转发模块）
     .rf_raddr2_o(br_rf_raddr2_o),           // RF 阶段读寄存器2地址（同时传到转发模块）
@@ -957,13 +982,15 @@ bpu_update_buffer u_bpu_update_buffer(
     .is_branch_i(br_is_branch),                             // 是否为分支指令
     .lhp_update_en_i(br_lhp_update_en),                     // 更新使能
     .branch_taken_i(br_branch_taken),                       // 实际跳转结果(1为跳转)
+    .lhp_state_i(br_ex_lhp_state),                          // 旧 LHP 状态
     // to BPU
     .jump_addr_o(buf_jump_addr_o),          // 跳转地址
     .btb_update_en_o(buf_btb_update_en_o),                     // 执行阶段更新BTB使能
     .ex_pc_o(buf_ex_pc_o),                          // 执行阶段的pc
     .is_branch_o(buf_is_branch_o),                             // 是否为分支指令
     .lhp_update_en_o(buf_lhp_update_en_o),                     // 更新使能
-    .branch_taken_o(buf_branch_taken_o)                       // 实际跳转结果(1为跳转)
+    .branch_taken_o(buf_branch_taken_o),                       // 实际跳转结果(1为跳转)
+    .lhp_state_o(buf_lhp_state)                                // 旧 LHP 状态
 );
 
 // LSU

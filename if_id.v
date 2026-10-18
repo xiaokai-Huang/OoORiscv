@@ -27,6 +27,9 @@ module if_id(
     input [31:0] bpu_pre_addr_port0_i,
     input [31:0] bpu_pre_addr_port1_i,
 
+    input [9:0] lhp_state_port0_i,
+    input [9:0] lhp_state_port1_i,
+
     // from id
     input jal_flush_i,                 // jal指令冲刷
 
@@ -55,7 +58,10 @@ module if_id(
     output reg bpu_pre_flag_port1_o,
 
     output reg [31:0] bpu_pre_addr_port0_o,
-    output reg [31:0] bpu_pre_addr_port1_o
+    output reg [31:0] bpu_pre_addr_port1_o,
+
+    output reg [9:0] lhp_state_port0_o,
+    output reg [9:0] lhp_state_port1_o
 
 );
 
@@ -72,6 +78,8 @@ always @(*) begin
     bpu_pre_flag_port1_o = bpu_pre_flag_port1_i;
     bpu_pre_addr_port0_o = bpu_pre_addr_port0_i;
     bpu_pre_addr_port1_o = bpu_pre_addr_port1_i;
+    lhp_state_port0_o = lhp_state_port0_i;
+    lhp_state_port1_o = lhp_state_port1_i;
 end
 
 endmodule

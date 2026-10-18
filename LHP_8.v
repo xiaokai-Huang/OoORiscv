@@ -9,15 +9,24 @@ module LHP_8 (
     input [31:0] if_pc,      // 取指阶段分支指令的PC地址（用于查表预测）
 
 
-    // from ex
+    // from ex（旧值随流水线送回）
     input update_en,                 // 更新使能
     input branch_taken,              // 实际跳转结果(1为跳转)
     input [15:0] ex_pc,              // 执行阶段分支指令的PC地址（用于更新标签）
+    input [9:0] update_lhp_state_i,  // 取指时读到的旧值 {LHR[7:0], PHT计数[1:0]}
 
     // to selector
     output prediction_port0,        // 预测结果(1为跳转)
-    output prediction_port1         // 预测结果(1为跳转)
+    output prediction_port1,        // 预测结果(1为跳转)
+
+    // to if pipeline（旧值随预测一起下发）
+    output [9:0] lhp_state_port0_o, // 偶指令 {LHR[7:0], PHT计数[1:0]}
+    output [9:0] lhp_state_port1_o  // 奇指令 {LHR[7:0], PHT计数[1:0]}
 );
+
+// 回送的旧值拆包
+wire [7:0] upd_lhr = update_lhp_state_i[9:2];
+wire [1:0] upd_pht = update_lhp_state_i[1:0];
 
 // wire [6:0] BHT_raddr;       // 分支历史表索引
 // assign BHT_raddr = if_pc[8:2];
@@ -26,10 +35,9 @@ module LHP_8 (
 // assign BHT_waddr = ex_pc[8:2];
 
 wire [7:0] BHT_rdata[0:1];
-wire [7:0] lhr[0:1];
 wire [7:0] BHT_wdata[0:1];
-assign BHT_wdata[0] = {lhr[0][6:0], branch_taken};
-assign BHT_wdata[1] = {lhr[1][6:0], branch_taken};
+assign BHT_wdata[0] = {upd_lhr[6:0], branch_taken};
+assign BHT_wdata[1] = {upd_lhr[6:0], branch_taken};
 // 偶
 BHT_BANK u_BHT_BANK_0(
     .a(ex_pc[8:3]),
@@ -37,7 +45,6 @@ BHT_BANK u_BHT_BANK_0(
     .dpra(if_pc[8:3]),
     .clk(clk),
     .we(update_en && (ex_pc[2] == 1'b0)),    // 只有偶数指令才更新偶数BHT
-    .spo(lhr[0]),
     .dpo(BHT_rdata[0])
 );
 // 奇
@@ -47,21 +54,18 @@ BHT_BANK u_BHT_BANK_1(
     .dpra(if_pc[8:3]),
     .clk(clk),
     .we(update_en && (ex_pc[2] == 1'b1)),    // 只有奇数指令才更新奇数BHT
-    .spo(lhr[1]),            
     .dpo(BHT_rdata[1])
 );
 
 wire [7:0] PHT_raddr_odd = {if_pc[10:8] ^ if_pc[7:5], if_pc[12:11] ^ if_pc[4:3], 3'b0} ^ {BHT_rdata[1]};     // 奇
 wire [7:0] PHT_raddr_even = {if_pc[10:8] ^ if_pc[7:5], if_pc[12:11] ^ if_pc[4:3], 3'b0} ^ {BHT_rdata[0]};    // 偶
 
-wire [7:0] PHT_waddr_odd = {ex_pc[10:8] ^ ex_pc[7:5], ex_pc[12:11] ^ ex_pc[4:3], 3'b0} ^ {lhr[1]};         // 奇
-wire [7:0] PHT_waddr_even = {ex_pc[10:8] ^ ex_pc[7:5], ex_pc[12:11] ^ ex_pc[4:3], 3'b0} ^ {lhr[0]};    // 偶
+wire [7:0] PHT_waddr_odd = {ex_pc[10:8] ^ ex_pc[7:5], ex_pc[12:11] ^ ex_pc[4:3], 3'b0} ^ upd_lhr;     // 奇
+wire [7:0] PHT_waddr_even = {ex_pc[10:8] ^ ex_pc[7:5], ex_pc[12:11] ^ ex_pc[4:3], 3'b0} ^ upd_lhr;    // 偶
 
 reg [1:0] PHT_wdata_odd, PHT_wdata_even;
 wire [1:0] PHT_rdata_odd[0:3];
 wire [1:0] PHT_rdata_even[0:3];
-wire [1:0] ex_PHT_rdata_odd[0:3];
-wire [1:0] ex_PHT_rdata_even[0:3];
 
 generate
     genvar i,j;
@@ -72,7 +76,6 @@ generate
             .dpra(PHT_raddr_odd[5:0]),
             .clk(clk),
             .we(update_en && (ex_pc[2] == 1'b1) && PHT_waddr_odd[7:6] == i),   
-            .spo(ex_PHT_rdata_odd[i]),
             .dpo(PHT_rdata_odd[i])
         );
     end
@@ -84,7 +87,6 @@ generate
             .dpra(PHT_raddr_even[5:0]),
             .clk(clk),
             .we(update_en && (ex_pc[2] == 1'b0) && PHT_waddr_even[7:6] == j),    
-            .spo(ex_PHT_rdata_even[j]),
             .dpo(PHT_rdata_even[j])
         );
     end
@@ -94,31 +96,33 @@ endgenerate
 assign prediction_port0 = PHT_rdata_even[PHT_raddr_even[7:6]][1];
 assign prediction_port1 = PHT_rdata_odd[PHT_raddr_odd[7:6]][1];
 
+// 取指阶段把旧值随预测一起下发，供分支执行完后送回更新
+assign lhp_state_port0_o = {BHT_rdata[0], PHT_rdata_even[PHT_raddr_even[7:6]]};
+assign lhp_state_port1_o = {BHT_rdata[1], PHT_rdata_odd[PHT_raddr_odd[7:6]]};
 
-// 更新PHT
+
+// 更新PHT：旧计数来自流水线送回的值
 always @(*) begin
-    PHT_wdata_odd = 2'b0;
-    if(branch_taken && ex_PHT_rdata_odd[PHT_waddr_odd[7:6]] != 2'b11) begin
-        PHT_wdata_odd = ex_PHT_rdata_odd[PHT_waddr_odd[7:6]] + 1;
+    if(branch_taken && upd_pht != 2'b11) begin
+        PHT_wdata_odd = upd_pht + 1;
     end
-    else if(!branch_taken && ex_PHT_rdata_odd[PHT_waddr_odd[7:6]] != 2'b00) begin
-        PHT_wdata_odd = ex_PHT_rdata_odd[PHT_waddr_odd[7:6]] - 1;
+    else if(!branch_taken && upd_pht != 2'b00) begin
+        PHT_wdata_odd = upd_pht - 1;
     end
     else begin
-        PHT_wdata_odd = ex_PHT_rdata_odd[PHT_waddr_odd[7:6]];
+        PHT_wdata_odd = upd_pht;
     end
 end
 
 always @(*) begin
-    PHT_wdata_even = 2'b0;
-    if(branch_taken && ex_PHT_rdata_even[PHT_waddr_even[7:6]] != 2'b11) begin
-        PHT_wdata_even = ex_PHT_rdata_even[PHT_waddr_even[7:6]] + 1;
+    if(branch_taken && upd_pht != 2'b11) begin
+        PHT_wdata_even = upd_pht + 1;
     end
-    else if(!branch_taken && ex_PHT_rdata_even[PHT_waddr_even[7:6]] != 2'b00) begin
-        PHT_wdata_even = ex_PHT_rdata_even[PHT_waddr_even[7:6]] - 1;
+    else if(!branch_taken && upd_pht != 2'b00) begin
+        PHT_wdata_even = upd_pht - 1;
     end
     else begin
-        PHT_wdata_even = ex_PHT_rdata_even[PHT_waddr_even[7:6]];
+        PHT_wdata_even = upd_pht;
     end
 end
 

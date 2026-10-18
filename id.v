@@ -24,6 +24,8 @@ module id(
 
     input [31:0] bpu_pre_addr_port0_i,
     input [31:0] bpu_pre_addr_port1_i,
+    input [9:0] lhp_state_port0_i,
+    input [9:0] lhp_state_port1_i,
 
     // to pc and if_id
     output reg jal_flush_o,                    // jal指令跳转冲刷
@@ -92,7 +94,9 @@ module id(
     output bpu_pre_flag_port1_o,               // 预测标志
 
     output [31:0] bpu_pre_addr_port0_o,        // 预测地址
-    output [31:0] bpu_pre_addr_port1_o         // 预测地址
+    output [31:0] bpu_pre_addr_port1_o,        // 预测地址
+    output [9:0] lhp_state_port0_o,
+    output [9:0] lhp_state_port1_o
 
 );
 // RAS快照指针传递
@@ -108,6 +112,9 @@ assign bpu_pre_flag_port1_o = bpu_pre_flag_port1_i;
 // 预测地址传递
 assign bpu_pre_addr_port0_o = bpu_pre_addr_port0_i;
 assign bpu_pre_addr_port1_o = bpu_pre_addr_port1_i;
+// LHP 旧值传递
+assign lhp_state_port0_o = lhp_state_port0_i;
+assign lhp_state_port1_o = lhp_state_port1_i;
 // 立即数传递
 assign imm_port0_o = (inst_port0_i[6:0] == `INST_AUIPC) ? ({inst_addr_i[31:3], 3'b000} + imm_port0_i) : imm_port0_i;
 assign imm_port1_o = (inst_port1_i[6:0] == `INST_AUIPC) ? ({inst_addr_i[31:3], 3'b100} + imm_port1_i) : imm_port1_i;

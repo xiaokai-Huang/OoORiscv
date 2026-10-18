@@ -39,6 +39,8 @@ module id_rn(
     input bpu_pre_flag_port1_i,               // 预测标志
     input [31:0] bpu_pre_addr_port0_i,        // 预测地址
     input [31:0] bpu_pre_addr_port1_i,        // 预测地址
+    input [9:0] lhp_state_port0_i,
+    input [9:0] lhp_state_port1_i,
 
     `ifdef use_f_extension
     input [4:0] inst_f_subtype_port0_i,         // F扩展指令子类型
@@ -91,7 +93,9 @@ module id_rn(
     output reg bpu_pre_flag_port0_o,                 // 预测标志
     output reg bpu_pre_flag_port1_o,                 // 预测标志
     output reg [31:0] bpu_pre_addr_port0_o,          // 预测地址
-    output reg [31:0] bpu_pre_addr_port1_o           // 预测地址
+    output reg [31:0] bpu_pre_addr_port1_o,          // 预测地址
+    output reg [9:0] lhp_state_port0_o,
+    output reg [9:0] lhp_state_port1_o
 
     `ifdef use_f_extension
     ,
@@ -159,6 +163,8 @@ always @(posedge clk) begin
         bpu_pre_flag_port1_o <= bpu_pre_flag_port1_i;
         bpu_pre_addr_port0_o <= bpu_pre_addr_port0_i;
         bpu_pre_addr_port1_o <= bpu_pre_addr_port1_i;
+        lhp_state_port0_o <= lhp_state_port0_i;
+        lhp_state_port1_o <= lhp_state_port1_i;
         `ifdef use_f_extension
         inst_f_subtype_port0_o <= inst_f_subtype_port0_i;
         inst_f_subtype_port1_o <= inst_f_subtype_port1_i;

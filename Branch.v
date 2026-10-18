@@ -27,6 +27,7 @@ module Branch (
     input [5:0] br_pwaddr_i,            // branch物理寄存器写地址
     input [31:0] br_imm_i,              // branch立即数
     input [31:0] br_aux_addr_i,         // branch辅助地址
+    input [9:0] br_lhp_state_i,         // 取指时读到的旧 LHP 状态
 
     // from forward_unit
     input rs1_forward_flag_i,           // rs1转发标志
@@ -65,6 +66,7 @@ module Branch (
     output is_branch,                         // 是否为分支指令
     output lhp_update_en,                     // 更新使能
     output branch_taken,                      // 实际跳转结果(1为跳转)
+    output [9:0] ex_lhp_state_o,              // 旧 LHP 状态(送更新缓冲)
 
     // to regs
     output [5:0] rf_raddr1_o,               // RF 阶段读寄存器1地址（同时传到转发模块）
@@ -101,6 +103,7 @@ wire [31:0] rf_br_rs1_data_o;         // rs1数据
 wire [31:0] rf_br_rs2_data_o;         // rs2数据
 wire [31:0] rf_br_imm_o;              // branch立即数
 wire [31:0] rf_br_aux_addr_o;         // branch辅助地址
+wire [9:0] rf_br_lhp_state_o;          // 旧 LHP 状态
 
 // br_rf_ex
 wire rf_ex_br_inst_valid_o;              // branch指令有效标志
@@ -123,6 +126,7 @@ wire [31:0] rf_ex_br_rs2_data_o;         // rs2数据
 wire [5:0] rf_ex_br_waddr_o;             // RF 阶段写寄存器地址(同时传到issue阶段和ex阶段)
 wire [31:0] rf_ex_br_imm_o;              // branch立即数
 wire [31:0] rf_ex_br_aux_addr_o;         // branch辅助地址
+wire [9:0] rf_ex_br_lhp_state_o;          // 旧 LHP 状态
 
 // br_ex
 wire ex_br_inst_valid_o;              // branch指令有效标志
@@ -162,6 +166,7 @@ br_rf u_br_rf(
     .br_pwaddr_i(br_pwaddr_i),            // branch物理寄存器写地址
     .br_imm_i(br_imm_i),              // branch立即数
     .br_aux_addr_i(br_aux_addr_i),         // branch辅助地址
+    .br_lhp_state_i(br_lhp_state_i),       // 旧 LHP 状态
     // from forward_unit
     .rs1_forward_flag_i(rs1_forward_flag_i),           // rs1转发标志
     .rs1_forward_data_i(rs1_forward_data_i),    // rs1转发数据
@@ -200,7 +205,8 @@ br_rf u_br_rf(
     .br_rs1_data_o(rf_br_rs1_data_o),         // rs1数据
     .br_rs2_data_o(rf_br_rs2_data_o),         // rs2数据
     .br_imm_o(rf_br_imm_o),              // branch立即数
-    .br_aux_addr_o(rf_br_aux_addr_o)          // branch辅助地址
+    .br_aux_addr_o(rf_br_aux_addr_o),          // branch辅助地址
+    .br_lhp_state_o(rf_br_lhp_state_o)         // 旧 LHP 状态
 );
 
 // br_rf_ex
@@ -228,6 +234,7 @@ br_rf_ex u_br_rf_ex(
     .br_waddr_i(rf_waddr_o),             // RF 阶段写寄存器地址(同时传到issue阶段和ex阶段)
     .br_imm_i(rf_br_imm_o),              // branch立即数
     .br_aux_addr_i(rf_br_aux_addr_o),         // branch辅助地址
+    .br_lhp_state_i(rf_br_lhp_state_o),        // 旧 LHP 状态
     // from clint
     .int_flag_i(int_flag_i),                   // 中断标志
     // to ex
@@ -250,7 +257,8 @@ br_rf_ex u_br_rf_ex(
     .br_rs2_data_o(rf_ex_br_rs2_data_o),         // rs2数据
     .br_waddr_o(rf_ex_br_waddr_o),             // RF 阶段写寄存器地址(同时传到issue阶段和ex阶段)
     .br_imm_o(rf_ex_br_imm_o),              // branch立即数
-    .br_aux_addr_o(rf_ex_br_aux_addr_o)          // branch辅助地址
+    .br_aux_addr_o(rf_ex_br_aux_addr_o),          // branch辅助地址
+    .br_lhp_state_o(rf_ex_br_lhp_state_o)         // 旧 LHP 状态
 );
 
 // br_ex
@@ -276,6 +284,7 @@ br_ex u_br_ex(
     .br_waddr_i(rf_ex_br_waddr_o),             // RF 阶段写寄存器地址(同时传到issue阶段和ex阶段)
     .br_imm_i(rf_ex_br_imm_o),              // branch立即数
     .br_aux_addr_i(rf_ex_br_aux_addr_o),         // branch辅助地址
+    .br_lhp_state_i(rf_ex_br_lhp_state_o),        // 旧 LHP 状态
     // from br_flush
     .jump_flag_i(jump_flag_o),                  // 跳转标志
     .kill_mask_id_i(kill_mask_id_o),         // 分支掩码id
@@ -298,6 +307,7 @@ br_ex u_br_ex(
     .is_branch(is_branch),                             // 是否为分支指令
     .lhp_update_en(lhp_update_en),                     // 更新使能
     .branch_taken(branch_taken),                      // 实际跳转结果(1为跳转)
+    .lhp_state_o(ex_lhp_state_o),                     // 旧 LHP 状态
     // to br_flush
     .br_inst_valid_o(ex_br_inst_valid_o),
     .need_snap_o(ex_need_snap_o),               // 占用快照标志

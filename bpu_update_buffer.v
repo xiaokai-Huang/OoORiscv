@@ -14,6 +14,7 @@ module bpu_update_buffer (
     input is_branch_i,                             // 是否为分支指令
     input lhp_update_en_i,                     // 更新使能
     input branch_taken_i,                       // 实际跳转结果(1为跳转)
+    input [9:0] lhp_state_i,                    // 旧 LHP 状态
 
     // to BPU
     output reg [31:0] jump_addr_o,          // 跳转地址(同时传到bpu_update_buffer)
@@ -21,7 +22,8 @@ module bpu_update_buffer (
     output reg [15:0] ex_pc_o,                          // 执行阶段的pc
     output reg is_branch_o,                             // 是否为分支指令
     output reg lhp_update_en_o,                     // 更新使能
-    output reg branch_taken_o                       // 实际跳转结果(1为跳转)
+    output reg branch_taken_o,                       // 实际跳转结果(1为跳转)
+    output reg [9:0] lhp_state_o                     // 旧 LHP 状态
 );
 
 always @(posedge clk) begin
@@ -40,6 +42,7 @@ always @(posedge clk) begin
     ex_pc_o <= ex_pc_i;
     is_branch_o <= is_branch_i;
     branch_taken_o <= branch_taken_i;
+    lhp_state_o <= lhp_state_i;
 end
 
 endmodule
