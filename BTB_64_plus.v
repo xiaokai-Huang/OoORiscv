@@ -35,21 +35,25 @@ assign btb_wdata[1] = {1'b1, is_branch, ex_pc[15:8], jump_target};
 
 // 偶
 BTB_BANK u_BTB_BANK_0(
-    .a(ex_pc[7:3]),
-    .d(btb_wdata[0]),
-    .dpra(pc[7:3]),
-    .clk(clk),
-    .we(update_en && (ex_pc[2] == 1'b0)),    // 只有偶数指令才更新偶数BTB
-    .dpo(pre_port0)
+    .wr_addr(ex_pc[7:3]),
+    .wr_data(btb_wdata[0]),
+    .rd_addr(pc[7:3]),
+    .wr_clk(clk),
+    .rd_clk(clk),
+    .rst(1'b0),
+    .wr_en(update_en && (ex_pc[2] == 1'b0)),    // 只有偶数指令才更新偶数BTB
+    .rd_data(pre_port0)
 );
 // 奇
 BTB_BANK u_BTB_BANK_1(
-    .a(ex_pc[7:3]),
-    .d(btb_wdata[1]),
-    .dpra(pc[7:3]),
-    .clk(clk),
-    .we(update_en && (ex_pc[2] == 1'b1)),    // 只有奇数指令才更新奇数BTB
-    .dpo(pre_port1)
+    .wr_addr(ex_pc[7:3]),
+    .wr_data(btb_wdata[1]),
+    .rd_addr(pc[7:3]),
+    .wr_clk(clk),
+    .rd_clk(clk),
+    .rst(1'b0),
+    .wr_en(update_en && (ex_pc[2] == 1'b1)),    // 只有奇数指令才更新奇数BTB
+    .rd_data(pre_port1)
 );
 
 

@@ -716,20 +716,24 @@ always @(posedge clk) begin          // 同步复位
 end
 // ROB静态信息存储
 rob_bank u_rob_static_bank0 (
-    .a(rob_id_port0[4:1]),
-    .d(rob_port0_wdata),
-    .dpra(rob_raddr_port0[4:1]),
-    .clk(clk),
-    .we(rob_port0_we && !stall),
-    .dpo(rob_static_data_port0)
+    .wr_addr(rob_id_port0[4:1]),
+    .wr_data(rob_port0_wdata),
+    .rd_addr(rob_raddr_port0[4:1]),
+    .wr_clk(clk),
+    .rd_clk(clk),
+    .rst(1'b0),
+    .wr_en(rob_port0_we && !stall),
+    .rd_data(rob_static_data_port0)
 );
 rob_bank u_rob_static_bank1 (
-    .a(rob_id_port1[4:1]),
-    .d(rob_port1_wdata),
-    .dpra(rob_raddr_port1[4:1]),
-    .clk(clk),
-    .we(rob_port1_we && !stall),
-    .dpo(rob_static_data_port1)
+    .wr_addr(rob_id_port1[4:1]),
+    .wr_data(rob_port1_wdata),
+    .rd_addr(rob_raddr_port1[4:1]),
+    .wr_clk(clk),
+    .rd_clk(clk),
+    .rst(1'b0),
+    .wr_en(rob_port1_we && !stall),
+    .rd_data(rob_static_data_port1)
 );
 
 // 无浮点版本
@@ -1234,20 +1238,24 @@ always @(posedge clk) begin          // 同步复位
 end
 // ROB静态信息存储
 rob_bank u_rob_static_bank0 (
-    .a(rob_id_port0[4:1]),
-    .d(rob_port0_wdata),
-    .dpra(rob_raddr_port0[4:1]),
-    .clk(clk),
-    .we(rob_port0_we && !stall),
-    .dpo(rob_static_data_port0)
+    .wr_addr(rob_id_port0[4:1]),
+    .wr_data(rob_port0_wdata),
+    .rd_addr(rob_raddr_port0[4:1]),
+    .wr_clk(clk),
+    .rd_clk(clk),
+    .rst(1'b0),
+    .wr_en(rob_port0_we && !stall),
+    .rd_data(rob_static_data_port0)
 );
 rob_bank u_rob_static_bank1 (
-    .a(rob_id_port1[4:1]),
-    .d(rob_port1_wdata),
-    .dpra(rob_raddr_port1[4:1]),
-    .clk(clk),
-    .we(rob_port1_we && !stall),
-    .dpo(rob_static_data_port1)
+    .wr_addr(rob_id_port1[4:1]),
+    .wr_data(rob_port1_wdata),
+    .rd_addr(rob_raddr_port1[4:1]),
+    .wr_clk(clk),
+    .rd_clk(clk),
+    .rst(1'b0),
+    .wr_en(rob_port1_we && !stall),
+    .rd_data(rob_static_data_port1)
 );
 
 `endif

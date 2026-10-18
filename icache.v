@@ -35,35 +35,39 @@ wire         icache_valid_rdata[0:1];
 wire icache_way0_we, icache_way1_we;
 
 Icache u_Icache_way0(
-    .a(index),
-    .d(cache_line),
+    .addr(index),
+    .wr_data(cache_line),
     .clk(clk),
-    .we(icache_way0_we),
-    .spo(icache_rdata[0])
+    .rst(1'b0),
+    .wr_en(icache_way0_we),
+    .rd_data(icache_rdata[0])
 );
 
 icache_tag u_Icache_tag_way0(
-    .a(index),
-    .d({1'b1, tag}),
+    .addr(index),
+    .wr_data({1'b1, tag}),
     .clk(clk),
-    .we(icache_way0_we),
-    .spo({icache_valid_rdata[0], icache_tag_rdata[0]})
+    .rst(1'b0),
+    .wr_en(icache_way0_we),
+    .rd_data({icache_valid_rdata[0], icache_tag_rdata[0]})
 );
 
 Icache u_Icache_way1(
-    .a(index),
-    .d(cache_line),
+    .addr(index),
+    .wr_data(cache_line),
     .clk(clk),
-    .we(icache_way1_we),
-    .spo(icache_rdata[1])
+    .rst(1'b0),
+    .wr_en(icache_way1_we),
+    .rd_data(icache_rdata[1])
 );
 
 icache_tag u_Icache_tag_way1(
-    .a(index),
-    .d({1'b1, tag}),
+    .addr(index),
+    .wr_data({1'b1, tag}),
     .clk(clk),
-    .we(icache_way1_we),
-    .spo({icache_valid_rdata[1], icache_tag_rdata[1]})
+    .rst(1'b0),
+    .wr_en(icache_way1_we),
+    .rd_data({icache_valid_rdata[1], icache_tag_rdata[1]})
 );
 
 // 判断是否命中

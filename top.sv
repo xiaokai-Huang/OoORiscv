@@ -22,11 +22,11 @@
 
 module top(
     input  wire i_sys_clk_p         ,
-    input  wire i_sys_clk_n         ,
+    // input  wire i_sys_clk_n         ,
     input  wire i_uart_rx           ,
-    output wire o_uart_tx           ,
+    output wire o_uart_tx           
 
-    output wire [31:0] virtual_led  
+    // output wire [31:0] virtual_led  
     // output wire [39:0] virtual_seg
 );
 
@@ -51,17 +51,17 @@ module top(
     //     .locked(locked)
     // );
 
-    wire clk_single;
+    // wire clk_single;
 
-    GTP_INBUFGDS u_diff_clk (
-        .I  (i_sys_clk_p),
-        .IB (i_sys_clk_n),
-        .O  (clk_single)
-    );
+    // GTP_INBUFGDS u_diff_clk (
+    //     .I  (i_sys_clk_p),
+    //     .IB (i_sys_clk_n),
+    //     .O  (clk_single)
+    // );
 
     pll pll_inst(
-        .clkin1(clk_single),
-        .clkout1(cpu_clk),
+        .clkin1(i_sys_clk_p),
+        .clkout0(cpu_clk),
         .lock(w_clk_rst)
     );
 

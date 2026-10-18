@@ -87,15 +87,16 @@ module student_top#(
     //     .spo        (instruction)
     // );
 
-    BRAM_IROM u_irom(
+    IROM u_irom(
         // 64bit
         // .addrb(inst_addr),
         // .clkb(w_cpu_clk),
         // .doutb(instruction),
         // 128bit
-        .addra(cache_addr),
-        .clka(w_cpu_clk),
-        .douta(cache_line)
+        .addr(cache_addr),
+        .clk(w_cpu_clk),
+        .rst(1'b0),
+        .rd_data(cache_line)
     );
     
     perip_bridge bridge_inst (

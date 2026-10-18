@@ -19,23 +19,23 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
+module bram_driver (
+    input  wire         clk,
+    input  wire [17:0]  perip_waddr,
+    input  wire [17:0]  perip_addr,
+    input  wire [31:0]  perip_wdata,
+    input  wire [1:0]   perip_mask,
+    input  wire         bram_wen,
+    output wire [31:0]  perip_rdata,
+    output wire [127:0] dcache_line
+);
 
-module bram_driver(
-    input  clk,
-    input  [17:0]  perip_waddr,
-    input  [17:0]  perip_addr,
-    input  [31:0]  perip_wdata,
-    input  [1:0]   perip_mask,
-    input          bram_wen,
-    output [31:0]  perip_rdata,
-    output [127:0] dcache_line		
-    );
-
-    wire [15:0] bram_addr;    
+    wire [15:0] bram_addr;
     wire [13:0] cache_addr;
     wire [ 1:0] offset;
-    wire [31:0] bram_rdata_raw;
-    reg  [31:0] bram_data, dout;
+    // wire [31:0] bram_rdata_raw;
+    reg  [31:0] bram_data;
+    reg  [31:0] dout;
     reg  [ 3:0] bram_byte_en;
 
     // assign bram_addr = perip_addr[17:2];
@@ -57,23 +57,25 @@ module bram_driver(
     //     .dina(bram_data),
     //     .douta(bram_rdata_raw)
     // );
-
-    Mem_BRAM_256K mem_BRAM(
-        // 128bit,read only
-        .clka(clk),
-        .addra(cache_addr),
-        .dina(128'b0),
-        .douta(dcache_line),
-        .wea(16'b0),
-        // 32bit,w
-        .clkb(clk),
-        .addrb(bram_addr),
-        .dinb(bram_data),
-        .doutb(bram_rdata_raw),
-        .web(bram_wen? bram_byte_en: 4'b0000)
-    );
     
-    // type_l
+    // Pango Simple Dual Port RAM
+    RAM mem_BRAM (
+        // 写端口：32 bit
+        .wr_clk     (clk),
+        .wr_addr    (bram_addr),
+        .wr_data    (bram_data),
+        .wr_en      (bram_wen),
+        .wr_byte_en (bram_wen ? bram_byte_en : 4'b0000),
+        .wr_rst     (1'b0),
+
+        // 读端口：128 bit
+        .rd_clk     (clk),
+        .rd_addr    (cache_addr),
+        .rd_data    (dcache_line),
+        .rd_rst     (1'b0)
+    );
+
+    // 从 128-bit Cache Line 中选择 32-bit 数据
     always @(*) begin
         // dout = 0;
         // case (perip_mask)
@@ -94,37 +96,45 @@ module bram_driver(
         // endcase
         // dout = bram_rdata_raw;
         case (perip_addr[3:2])
-            2'b00:  dout = dcache_line[31:0];
-            2'b01:  dout = dcache_line[63:32];
-            2'b10:  dout = dcache_line[95:64];
-            2'b11:  dout = dcache_line[127:96];
+            2'b00:   dout = dcache_line[31:0];
+            2'b01:   dout = dcache_line[63:32];
+            2'b10:   dout = dcache_line[95:64];
+            2'b11:   dout = dcache_line[127:96];
+            default: dout = 32'b0;
         endcase
     end
 
-    // type_s
+    // Store Byte / Store Halfword / Store Word
     always @(*) begin
-        bram_data = perip_wdata;
+        bram_data    = perip_wdata;
+        bram_byte_en = 4'b0000;
+
         case (perip_mask)
-            2'b00: // sb
+            2'b00: begin  // SB
                 case (offset)
                     2'b00: bram_byte_en = 4'b0001;
                     2'b01: bram_byte_en = 4'b0010;
                     2'b10: bram_byte_en = 4'b0100;
                     2'b11: bram_byte_en = 4'b1000;
                 endcase
-            2'b01: // sh
+            end
+
+            2'b01: begin  // SH
                 case (offset[1])
                     1'b0: bram_byte_en = 4'b0011;
                     1'b1: bram_byte_en = 4'b1100;
                 endcase
-            2'b10: begin // sw
+            end
+
+
+            2'b10: begin  // SW
                 bram_byte_en = 4'b1111;
             end
+
             default: begin
                 bram_byte_en = 4'b0000;
             end
         endcase
     end
-
 
 endmodule
