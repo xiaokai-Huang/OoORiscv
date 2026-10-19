@@ -1,9 +1,6 @@
 .env
 xvlog.pb
 
-top.sv
-uart.v
-
 zip/
 xsim.dir/
 
