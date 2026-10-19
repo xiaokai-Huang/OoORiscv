@@ -131,13 +131,15 @@ end
 genvar i;
 generate
     for (i = 0; i < 16; i = i + 1) begin : gen_cache_8bit
-        Cache_8bit u_cache_8bit (
-            .clk(clk),
-            .a(data_waddr),
-            .d(refill ? cache_line[i*8 +: 8] : mem_wdata[(i%4)*8 +: 8]),
-            .we(refill | (write_hit & store_byte_we[i])),
-            .dpra(raddr),
-            .dpo(lane_dout[i])
+        dcache_8bit u_cache_8bit (
+            .wr_clk(clk),
+            .rd_clk(clk),
+            .rst(1'b0),
+            .wr_addr(data_waddr),
+            .wr_data(refill ? cache_line[i*8 +: 8] : mem_wdata[(i%4)*8 +: 8]),
+            .wr_en(refill | (write_hit & store_byte_we[i])),
+            .rd_addr(raddr),
+            .rd_data(lane_dout[i])
         );
     end
 endgenerate
@@ -148,22 +150,26 @@ assign dcache_rdata = {lane_dout[15], lane_dout[14], lane_dout[13], lane_dout[12
                        lane_dout[3],  lane_dout[2],  lane_dout[1],  lane_dout[0]};
 
 // 标签阵列例化：refill 时两块 tag 同时用 raddr 写入
-load_tag u_load_tag (
-    .clk(clk),
-    .a(raddr),
-    .d({1'b1, tag}),
-    .we(refill),
-    .dpra(raddr),
-    .dpo(load_tag_rdata)
+dcache_load_tag u_load_tag (
+    .wr_clk(clk),
+    .rd_clk(clk),
+    .rst(1'b0),
+    .wr_addr(raddr),
+    .wr_data({1'b1, tag}),
+    .wr_en(refill),
+    .rd_addr(raddr),
+    .rd_data(load_tag_rdata)
 );
 
-store_tag u_store_tag (
-    .clk(clk),
-    .a(raddr),
-    .d({1'b1, tag}),
-    .we(refill),
-    .dpra(waddr),
-    .dpo(store_tag_rdata)
+dcache_store_tag u_store_tag (
+    .wr_clk(clk),
+    .rd_clk(clk),
+    .rst(1'b0),
+    .wr_addr(raddr),
+    .wr_data({1'b1, tag}),
+    .wr_en(refill),
+    .rd_addr(waddr),
+    .rd_data(store_tag_rdata)
 );
 
 always @(*) begin

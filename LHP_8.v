@@ -40,21 +40,25 @@ assign BHT_wdata[0] = {upd_lhr[6:0], branch_taken};
 assign BHT_wdata[1] = {upd_lhr[6:0], branch_taken};
 // 偶
 BHT_BANK u_BHT_BANK_0(
-    .a(ex_pc[8:3]),
-    .d(BHT_wdata[0]),
-    .dpra(if_pc[8:3]),
-    .clk(clk),
-    .we(update_en && (ex_pc[2] == 1'b0)),    // 只有偶数指令才更新偶数BHT
-    .dpo(BHT_rdata[0])
+    .wr_addr(ex_pc[8:3]),
+    .wr_data(BHT_wdata[0]),
+    .rd_addr(if_pc[8:3]),
+    .wr_clk(clk),
+    .rd_clk(clk),
+    .rst(1'b0),
+    .wr_en(update_en && (ex_pc[2] == 1'b0)),    // 只有偶数指令才更新偶数BHT
+    .rd_data(BHT_rdata[0])
 );
 // 奇
 BHT_BANK u_BHT_BANK_1(
-    .a(ex_pc[8:3]),
-    .d(BHT_wdata[1]),
-    .dpra(if_pc[8:3]),
-    .clk(clk),
-    .we(update_en && (ex_pc[2] == 1'b1)),    // 只有奇数指令才更新奇数BHT
-    .dpo(BHT_rdata[1])
+    .wr_addr(ex_pc[8:3]),
+    .wr_data(BHT_wdata[1]),
+    .rd_addr(if_pc[8:3]),
+    .wr_clk(clk),
+    .rd_clk(clk),
+    .rst(1'b0),
+    .wr_en(update_en && (ex_pc[2] == 1'b1)),    // 只有奇数指令才更新奇数BHT
+    .rd_data(BHT_rdata[1])
 );
 
 wire [7:0] PHT_raddr_odd = {if_pc[10:8] ^ if_pc[7:5], if_pc[12:11] ^ if_pc[4:3], 3'b0} ^ {BHT_rdata[1]};     // 奇
@@ -71,23 +75,27 @@ generate
     genvar i,j;
     for (i = 0; i < 4; i = i + 1) begin:PHT_BANK_odd
         PHT_BANK u_PHT_64_odd(
-            .a(PHT_waddr_odd[5:0]),
-            .d(PHT_wdata_odd),
-            .dpra(PHT_raddr_odd[5:0]),
-            .clk(clk),
-            .we(update_en && (ex_pc[2] == 1'b1) && PHT_waddr_odd[7:6] == i),   
-            .dpo(PHT_rdata_odd[i])
+            .wr_addr(PHT_waddr_odd[5:0]),
+            .wr_data(PHT_wdata_odd),
+            .rd_addr(PHT_raddr_odd[5:0]),
+            .wr_clk(clk),
+            .rd_clk(clk),
+            .rst(1'b0),
+            .wr_en(update_en && (ex_pc[2] == 1'b1) && PHT_waddr_odd[7:6] == i),   
+            .rd_data(PHT_rdata_odd[i])
         );
     end
 
     for (j = 0; j < 4; j = j + 1) begin:PHT_BANK_even
         PHT_BANK u_PHT_64_even(
-            .a(PHT_waddr_even[5:0]),
-            .d(PHT_wdata_even),
-            .dpra(PHT_raddr_even[5:0]),
-            .clk(clk),
-            .we(update_en && (ex_pc[2] == 1'b0) && PHT_waddr_even[7:6] == j),    
-            .dpo(PHT_rdata_even[j])
+            .wr_addr(PHT_waddr_even[5:0]),
+            .wr_data(PHT_wdata_even),
+            .rd_addr(PHT_raddr_even[5:0]),
+            .wr_clk(clk),
+            .rd_clk(clk),
+            .rst(1'b0),
+            .wr_en(update_en && (ex_pc[2] == 1'b0) && PHT_waddr_even[7:6] == j),    
+            .rd_data(PHT_rdata_even[j])
         );
     end
 endgenerate
