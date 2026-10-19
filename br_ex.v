@@ -24,6 +24,7 @@ module br_ex (
     input [5:0] br_waddr_i,             // RF 阶段写寄存器地址(同时传到issue阶段和ex阶段)
     input [31:0] br_imm_i,              // branch立即数
     input [31:0] br_aux_addr_i,         // branch辅助地址
+    input [9:0] br_lhp_state_i,         // 旧 LHP 状态
 
     // from br_flush
     input jump_flag_i,                  // 跳转标志
@@ -53,6 +54,7 @@ module br_ex (
     output is_branch,                             // 是否为分支指令
     output reg lhp_update_en,                     // 更新使能
     output reg branch_taken,                      // 实际跳转结果(1为跳转)
+    output [9:0] lhp_state_o,                     // 旧 LHP 状态(送更新缓冲)
 
     // to flush
     output br_inst_valid_o,
@@ -75,6 +77,7 @@ assign br_mul_div_wr_ptr_o = br_mul_div_wr_ptr_i;
 assign ex_pc = br_inst_addr_i;
 assign is_branch = (br_type_i == `TYPE_BR);
 assign commit_rob_id_o = br_rob_id_i;
+assign lhp_state_o = br_lhp_state_i;
 // 执行
 always @(*) begin
     // 默认值

@@ -17,6 +17,11 @@ module BPU (
     // LHP
     input lhp_update_en,                   // 来自执行阶段的更新使能
     input branch_taken,                    // 来自执行阶段实际跳转结果
+    input [9:0] update_lhp_state_i,        // 来自执行阶段的旧 LHP 状态 {LHR, PHT计数}
+
+    // LHP 旧值下发到取指流水线
+    output [9:0] lhp_state_port0_o,        // 偶指令旧值
+    output [9:0] lhp_state_port1_o,        // 奇指令旧值
 
     // RAS
     input ras_push_en,                     // 来自取指阶段的压栈使能
@@ -143,9 +148,13 @@ LHP_8 u_LHP(
     .update_en(lhp_update_en),              // 更新使能
     .branch_taken(branch_taken),        // 实际跳转结果(1为跳转)
     .ex_pc(ex_pc),                      // 执行阶段分支指令的PC地址（用于更新标签）
+    .update_lhp_state_i(update_lhp_state_i),  // 取指时读到的旧值
     // to selector
     .prediction_port0(prediction_port0),        // 预测结果(1为跳转)
-    .prediction_port1(prediction_port1)         // 预测结果(1为跳转) 
+    .prediction_port1(prediction_port1),         // 预测结果(1为跳转)
+    // to if pipeline
+    .lhp_state_port0_o(lhp_state_port0_o),
+    .lhp_state_port1_o(lhp_state_port1_o)
 );
 
 // RAS

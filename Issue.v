@@ -28,6 +28,8 @@ module Issue (
     input bpu_pre_flag_port1_i,                 // 预测标志
     input [31:0] bpu_pre_addr_port0_i,          // 预测地址
     input [31:0] bpu_pre_addr_port1_i,          // 预测地址
+    input [9:0] lhp_state_port0_i,              // 偶指令旧值
+    input [9:0] lhp_state_port1_i,              // 奇指令旧值
     input [5:0] praddr1_inst0_i,         // 指令0物理寄存器1读地址
     input [5:0] praddr2_inst0_i,         // 指令0物理寄存器2读地址
     input [5:0] praddr1_inst1_i,         // 指令1物理寄存器1读地址
@@ -126,6 +128,7 @@ module Issue (
     output [5:0] br_rob_id_o,            // branch ROB id
     output br_bpu_pre_flag_o,            // branch BPU预测标志
     output [31:0] br_bpu_pre_addr_o,     // branch BPU预测地址
+    output [9:0] br_lhp_state_o,         // branch 旧 LHP 状态
     output [7:0] br_mask_o,              // branch分支掩码
     output [2:0] br_ras_ptr_o,           // branch RAS快照指针
     output [2:0] br_mem_wr_ptr_o,        // branch mem队列写操作快照指针
@@ -1839,6 +1842,7 @@ reg [2:0] branch_ras_ptr[0:3];     // RAS快照指针
 reg [2:0] branch_mem_wr_ptr[0:3];  // mem队列写操作快照指针
 reg [2:0] branch_sq_ptr[0:3];      // store queue分配快照指针
 reg [2:0] branch_alu_wr_ptr[0:3];  // ALU队列写操作快照指针
+reg [9:0] branch_lhp_state[0:3];   // 取指时读到的旧 LHP 状态
 reg [2:0] branch_branch_wr_ptr[0:3]; // branch队列写操作快照指针
 reg [2:0] branch_mul_div_wr_ptr[0:3]; // mul_div队列写操作快照指针
 reg [2:0] branch_snap_id[0:3];     // 快照id
@@ -1893,6 +1897,7 @@ always @(posedge clk) begin
             branch_mem_wr_ptr[i] <= 3'b0;
             branch_sq_ptr[i] <= 3'b0;
             branch_alu_wr_ptr[i] <= 3'b0;
+            branch_lhp_state[i] <= 10'b0;
             branch_branch_wr_ptr[i] <= 3'b0;
             branch_mul_div_wr_ptr[i] <= 3'b0;
             branch_snap_id[i] <= 3'b0;
@@ -1963,6 +1968,7 @@ always @(posedge clk) begin
                 branch_rob_id[branch_wr_ptr] <= rob_id_inst0_i;
                 branch_pre_flag[branch_wr_ptr] <= bpu_pre_flag_port0_i;
                 branch_pre_addr[branch_wr_ptr] <= bpu_pre_addr_port0_i;
+                branch_lhp_state[branch_wr_ptr] <= lhp_state_port0_i;
                 branch_mask[branch_wr_ptr] <= branch_mask_inst0_i;
                 branch_ras_ptr[branch_wr_ptr] <= ras_snap_ptr_i;
                 branch_mem_wr_ptr[branch_wr_ptr] <= mem_wr_ptr;
@@ -1987,6 +1993,7 @@ always @(posedge clk) begin
                     branch_rob_id[(branch_wr_ptr + 2'd1) & 2'b11] <= rob_id_inst1_i;
                     branch_pre_flag[(branch_wr_ptr + 2'd1) & 2'b11] <= bpu_pre_flag_port1_i;
                     branch_pre_addr[(branch_wr_ptr + 2'd1) & 2'b11] <= bpu_pre_addr_port1_i;
+                    branch_lhp_state[(branch_wr_ptr + 2'd1) & 2'b11] <= lhp_state_port1_i;
                     branch_mask[(branch_wr_ptr + 2'd1) & 2'b11] <= branch_mask_inst1_i;
                     branch_ras_ptr[(branch_wr_ptr + 2'd1) & 2'b11] <= ras_snap_ptr_i;
                     branch_mem_wr_ptr[(branch_wr_ptr + 2'd1) & 2'b11] <= mem_wr_ptr;
@@ -2012,6 +2019,7 @@ always @(posedge clk) begin
                 branch_rob_id[branch_wr_ptr] <= rob_id_inst1_i;
                 branch_pre_flag[branch_wr_ptr] <= bpu_pre_flag_port1_i;
                 branch_pre_addr[branch_wr_ptr] <= bpu_pre_addr_port1_i;
+                branch_lhp_state[branch_wr_ptr] <= lhp_state_port1_i;
                 branch_mask[branch_wr_ptr] <= branch_mask_inst1_i;
                 branch_ras_ptr[branch_wr_ptr] <= ras_snap_ptr_i;
                 branch_mem_wr_ptr[branch_wr_ptr] <= mem_wr_ptr + {2'b0, mem_need_slot0};
@@ -2056,6 +2064,7 @@ iss_br u_iss_br (
     .issue_flag_i(br_issue_flag),               // 发射标志
     .bpu_pre_flag_i(branch_pre_flag[branch_rd_ptr]),           // 预测标志
     .bpu_pre_addr_i(branch_pre_addr[branch_rd_ptr]),           // 预测地址
+    .lhp_state_i(branch_lhp_state[branch_rd_ptr]),             // 旧 LHP 状态
     .inst_addr_i(branch_inst_addr[branch_rd_ptr]),               // 指令地址
     .rob_id_i(branch_rob_id[branch_rd_ptr]),                   // ROB id
     .mask_i(br_mask_new),                                 // 分支掩码
@@ -2075,6 +2084,7 @@ iss_br u_iss_br (
     .pwaddr_i(branch_pwaddr[branch_rd_ptr]),              // 物理寄存器写地址
     .imm_i(branch_imm[branch_rd_ptr]),               // 立即数
     .aux_addr_i(branch_aux_addr[branch_rd_ptr]),          // 辅助地址
+    .lhp_state_o(br_lhp_state_o),                         // 旧 LHP 状态
     // to ex
     .inst_valid_o(br_inst_valid_o),          // 指令有效标志
     .inst_addr_o(br_inst_addr_o),          // 指令地址

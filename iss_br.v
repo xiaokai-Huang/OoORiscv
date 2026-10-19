@@ -13,6 +13,7 @@ module iss_br (
     input [5:0] rob_id_i,             // ROB id
     input bpu_pre_flag_i,             // BPU预测标志
     input [31:0] bpu_pre_addr_i,      // BPU预测地址
+    input [9:0] lhp_state_i,          // 取指时读到的旧 LHP 状态
     input [7:0] mask_i,               // 分支掩码
     input [2:0] ras_ptr_i,            // RAS快照指针
     input [2:0] mem_wr_ptr_i,         // mem队列写操作快照指针
@@ -37,6 +38,7 @@ module iss_br (
     output reg [5:0] rob_id_o,        // ROB id
     output reg bpu_pre_flag_o,        // BPU预测标志
     output reg [31:0] bpu_pre_addr_o, // BPU预测地址
+    output reg [9:0] lhp_state_o,     // 旧 LHP 状态
     output reg [7:0] mask_o,          // 分支掩码
     output reg [2:0] ras_ptr_o,       // RAS快照指针
     output reg [2:0] mem_wr_ptr_o,    // mem队列写操作快照指针
@@ -77,6 +79,7 @@ always @(posedge clk) begin
     rob_id_o <= rob_id_i;
     bpu_pre_flag_o <= bpu_pre_flag_i;
     bpu_pre_addr_o <= bpu_pre_addr_i;
+    lhp_state_o <= lhp_state_i;
     mask_o <= mask_i;
     ras_ptr_o <= ras_ptr_i;
     mem_wr_ptr_o <= mem_wr_ptr_i;

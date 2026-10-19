@@ -18,6 +18,8 @@ module IFU(
     input [31:0] ras_pre_addr_i,
     input bpu_pre_flag_i,
     input [31:0] bpu_pre_addr_i,
+    input [9:0] lhp_state_port0_i,   // 来自 BPU 的偶指令旧值
+    input [9:0] lhp_state_port1_i,   // 来自 BPU 的奇指令旧值
     output [31:0] pc_o,
 
     // IF_Stage1
@@ -45,7 +47,9 @@ module IFU(
     output if_id_bpu_pre_flag_port0_o,
     output if_id_bpu_pre_flag_port1_o,
     output [31:0] if_id_bpu_pre_addr_port0_o,
-    output [31:0] if_id_bpu_pre_addr_port1_o
+    output [31:0] if_id_bpu_pre_addr_port1_o,
+    output [9:0] if_id_lhp_state_port0_o,
+    output [9:0] if_id_lhp_state_port1_o
 );
 
 // icache
@@ -59,6 +63,8 @@ wire [31:0] if_stage1_inst_addr_o;
 wire bpu_pre_flag_o;
 wire bpu_jump_odd_o;
 wire [31:0] bpu_pre_addr_o;
+wire [9:0] if_stage1_lhp_state_port0_o;
+wire [9:0] if_stage1_lhp_state_port1_o;
 
 // if_stage1_stage2
 wire if_stage1_stage2_inst_valid_o;
@@ -67,6 +73,8 @@ wire [31:0] if_stage1_stage2_inst_addr_o;
 wire if_stage1_stage2_bpu_pre_flag_o;
 wire if_stage1_stage2_bpu_jump_odd_o;
 wire [31:0] if_stage1_stage2_bpu_pre_addr_o;
+wire [9:0] if_stage1_stage2_lhp_state_port0_o;
+wire [9:0] if_stage1_stage2_lhp_state_port1_o;
 
 // if_stage2
 wire if_stage2_ras_pre_flag_o;
@@ -82,6 +90,8 @@ wire if_stage2_bpu_pre_flag_port0_o;
 wire if_stage2_bpu_pre_flag_port1_o;
 wire [31:0] if_stage2_bpu_pre_addr_port0_o;
 wire [31:0] if_stage2_bpu_pre_addr_port1_o;
+wire [9:0] if_stage2_lhp_state_port0_o;
+wire [9:0] if_stage2_lhp_state_port1_o;
 
 
 // 实例化
@@ -148,12 +158,16 @@ IF_Stage1 u_if_stage1(
     .bpu_pre_flag_i     (bpu_pre_flag_i),            // 预测跳转标志
     .bpu_jump_odd_i     (bpu_jump_odd_i),             // 跳转奇偶标志
     .bpu_pre_addr_i     (bpu_pre_addr_i),      // 预测跳转地址
+    .lhp_state_port0_i  (lhp_state_port0_i),
+    .lhp_state_port1_i  (lhp_state_port1_i),
     // to IF_Stage2
     .inst_o             (if_stage1_inst_o),             // 指令内容
     .inst_addr_o        (if_stage1_inst_addr_o),        // 指令地址
     .bpu_pre_flag_o     (bpu_pre_flag_o),           // 传给IF_Stage2的预测跳转标志
     .bpu_jump_odd_o     (bpu_jump_odd_o),            // 传给IF_Stage2的跳转奇偶标志
-    .bpu_pre_addr_o     (bpu_pre_addr_o)      // 传给IF_Stage2的预测跳转地址
+    .bpu_pre_addr_o     (bpu_pre_addr_o),      // 传给IF_Stage2的预测跳转地址
+    .lhp_state_port0_o  (if_stage1_lhp_state_port0_o),
+    .lhp_state_port1_o  (if_stage1_lhp_state_port1_o)
 );
 
 // if_stage1_stage2
@@ -166,6 +180,8 @@ if_stage1_stage2 u_if_stage1_stage2(
     .bpu_pre_flag_i     (bpu_pre_flag_o),
     .bpu_jump_odd_i     (bpu_jump_odd_o),
     .bpu_pre_addr_i     (bpu_pre_addr_o),
+    .lhp_state_port0_i  (if_stage1_lhp_state_port0_o),
+    .lhp_state_port1_i  (if_stage1_lhp_state_port1_o),
     // from ctrl
     .int_flag_i         (int_flag_i),         // 中断
     .hold_flag_i        (icache_miss_hold),   // icache miss暂停
@@ -179,7 +195,9 @@ if_stage1_stage2 u_if_stage1_stage2(
     .inst_addr_o        (if_stage1_stage2_inst_addr_o),
     .bpu_pre_flag_o     (if_stage1_stage2_bpu_pre_flag_o),
     .bpu_jump_odd_o     (if_stage1_stage2_bpu_jump_odd_o),
-    .bpu_pre_addr_o     (if_stage1_stage2_bpu_pre_addr_o)
+    .bpu_pre_addr_o     (if_stage1_stage2_bpu_pre_addr_o),
+    .lhp_state_port0_o  (if_stage1_stage2_lhp_state_port0_o),
+    .lhp_state_port1_o  (if_stage1_stage2_lhp_state_port1_o)
 );
 
 // if_stage2
@@ -193,6 +211,8 @@ IF_Stage2 u_if_stage2(
     .bpu_pre_flag_i       (if_stage1_stage2_bpu_pre_flag_o),
     .bpu_jump_odd_i       (if_stage1_stage2_bpu_jump_odd_o),
     .bpu_pre_addr_i       (if_stage1_stage2_bpu_pre_addr_o),
+    .lhp_state_port0_i    (if_stage1_stage2_lhp_state_port0_o),
+    .lhp_state_port1_i    (if_stage1_stage2_lhp_state_port1_o),
     // to PC
     .ras_pre_flag_o       (if_stage2_ras_pre_flag_o),
     // from RAS
@@ -214,7 +234,9 @@ IF_Stage2 u_if_stage2(
     .bpu_pre_flag_port0_o (if_stage2_bpu_pre_flag_port0_o),
     .bpu_pre_flag_port1_o (if_stage2_bpu_pre_flag_port1_o),
     .bpu_pre_addr_port0_o (if_stage2_bpu_pre_addr_port0_o),
-    .bpu_pre_addr_port1_o (if_stage2_bpu_pre_addr_port1_o)
+    .bpu_pre_addr_port1_o (if_stage2_bpu_pre_addr_port1_o),
+    .lhp_state_port0_o    (if_stage2_lhp_state_port0_o),
+    .lhp_state_port1_o    (if_stage2_lhp_state_port1_o)
 );
 
 // if_id
@@ -234,6 +256,8 @@ if_id u_if_id(
     .bpu_pre_flag_port1_i(if_stage2_bpu_pre_flag_port1_o),
     .bpu_pre_addr_port0_i(if_stage2_bpu_pre_addr_port0_o),
     .bpu_pre_addr_port1_i(if_stage2_bpu_pre_addr_port1_o),
+    .lhp_state_port0_i(if_stage2_lhp_state_port0_o),
+    .lhp_state_port1_i(if_stage2_lhp_state_port1_o),
     // from id
     .jal_flush_i(jal_flush_i),                 // jal指令冲刷
     // from Ctrl
@@ -253,7 +277,9 @@ if_id u_if_id(
     .bpu_pre_flag_port0_o(if_id_bpu_pre_flag_port0_o),
     .bpu_pre_flag_port1_o(if_id_bpu_pre_flag_port1_o),
     .bpu_pre_addr_port0_o(if_id_bpu_pre_addr_port0_o),
-    .bpu_pre_addr_port1_o(if_id_bpu_pre_addr_port1_o)
+    .bpu_pre_addr_port1_o(if_id_bpu_pre_addr_port1_o),
+    .lhp_state_port0_o(if_id_lhp_state_port0_o),
+    .lhp_state_port1_o(if_id_lhp_state_port1_o)
 );
 
 

@@ -24,6 +24,7 @@ module br_rf (
     input [5:0] br_pwaddr_i,            // branch物理寄存器写地址
     input [31:0] br_imm_i,              // branch立即数
     input [31:0] br_aux_addr_i,         // branch辅助地址
+    input [9:0] br_lhp_state_i,         // 旧 LHP 状态
 
     // from forward_unit
     input rs1_forward_flag_i,           // rs1转发标志
@@ -67,7 +68,8 @@ module br_rf (
     output [31:0] br_rs1_data_o,         // rs1数据
     output [31:0] br_rs2_data_o,         // rs2数据
     output [31:0] br_imm_o,              // branch立即数
-    output [31:0] br_aux_addr_o          // branch辅助地址
+    output [31:0] br_aux_addr_o,         // branch辅助地址
+    output [9:0] br_lhp_state_o          // 旧 LHP 状态
 
 );
 // 冲刷逻辑
@@ -102,6 +104,7 @@ assign br_rs1_data_o = rs1_forward_flag_i ? rs1_forward_data_i : reg_rdata1_i; /
 assign br_rs2_data_o = rs2_forward_flag_i ? rs2_forward_data_i : reg_rdata2_i;
 assign br_imm_o = br_imm_i;
 assign br_aux_addr_o = br_aux_addr_i;
+assign br_lhp_state_o = br_lhp_state_i;
 
 
 endmodule

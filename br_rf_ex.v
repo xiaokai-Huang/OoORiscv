@@ -27,6 +27,7 @@ module br_rf_ex (
     input [5:0] br_waddr_i,             // RF 阶段写寄存器地址(同时传到issue阶段和ex阶段)
     input [31:0] br_imm_i,              // branch立即数
     input [31:0] br_aux_addr_i,         // branch辅助地址
+    input [9:0] br_lhp_state_i,         // 旧 LHP 状态
 
     // from clint
     input int_flag_i,                   // 中断标志
@@ -51,7 +52,8 @@ module br_rf_ex (
     output reg [31:0] br_rs2_data_o,         // rs2数据
     output reg [5:0] br_waddr_o,             // RF 阶段写寄存器地址(同时传到issue阶段和ex阶段)
     output reg [31:0] br_imm_o,              // branch立即数
-    output reg [31:0] br_aux_addr_o          // branch辅助地址
+    output reg [31:0] br_aux_addr_o,         // branch辅助地址
+    output reg [9:0] br_lhp_state_o          // 旧 LHP 状态
 );
 
 always @(posedge clk) begin
@@ -86,6 +88,7 @@ always @(posedge clk) begin
     br_waddr_o <= br_waddr_i;
     br_imm_o <= br_imm_i;
     br_aux_addr_o <= br_aux_addr_i;
+    br_lhp_state_o <= br_lhp_state_i;
 end
 
 

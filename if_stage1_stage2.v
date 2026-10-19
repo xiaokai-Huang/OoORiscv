@@ -12,6 +12,8 @@ module if_stage1_stage2 (
     input bpu_pre_flag_i,
     input bpu_jump_odd_i,
     input [31:0] bpu_pre_addr_i,
+    input [9:0] lhp_state_port0_i,
+    input [9:0] lhp_state_port1_i,
 
     // from ctrl
     input int_flag_i,         // 中断
@@ -27,7 +29,9 @@ module if_stage1_stage2 (
     output reg [31:0] inst_addr_o,
     output reg bpu_pre_flag_o,
     output reg bpu_jump_odd_o,
-    output reg [31:0] bpu_pre_addr_o
+    output reg [31:0] bpu_pre_addr_o,
+    output reg [9:0] lhp_state_port0_o,
+    output reg [9:0] lhp_state_port1_o
 );
 
 always @(posedge clk) begin
@@ -61,6 +65,8 @@ always @(posedge clk) begin
         bpu_pre_flag_o <= bpu_pre_flag_i;
         bpu_jump_odd_o <= bpu_jump_odd_i;
         bpu_pre_addr_o <= bpu_pre_addr_i;
+        lhp_state_port0_o <= lhp_state_port0_i;
+        lhp_state_port1_o <= lhp_state_port1_i;
     end
 end
 

@@ -14,6 +14,8 @@ module IF_Stage2(
     input bpu_pre_flag_i,
     input bpu_jump_odd_i,
     input [31:0] bpu_pre_addr_i,
+    input [9:0] lhp_state_port0_i,   // 偶指令旧值
+    input [9:0] lhp_state_port1_i,   // 奇指令旧值
 
     // to PC
     output reg ras_pre_flag_o,
@@ -45,10 +47,17 @@ module IF_Stage2(
     output reg bpu_pre_flag_port1_o,
 
     output reg [31:0] bpu_pre_addr_port0_o,
-    output reg [31:0] bpu_pre_addr_port1_o
+    output reg [31:0] bpu_pre_addr_port1_o,
+
+    // LHP 旧值（随指令下发）
+    output [9:0] lhp_state_port0_o,
+    output [9:0] lhp_state_port1_o
 );
 // 指令地址
 assign inst_addr_o = inst_addr_i;
+// LHP 旧值：偶/奇槽位直接对应 port0/port1
+assign lhp_state_port0_o = lhp_state_port0_i;
+assign lhp_state_port1_o = lhp_state_port1_i;
 // 指令有效性
 assign inst_valid_port0_o = inst_valid_i && (inst_addr_i[2] == 1'b0);              // 是否对齐取指
 assign inst_valid_port1_o = inst_valid_i && bpu_jump_odd_i && ~ras_pre_flag_0;     // 第一条是否跳走了

@@ -35,6 +35,8 @@ module rn_dp (
     input bpu_pre_flag_port1_i,                 // 预测标志
     input [31:0] bpu_pre_addr_port0_i,          // 预测地址
     input [31:0] bpu_pre_addr_port1_i,          // 预测地址
+    input [9:0] lhp_state_port0_i,
+    input [9:0] lhp_state_port1_i,
 
     `ifdef use_f_extension
     input [4:0] inst_f_subtype_port0_i,         // F扩展指令子类型
@@ -98,6 +100,8 @@ module rn_dp (
     output reg bpu_pre_flag_port1_o,                 // 预测标志
     output reg [31:0] bpu_pre_addr_port0_o,          // 预测地址
     output reg [31:0] bpu_pre_addr_port1_o,          // 预测地址
+    output reg [9:0] lhp_state_port0_o,
+    output reg [9:0] lhp_state_port1_o,
     output reg [5:0] praddr1_inst0_o,                // 指令0物理寄存器1读地址
     output reg [5:0] praddr2_inst0_o,                // 指令0物理寄存器2读地址
     output reg [5:0] praddr1_inst1_o,                // 指令1物理寄存器1读地址
@@ -157,6 +161,8 @@ always @(*) begin
     bpu_pre_flag_port1_o = bpu_pre_flag_port1_i;
     bpu_pre_addr_port0_o = bpu_pre_addr_port0_i;
     bpu_pre_addr_port1_o = bpu_pre_addr_port1_i;
+    lhp_state_port0_o = lhp_state_port0_i;
+    lhp_state_port1_o = lhp_state_port1_i;
     praddr1_inst0_o = praddr1_inst0_i;
     praddr2_inst0_o = praddr2_inst0_i;
     praddr1_inst1_o = praddr1_inst1_i;

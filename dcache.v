@@ -54,30 +54,27 @@ assign wr_offset = mem_waddr[3:2];
 wire [1:0] mem_index;        // 写入字节偏移
 assign mem_index = mem_waddr[1:0];
 
-wire [137:0] dcache_rdata;
-wire [137:0] commit_dcache_rdata;
-reg  [137:0] dcache_wdata;
-reg dcache_we;
-reg [4:0] dcache_waddr;
+reg [1:0] miss_cnt;
+wire refill = (miss_cnt == 2);
 
-Dcache u_Dcache_512B(
-    .a(dcache_waddr),
-    .d(dcache_wdata),
-    .dpra(raddr),
-    .clk(clk),
-    .we(dcache_we),
-    .spo(commit_dcache_rdata),
-    .dpo(dcache_rdata)
-);
+// 数据阵列写地址：refill 与写命中共用
+wire [4:0] data_waddr = refill ? raddr : waddr;
+
+// 数据阵列：16 个 8bit 简单双口 RAM（32 x 8），写口按字节使能，读口异步输出整行
+wire [127:0] dcache_rdata;
+wire [7:0]   lane_dout[0:15];
+
+// 标签阵列：{valid, tag}，refill 时两块 tag 同时用 raddr 写入
+wire [9:0] load_tag_rdata;      // 读口用 raddr，做 load 命中匹配
+wire [9:0] store_tag_rdata;     // 读口用 waddr，做 store 命中匹配
+
+wire load_hit  = load_tag_rdata[9]  && (load_tag_rdata[8:0]  == tag);
+wire store_hit = store_tag_rdata[9] && (store_tag_rdata[8:0] == wr_tag);
+wire write_hit = mem_wen && access_dram && store_hit;
 
 // 判断是否命中
 always @(*) begin
-    cache_miss = 1'b1;
-
-    if(dcache_rdata[137] && dcache_rdata[136:128] == tag) begin
-        cache_miss = 1'b0;
-    end
-
+    cache_miss = ~load_hit;
 end
 
 // 读
@@ -91,8 +88,6 @@ always @(*) begin
 end
 
 // 未命中时等待dram数据输出,进行行替换
-reg [1:0] miss_cnt;
-
 // 读写同一行cache
 wire access_conflict = mem_wen && access_dram && (raddr == waddr);
 always @(posedge clk) begin
@@ -120,63 +115,59 @@ always @(*) begin
 end
 
 // 写
-reg [31:0] commit_rdata;
-always @(*) begin
-    case(wr_offset)
-        2'b00:   commit_rdata = commit_dcache_rdata[31:0];
-        2'b01:   commit_rdata = commit_dcache_rdata[63:32];
-        2'b10:   commit_rdata = commit_dcache_rdata[95:64];
-        default: commit_rdata = commit_dcache_rdata[127:96];
-    endcase
-end
-reg [31:0] dcache_new_data;    // 写命中时的写数据
+// 字节通道索引
+reg [15:0] store_byte_we;
 always @(*) begin
     case (mem_mask)
-        2'b10: begin
-            dcache_new_data = mem_wdata;  // sw
-        end
-        2'b01: begin           // sh
-            case (mem_index[1])
-                1'b0: dcache_new_data = {commit_rdata[31:16], mem_wdata[15:0]};
-                1'b1: dcache_new_data = {mem_wdata[31:16], commit_rdata[15:0]};
-            endcase
-        end
-        2'b00: begin           // sb
-            case (mem_index)
-                2'b00: dcache_new_data = {commit_rdata[31:8], mem_wdata[7:0]};
-                2'b01: dcache_new_data = {commit_rdata[31:16], mem_wdata[15:8], commit_rdata[7:0]};
-                2'b10: dcache_new_data = {commit_rdata[31:24], mem_wdata[23:16], commit_rdata[15:0]};
-                2'b11: dcache_new_data = {mem_wdata[31:24], commit_rdata[23:0]};
-            endcase
-        end
-        default: begin
-            dcache_new_data = 32'b0;
-        end
+        2'b10:   store_byte_we = 16'h000F << {wr_offset, 2'b00};               // sw
+        2'b01:   store_byte_we = 16'h0003 << {wr_offset, mem_index[1], 1'b0};  // sh
+        2'b00:   store_byte_we = 16'h0001 << mem_waddr[3:0];                   // sb
+        default: store_byte_we = 16'b0;
     endcase
 end
 
-reg [127:0] dcache_update_line;
+// 数据阵列例化：16 个 8bit 简单双口 RAM
+// 写数据只对实际写入的通道有效，未选中的通道 we=0
+genvar i;
+generate
+    for (i = 0; i < 16; i = i + 1) begin : gen_cache_8bit
+        Cache_8bit u_cache_8bit (
+            .clk(clk),
+            .a(data_waddr),
+            .d(refill ? cache_line[i*8 +: 8] : mem_wdata[(i%4)*8 +: 8]),
+            .we(refill | (write_hit & store_byte_we[i])),
+            .dpra(raddr),
+            .dpo(lane_dout[i])
+        );
+    end
+endgenerate
+
+assign dcache_rdata = {lane_dout[15], lane_dout[14], lane_dout[13], lane_dout[12],
+                       lane_dout[11], lane_dout[10], lane_dout[9],  lane_dout[8],
+                       lane_dout[7],  lane_dout[6],  lane_dout[5],  lane_dout[4],
+                       lane_dout[3],  lane_dout[2],  lane_dout[1],  lane_dout[0]};
+
+// 标签阵列例化：refill 时两块 tag 同时用 raddr 写入
+load_tag u_load_tag (
+    .clk(clk),
+    .a(raddr),
+    .d({1'b1, tag}),
+    .we(refill),
+    .dpra(raddr),
+    .dpo(load_tag_rdata)
+);
+
+store_tag u_store_tag (
+    .clk(clk),
+    .a(raddr),
+    .d({1'b1, tag}),
+    .we(refill),
+    .dpra(waddr),
+    .dpo(store_tag_rdata)
+);
+
 always @(*) begin
-    case (wr_offset)
-        2'b00:   dcache_update_line = {commit_dcache_rdata[127:32], dcache_new_data}; 
-        2'b01:   dcache_update_line = {commit_dcache_rdata[127:64], dcache_new_data, commit_dcache_rdata[31:0]}; 
-        2'b10:   dcache_update_line = {commit_dcache_rdata[127:96], dcache_new_data, commit_dcache_rdata[63:0]}; 
-        default: dcache_update_line = {dcache_new_data, commit_dcache_rdata[95:0]};
-    endcase
+    stall_store = refill;
 end
-
-
-
-wire refill = (miss_cnt == 2);
-wire write_hit = (mem_wen && access_dram && commit_dcache_rdata[137] && commit_dcache_rdata[136:128] == wr_tag);
-always @(*) begin
-    dcache_waddr = refill ? raddr : waddr;    // Refill 用读地址
-    dcache_we    = refill | write_hit;
-    dcache_wdata = refill ? {1'b1, tag, cache_line}
-                          : {1'b1, wr_tag, dcache_update_line};
-    stall_store  = refill;
-end
-
-
 
 endmodule
