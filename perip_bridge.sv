@@ -76,42 +76,42 @@ module perip_bridge(
 
     // we don't care perip_mask in LED, SEG, SW & KEY, only care in DRAM
     // write process
-    always @(posedge clk) begin
-        if (perip_wen) begin
-            case (perip_waddr)
-                LED_ADDR:   LED <= perip_wdata;
-                SEG_ADDR:   seg_wdata <= perip_wdata;
-            endcase
-        end
-    end
+    // always @(posedge clk) begin
+    //     if (perip_wen) begin
+    //         case (perip_waddr)
+    //             LED_ADDR:   LED <= perip_wdata;
+    //             SEG_ADDR:   seg_wdata <= perip_wdata;
+    //         endcase
+    //     end
+    // end
 
-    // read process: in one cycle
-    always @(*) begin
-        case (perip_addr)
-            SW0_ADDR:  mmio_rdata = virtual_sw_input[31:0];
-            SW1_ADDR:  mmio_rdata = virtual_sw_input[63:32];
-            KEY_ADDR:  mmio_rdata = {24'd0, virtual_key_input};
-            SEG_ADDR:  mmio_rdata = seg_wdata;
-            default:   mmio_rdata = 32'hDEAD_BEEF;
-        endcase
-    end
+    // // read process: in one cycle
+    // always @(*) begin
+    //     case (perip_addr)
+    //         SW0_ADDR:  mmio_rdata = virtual_sw_input[31:0];
+    //         SW1_ADDR:  mmio_rdata = virtual_sw_input[63:32];
+    //         KEY_ADDR:  mmio_rdata = {24'd0, virtual_key_input};
+    //         SEG_ADDR:  mmio_rdata = seg_wdata;
+    //         default:   mmio_rdata = 32'hDEAD_BEEF;
+    //     endcase
+    // end
 
-    // seg driver
-    display_seg seg_driver (
-        .clk    (clk),
-        .rst    (rst),
-        .s      (seg_wdata),
-        .seg1   (seg_output[6:0]),
-        .seg2   (seg_output[16:10]),
-        .seg3   (seg_output[26:20]),
-        .seg4   (seg_output[36:30]),
-        .ans    ({seg_output[39:38], seg_output[29:28], seg_output[19:18], seg_output[9:8]})
-    );
+    // // seg driver
+    // display_seg seg_driver (
+    //     .clk    (clk),
+    //     .rst    (rst),
+    //     .s      (seg_wdata),
+    //     .seg1   (seg_output[6:0]),
+    //     .seg2   (seg_output[16:10]),
+    //     .seg3   (seg_output[26:20]),
+    //     .seg4   (seg_output[36:30]),
+    //     .ans    ({seg_output[39:38], seg_output[29:28], seg_output[19:18], seg_output[9:8]})
+    // );
 
-    assign seg_output[7]  = 0;
-    assign seg_output[17] = 0;
-    assign seg_output[27] = 0;
-    assign seg_output[37] = 0;
+    // assign seg_output[7]  = 0;
+    // assign seg_output[17] = 0;
+    // assign seg_output[27] = 0;
+    // assign seg_output[37] = 0;
     
 
     // // dram rw
@@ -182,17 +182,18 @@ module perip_bridge(
                         {32{perip_addr == BRANCH_MISS_ADDR}} & branch_miss_cnt;
                         // | {32{perip_addr == TICK_CNT_ADDR}} & 32'd200_000;
     `else 
-    assign perip_rdata = {32{perip_addr == SW0_ADDR}} & mmio_rdata |
-                        {32{perip_addr == SW1_ADDR}} & mmio_rdata |
-                        {32{perip_addr == KEY_ADDR}} & mmio_rdata |
-                        {32{perip_addr == SEG_ADDR}} & mmio_rdata |
+    assign perip_rdata = 
+                        // {32{perip_addr == SW0_ADDR}} & mmio_rdata |
+                        // {32{perip_addr == SW1_ADDR}} & mmio_rdata |
+                        // {32{perip_addr == KEY_ADDR}} & mmio_rdata |
+                        // {32{perip_addr == SEG_ADDR}} & mmio_rdata |
                         {32{perip_addr >= DRAM_ADDR_START && perip_addr <= DRAM_ADDR_END}} & dram_rdata |
                         {32{perip_addr >= TIMER_ADDR_START && perip_addr <= TIMER_ADDR_END}} & timer_rdata |
                         {32{perip_addr == UART_RX_ADDR || perip_addr == UART_STATUS_ADDR}} & uart_rdata;
                         // | {32{perip_addr == TICK_CNT_ADDR}} & 32'd200_000;
     `endif
     
-    assign virtual_led_output = LED;
-    assign virtual_seg_output = seg_output;
+    // assign virtual_led_output = LED;
+    // assign virtual_seg_output = seg_output;
 
 endmodule

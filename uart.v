@@ -3,7 +3,7 @@
 `timescale 1ns / 1ps
 
 module uart #(
-    parameter CLK_FREQ = 270_000_000,
+    parameter CLK_FREQ = 100_000_000,
     parameter BAUD_RATE = 115200
 )(
     input wire clk,

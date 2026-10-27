@@ -119,9 +119,9 @@ assign ready_flag_o = ready;
 always @(posedge clk) begin
     if(!rst) begin
         ready <= {32'b0, 32'hFFFF_FFFF};
-        for (i = 0; i < 1; i = i + 1) begin     // 用for循环初始化
-            regs[i] <= 32'b0;
-        end
+        // for (i = 0; i < 1; i = i + 1) begin     // 用for循环初始化
+        //     regs[i] <= 32'b0;
+        // end
     end
     else begin       // 无法对x0寄存器写入
         // 写寄存器，将ready置1
@@ -139,26 +139,28 @@ always @(posedge clk) begin
             ready[alloc_paddr_inst0_i] <= 1'b0;
         if (alloc_flag_inst1_i && alloc_paddr_inst1_i != 0)
             ready[alloc_paddr_inst1_i] <= 1'b0;
+    end
+end
 
-        // 使用 i 从 1 开始，天然保护了 x0，x0 自动被综合为常数 0
-        for(i = 1; i < 64; i = i + 1) begin
-            if (alu0_wflag_i && (alu0_waddr_i == i[5:0])) // ALU0
-                regs[i] <= alu0_wdata_i;
-            else if (alu1_wflag_i && (alu1_waddr_i == i[5:0])) // ALU1
-                regs[i] <= alu1_wdata_i;
-            else if (branch_wflag_i && (branch_waddr_i == i[5:0])) // Branch
-                regs[i] <= branch_wdata_i;
-            else if (mem_wflag_i && (mem_waddr_i == i[5:0])) // Mem
-                regs[i] <= mem_wdata_i;
-            else if (csr_wflag_i && (csr_waddr_i == i[5:0])) // CSR
-                regs[i] <= csr_wdata_i;
-            `ifdef use_m_extension
-            else if (mul_wflag_i && (mul_waddr_i == i[5:0])) // Mul
-                regs[i] <= mul_wdata_i;
-            else if (div_wflag_i && (div_waddr_i == i[5:0])) // Div
-                regs[i] <= div_wdata_i;
-            `endif
-        end
+always @(posedge clk) begin
+    // 使用 i 从 1 开始，天然保护了 x0，x0 自动被综合为常数 0
+    for(i = 1; i < 64; i = i + 1) begin
+        if (alu0_wflag_i && (alu0_waddr_i == i[5:0])) // ALU0
+            regs[i] <= alu0_wdata_i;
+        else if (alu1_wflag_i && (alu1_waddr_i == i[5:0])) // ALU1
+            regs[i] <= alu1_wdata_i;
+        else if (branch_wflag_i && (branch_waddr_i == i[5:0])) // Branch
+            regs[i] <= branch_wdata_i;
+        else if (mem_wflag_i && (mem_waddr_i == i[5:0])) // Mem
+            regs[i] <= mem_wdata_i;
+        else if (csr_wflag_i && (csr_waddr_i == i[5:0])) // CSR
+            regs[i] <= csr_wdata_i;
+        `ifdef use_m_extension
+        else if (mul_wflag_i && (mul_waddr_i == i[5:0])) // Mul
+            regs[i] <= mul_wdata_i;
+        else if (div_wflag_i && (div_waddr_i == i[5:0])) // Div
+            regs[i] <= div_wdata_i;
+        `endif
     end
 end
 
